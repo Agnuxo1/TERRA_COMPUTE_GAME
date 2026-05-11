@@ -48,6 +48,28 @@ module.exports = {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        /* AGI Trajectory custom colors */
+        void: "#040405",
+        surface: {
+          DEFAULT: "#0A0B0E",
+          elevated: "#111318",
+        },
+        border: "#1E2028",
+        "border-active": "#2A2D38",
+        "text-primary": "#F0ECE4",
+        "text-secondary": "#7A7D8A",
+        "text-tertiary": "#4A4D5A",
+        "accent-cyan": "#00F0FF",
+        "accent-green": "#00E5A0",
+        "accent-amber": "#FFB84D",
+        "accent-rose": "#FF477E",
+        "accent-purple": "#7B61FF",
+        "accent-blue": "#3B82F6",
+      },
+      fontFamily: {
+        display: ["Space Grotesk", "sans-serif"],
+        ui: ["Inter", "sans-serif"],
+        mono: ["JetBrains Mono", "monospace"],
       },
       borderRadius: {
         xl: "calc(var(--radius) + 4px)",
