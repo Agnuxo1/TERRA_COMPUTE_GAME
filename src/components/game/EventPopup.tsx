@@ -5,7 +5,6 @@ import { useVideoPlayer } from '../../hooks/useVideo';
 import VideoPlayer from './VideoPlayer';
 
 const eventCardMap: Record<string, string> = {
-  // World events
   oil1973: '/assets/cards/event-oil1973.png',
   coldwar91: '/assets/cards/event-coldwar91.png',
   dotcom: '/assets/cards/event-dotcom.png',
@@ -20,7 +19,6 @@ const eventCardMap: Record<string, string> = {
   greenrev: '/assets/cards/event-greenrev.png',
   pandemic: '/assets/cards/event-swineflu.png',
   quantum: '/assets/cards/event-quantum.png',
-  // AI History milestones
   turing: '/assets/cards/event-turing.png',
   dartmouth: '/assets/cards/event-dartmouth.png',
   perceptron: '/assets/cards/event-perceptron.png',
@@ -52,23 +50,18 @@ export default function EventPopup() {
 
   const evt = events.find(e => e.id === state.showEvent);
 
-  // Play cinematic video when a new event appears (ALWAYS for events)
   useEffect(() => {
     const eventId = state.showEvent;
     if (eventId && eventId !== lastEventRef.current) {
       lastEventRef.current = eventId;
       setVideoCompleted(false);
       play('alert');
-
-      // Try to play event video (alwaysPlay = true for historical events)
       const videoId = `event-${eventId}`;
       const videoPlayed = playVideo(videoId, true);
       if (!videoPlayed) {
-        // No video file exists, skip directly to card
         setVideoCompleted(true);
       }
     }
-    // If event dismissed, reset
     if (!eventId) {
       lastEventRef.current = null;
       setVideoCompleted(false);
@@ -81,9 +74,14 @@ export default function EventPopup() {
     setVideoCompleted(true);
   };
 
+  const handleAcknowledge = () => {
+    play('click');
+    clearVideo();
+    dispatch({ type: 'DISMISS_EVENT' });
+  };
+
   if (!evt) return null;
 
-  // Show video player first (before card appears)
   if (!videoCompleted && activeVideo) {
     return (
       <VideoPlayer
@@ -112,132 +110,57 @@ export default function EventPopup() {
   if (evt.materials) effects.push(`Materials ${evt.materials > 0 ? '+' : ''}${evt.materials}`);
   if (evt.compute) effects.push(`Compute +${(evt.compute * 100).toFixed(0)}%`);
 
-  const handleAcknowledge = () => {
-    play('click');
-    clearVideo();
-    dispatch({ type: 'DISMISS_EVENT' });
-  };
-
-  // ── Card backdrop layout (events with propaganda card art) ──
   if (hasCard) {
     return (
       <div
         className="absolute inset-0 z-[60] flex items-center justify-center"
-        style={{
-          background: 'rgba(10,10,15,0.85)',
-          backdropFilter: 'blur(4px)',
-        }}
+        style={{ background: 'rgba(10,10,15,0.85)', backdropFilter: 'blur(4px)' }}
       >
-        {/* Card poster container */}
         <div
           className="animate-fade-up relative overflow-hidden"
           style={{
-            width: '85vw',
-            height: '85vh',
-            maxWidth: '680px',
-            maxHeight: '880px',
-            borderRadius: '12px',
-            boxShadow: `0 0 40px ${typeColor}33`,
+            width: '85vw', height: '85vh', maxWidth: '680px', maxHeight: '880px',
+            borderRadius: '12px', boxShadow: `0 0 40px ${typeColor}33`,
           }}
         >
-          {/* Propaganda card background */}
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `url(${cardImage})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-            }}
-          />
-
-          {/* Dark overlay for text legibility */}
-          <div
-            className="absolute inset-0"
-            style={{
-              background: 'rgba(10,10,15,0.72)',
-            }}
-          />
-
-          {/* Content */}
-          <div
-            className="relative z-10 flex flex-col gap-4"
-            style={{
-              padding: 'clamp(24px, 5vh, 48px)',
-              height: '100%',
-              justifyContent: 'flex-end',
-            }}
-          >
-            {/* Event type badge */}
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url(${cardImage})`, backgroundSize: 'cover',
+            backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
+          }} />
+          <div className="absolute inset-0" style={{ background: 'rgba(10,10,15,0.72)' }} />
+          <div className="relative z-10 flex flex-col gap-4" style={{
+            padding: 'clamp(24px, 5vh, 48px)', height: '100%', justifyContent: 'flex-end',
+          }}>
             <div className="flex items-center gap-2">
-              <div
-                className="w-2 h-2 rounded-full animate-pulse-glow"
-                style={{ background: typeColor }}
-              />
-              <span
-                className="font-orbitron text-[10px] tracking-wider"
-                style={{ color: typeColor }}
-              >
+              <div className="w-2 h-2 rounded-full animate-pulse-glow" style={{ background: typeColor }} />
+              <span className="font-orbitron text-[10px] tracking-wider" style={{ color: typeColor }}>
                 {evt.type.toUpperCase()} — {evt.year}
               </span>
             </div>
-
-            {/* Title */}
-            <h2
-              className="font-orbitron text-xl font-bold"
-              style={{ color: 'var(--text-primary)' }}
-            >
+            <h2 className="font-orbitron text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
               {evt.name}
             </h2>
-
-            {/* Description */}
-            <p
-              className="font-rajdhani text-sm leading-relaxed"
-              style={{ color: 'var(--text-secondary)' }}
-            >
+            <p className="font-rajdhani text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               {evt.description}
             </p>
-
-            {/* Effects */}
             {effects.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {effects.map((eff, i) => (
-                  <span
-                    key={i}
-                    className="font-mono-data text-[9px] px-2 py-0.5 rounded"
-                    style={{
-                      background: eff.includes('-')
-                        ? 'var(--rose-dim)'
-                        : 'var(--green-dim)',
-                      color: eff.includes('-')
-                        ? 'var(--rose)'
-                        : 'var(--green)',
-                    }}
-                  >
+                  <span key={i} className="font-mono-data text-[9px] px-2 py-0.5 rounded"
+                    style={{ background: eff.includes('-') ? 'var(--rose-dim)' : 'var(--green-dim)',
+                      color: eff.includes('-') ? 'var(--rose)' : 'var(--green)' }}>
                     {eff}
                   </span>
                 ))}
               </div>
             )}
-
-            {/* Button */}
-            <button
-              onClick={handleAcknowledge}
+            <button onClick={handleAcknowledge}
               className="w-full py-2.5 mt-1 rounded font-orbitron text-sm font-bold tracking-wider transition-all hover:brightness-120"
-              style={{
-                background: typeColor + '22',
-                color: typeColor,
-                border: `2px solid ${typeColor}`,
-              }}
-            >
+              style={{ background: typeColor + '22', color: typeColor, border: `2px solid ${typeColor}` }}>
               ACKNOWLEDGE
             </button>
-
             <div className="text-center">
-              <span
-                className="font-mono-data text-[8px]"
-                style={{ color: 'var(--text-tertiary)' }}
-              >
+              <span className="font-mono-data text-[8px]" style={{ color: 'var(--text-tertiary)' }}>
                 Press ENTER to dismiss
               </span>
             </div>
@@ -247,192 +170,46 @@ export default function EventPopup() {
     );
   }
 
-  // ── Fallback layout (events without card art — dynamic / crisis events) ──
+  // ── Fallback layout (events without card art) ──
   return (
-    <div
-      className="absolute inset-0 z-[60] flex items-center justify-center"
-      style={{
-        background: 'rgba(10,10,15,0.85)',
-        backdropFilter: 'blur(4px)',
-      }}
-    >
-      <div
-        className="panel-elevated p-5 flex flex-col gap-3 animate-fade-up"
-        style={{
-          maxWidth: '420px',
-          width: '85%',
-          border: `2px solid ${typeColor}`,
-          boxShadow: `0 0 30px ${typeColor}22`,
-        }}
-      >
-        {/* Event type badge */}
+    <div className="absolute inset-0 z-[60] flex items-center justify-center"
+      style={{ background: 'rgba(10,10,15,0.85)', backdropFilter: 'blur(4px)' }}>
+      <div className="panel-elevated p-5 flex flex-col gap-3 animate-fade-up"
+        style={{ maxWidth: '420px', width: '85%', border: `2px solid ${typeColor}`, boxShadow: `0 0 30px ${typeColor}22` }}>
         <div className="flex items-center gap-2">
-          <div
-            className="w-2 h-2 rounded-full animate-pulse-glow"
-            style={{ background: typeColor }}
-          />
-          <span
-            className="font-orbitron text-[10px] tracking-wider"
-            style={{ color: typeColor }}
-          >
+          <div className="w-2 h-2 rounded-full animate-pulse-glow" style={{ background: typeColor }} />
+          <span className="font-orbitron text-[10px] tracking-wider" style={{ color: typeColor }}>
             {evt.type.toUpperCase()} — {evt.year}
           </span>
         </div>
-
-        {/* Title */}
-        <h2
-          className="font-orbitron text-xl font-bold"
-          style={{ color: 'var(--text-primary)' }}
-        >
+        <h2 className="font-orbitron text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
           {evt.name}
         </h2>
-
-        {/* Description */}
-        <p
-          className="font-rajdhani text-sm leading-relaxed"
-          style={{ color: 'var(--text-secondary)' }}
-        >
+        <p className="font-rajdhani text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           {evt.description}
         </p>
-
-        {/* Effects */}
         {effects.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {effects.map((eff, i) => (
-              <span
-                key={i}
-                className="font-mono-data text-[9px] px-2 py-0.5 rounded"
-                style={{
-                  background: eff.includes('-')
-                    ? 'var(--rose-dim)'
-                    : 'var(--green-dim)',
-                  color: eff.includes('-')
-                    ? 'var(--rose)'
-                    : 'var(--green)',
-                }}
-              >
+              <span key={i} className="font-mono-data text-[9px] px-2 py-0.5 rounded"
+                style={{ background: eff.includes('-') ? 'var(--rose-dim)' : 'var(--green-dim)',
+                  color: eff.includes('-') ? 'var(--rose)' : 'var(--green)' }}>
                 {eff}
               </span>
             ))}
           </div>
         )}
-
-        {/* Button */}
-        <button
-          onClick={handleAcknowledge}
+        <button onClick={handleAcknowledge}
           className="w-full py-2.5 mt-1 rounded font-orbitron text-sm font-bold tracking-wider transition-all hover:brightness-120"
-          style={{
-            background: typeColor + '22',
-            color: typeColor,
-            border: `2px solid ${typeColor}`,
-          }}
-        >
+          style={{ background: typeColor + '22', color: typeColor, border: `2px solid ${typeColor}` }}>
           ACKNOWLEDGE
         </button>
-
         <div className="text-center">
-          <span
-            className="font-mono-data text-[8px]"
-            style={{ color: 'var(--text-tertiary)' }}>
-                Press ENTER to dismiss
-              </span>
-            </div>
-          </div>
-        </div>
-      );
-
-  // ── Fallback layout (events without card art — dynamic / crisis events) ──
-  return (
-      <div
-        className="absolute inset-0 z-[60] flex items-center justify-center"
-        style={{
-          background: 'rgba(10,10,15,0.85)',
-          backdropFilter: 'blur(4px)',
-        }}
-      >
-        <div
-          className="panel-elevated p-5 flex flex-col gap-3 animate-fade-up"
-          style={{
-            maxWidth: '420px',
-            width: '85%',
-            border: `2px solid ${typeColor}`,
-            boxShadow: `0 0 30px ${typeColor}22`,
-          }}
-        >
-          {/* Event type badge */}
-          <div className="flex items-center gap-2">
-            <div
-              className="w-2 h-2 rounded-full animate-pulse-glow"
-              style={{ background: typeColor }}
-            />
-            <span
-              className="font-orbitron text-[10px] tracking-wider"
-              style={{ color: typeColor }}
-            >
-              {evt.type.toUpperCase()} — {evt.year}
-            </span>
-          </div>
-
-          {/* Title */}
-          <h2
-            className="font-orbitron text-xl font-bold"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            {evt.name}
-          </h2>
-
-          {/* Description */}
-          <p
-            className="font-rajdhani text-sm leading-relaxed"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            {evt.description}
-          </p>
-
-          {/* Effects */}
-          {effects.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {effects.map((eff, i) => (
-                <span
-                  key={i}
-                  className="font-mono-data text-[9px] px-2 py-0.5 rounded"
-                  style={{
-                    background: eff.includes('-')
-                      ? 'var(--rose-dim)'
-                      : 'var(--green-dim)',
-                    color: eff.includes('-')
-                      ? 'var(--rose)'
-                      : 'var(--green)',
-                  }}
-                >
-                  {eff}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Button */}
-          <button
-            onClick={handleAcknowledge}
-            className="w-full py-2.5 mt-1 rounded font-orbitron text-sm font-bold tracking-wider transition-all hover:brightness-120"
-            style={{
-              background: typeColor + '22',
-              color: typeColor,
-              border: `2px solid ${typeColor}`,
-            }}
-          >
-            ACKNOWLEDGE
-          </button>
-
-          <div className="text-center">
-            <span
-              className="font-mono-data text-[8px]"
-              style={{ color: 'var(--text-tertiary)' }}
-            >
-              Press ENTER to dismiss
-            </span>
-          </div>
+          <span className="font-mono-data text-[8px]" style={{ color: 'var(--text-tertiary)' }}>
+            Press ENTER to dismiss
+          </span>
         </div>
       </div>
-    );
+    </div>
+  );
 }
