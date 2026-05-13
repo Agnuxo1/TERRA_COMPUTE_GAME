@@ -1,0 +1,472 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useGame } from '../App';
+import { play, enableAudio, isAudioEnabled } from '../hooks/useSound';
+
+export default function TitleScreen() {
+  const { dispatch } = useGame();
+  const [titleText, setTitleText] = useState('');
+  const [subtitleText, setSubtitleText] = useState('');
+  const [showButtons, setShowButtons] = useState(false);
+  const [audioOn, setAudioOn] = useState(false);
+  const [activePanel, setActivePanel] = useState<'howto' | 'settings' | 'credits' | null>(null);
+  const [gameSpeed, setGameSpeed] = useState(1);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const fullTitle = 'TERRA COMPUTE';
+  const fullSubtitle = 'RACE TO ASI';
+
+  // Typewriter effect
+  useEffect(() => {
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i <= fullTitle.length) {
+        setTitleText(fullTitle.slice(0, i));
+        i++;
+      } else {
+        clearInterval(interval);
+        // Start subtitle
+        let j = 0;
+        const subInterval = setInterval(() => {
+          if (j <= fullSubtitle.length) {
+            setSubtitleText(fullSubtitle.slice(0, j));
+            j++;
+          } else {
+            clearInterval(subInterval);
+            setShowButtons(true);
+          }
+        }, 60);
+      }
+    }, 80);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Particle background
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
+    interface Particle {
+      x: number; y: number; vx: number; vy: number;
+      size: number; alpha: number;
+    }
+    const particles: Particle[] = [];
+    for (let i = 0; i < 60; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        size: Math.random() * 1.5 + 0.5,
+        alpha: Math.random() * 0.5 + 0.2,
+      });
+    }
+
+    let animId: number;
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (const p of particles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, 240, 255, ${p.alpha})`;
+        ctx.fill();
+      }
+      // Draw connections
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 100) {
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.strokeStyle = `rgba(0, 240, 255, ${0.08 * (1 - dist / 100)})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+      animId = requestAnimationFrame(animate);
+    };
+    animate();
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', resize);
+    };
+  }, []);
+
+  const handleEnableAudio = useCallback(() => {
+    enableAudio();
+    setAudioOn(true);
+    play('click');
+  }, []);
+
+  const handleNewGame = () => {
+    play('click');
+    dispatch({ type: 'SET_SCREEN', screen: 'select' });
+  };
+
+  const openPanel = (panel: 'howto' | 'settings' | 'credits') => {
+    play('click');
+    setActivePanel(activePanel === panel ? null : panel);
+  };
+
+  const buttons = [
+    { label: 'NEW GAME', action: handleNewGame, color: '#00F0FF', icon: '▶' },
+    { label: 'HOW TO PLAY', action: () => openPanel('howto'), color: '#7B61FF', icon: '?' },
+    { label: 'SETTINGS', action: () => openPanel('settings'), color: '#FFB84D', icon: '⚙' },
+    { label: 'CREDITS', action: () => openPanel('credits'), color: '#8A8D9A', icon: '★' },
+  ];
+
+  // Card backgrounds for side panels
+  const panelBgMap: Record<string, string> = {
+    howto: '/assets/cards/action-tech.png',
+    settings: '/assets/cards/action-pause.png',
+    credits: '/assets/cards/event-coldwar91.png',
+  };
+
+  return (
+    <div className="relative w-full h-full flex" style={{background:'var(--void)'}}>
+      {/* Canvas background */}
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{zIndex:0}}/>
+
+      {/* Main content - title + buttons */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center gap-4" style={{ minWidth: 0 }}>
+        {/* Title */}
+        <div className="flex flex-col items-center">
+          <h1 className="font-orbitron text-5xl md:text-6xl font-black tracking-wider"
+            style={{
+              color: 'var(--cyan)',
+              textShadow: '0 0 20px rgba(0,240,255,0.3), 0 0 40px rgba(0,240,255,0.1)',
+              minHeight: '60px',
+            }}>
+            {titleText}
+            <span className="animate-flicker" style={{opacity: titleText.length < fullTitle.length ? 1 : 0}}>
+              █
+            </span>
+          </h1>
+          <p className="font-rajdhani text-lg tracking-[0.3em] mt-1" style={{
+            color: 'var(--amber)',
+            textShadow: '0 0 10px rgba(255,184,77,0.2)',
+            minHeight: '24px',
+          }}>
+            {subtitleText}
+          </p>
+        </div>
+
+        {/* Audio button */}
+        <button
+          onClick={handleEnableAudio}
+          className="px-4 py-1.5 rounded font-mono-data text-[10px] transition-all hover:brightness-130"
+          style={{
+            background: audioOn ? 'var(--green-dim)' : 'var(--surface-elevated)',
+            color: audioOn ? 'var(--green)' : 'var(--text-secondary)',
+            border: `1px solid ${audioOn ? 'var(--green)' : 'var(--border)'}`,
+          }}
+        >
+          {audioOn ? 'AUDIO ENABLED' : 'ENABLE AUDIO'}
+        </button>
+
+        {/* Buttons */}
+        {showButtons && (
+          <div className="flex flex-col gap-2 mt-4 animate-fade-up" style={{minWidth:'200px'}}>
+            {buttons.map((btn, i) => (
+              <button
+                key={btn.label}
+                onClick={btn.action}
+                className="w-full py-2.5 px-4 rounded font-orbitron text-sm font-bold tracking-wider transition-all hover:brightness-130 animate-fade-up flex items-center gap-2"
+                style={{
+                  background: activePanel && btn.label !== 'NEW GAME' ? `${btn.color}11` : 'var(--surface-elevated)',
+                  color: btn.color,
+                  border: `1.5px solid ${activePanel && btn.label !== 'NEW GAME' ? btn.color : btn.color + '88'}`,
+                  animationDelay: `${i * 0.1}s`,
+                }}
+              >
+                <span className="text-xs">{btn.icon}</span>
+                {btn.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Version */}
+        <div className="mt-8 font-mono-data text-[9px]" style={{color:'var(--text-tertiary)'}}>
+          v3.2 — Race to ASI — 1960-2035
+        </div>
+      </div>
+
+      {/* Side Panel - HOW TO PLAY / SETTINGS / CREDITS */}
+      {activePanel && (
+        <div className="relative z-10 shrink-0 flex flex-col overflow-hidden" style={{
+          width: '320px',
+          background: 'var(--surface)',
+          borderLeft: '1px solid var(--border)',
+        }}>
+          {/* Card background image */}
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url(${panelBgMap[activePanel] || ''})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: 0.35,
+            filter: 'saturate(0.7)',
+          }} />
+          {/* Dark overlay */}
+          <div className="absolute inset-0" style={{
+            background: 'linear-gradient(to bottom, rgba(10,10,15,0.92) 0%, rgba(10,10,15,0.85) 40%, rgba(10,10,15,0.90) 100%)',
+          }} />
+          {/* Panel Header */}
+          <div className="relative flex items-center justify-between p-3 shrink-0" style={{
+            borderBottom: '1px solid var(--border)',
+            background: 'rgba(22,25,36,0.7)',
+            backdropFilter: 'blur(4px)',
+          }}>
+            <h2 className="font-orbitron text-xs font-bold" style={{
+              color: activePanel === 'howto' ? '#7B61FF' : activePanel === 'settings' ? '#FFB84D' : '#8A8D9A',
+              textShadow: '0 1px 3px rgba(0,0,0,0.9)',
+            }}>
+              {activePanel === 'howto' && 'HOW TO PLAY'}
+              {activePanel === 'settings' && 'SETTINGS'}
+              {activePanel === 'credits' && 'CREDITS'}
+            </h2>
+            <button
+              onClick={() => { play('click'); setActivePanel(null); }}
+              className="px-2 py-0.5 rounded font-mono-data text-[9px]"
+              style={{ background: 'var(--rose-dim)', color: 'var(--rose)', border: '1px solid var(--rose)' }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Panel Content */}
+          <div className="relative flex-1 overflow-auto p-4" style={{ minHeight: 0 }}>
+
+            {/* HOW TO PLAY */}
+            {activePanel === 'howto' && (
+              <div className="flex flex-col gap-4">
+                <div>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{ color: 'var(--cyan)' }}>OBJECTIVE</h3>
+                  <p className="font-rajdhani text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                    Lead your continental bloc from 1960 to 2050. Build research infrastructure, manage energy, and research technologies to be the first to achieve <strong style={{ color: 'var(--green)' }}>Safe Artificial Superintelligence (ASI)</strong>.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{ color: 'var(--cyan)' }}>VICTORY CONDITIONS</h3>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-start gap-2">
+                      <div className="shrink-0 w-5 h-5 rounded flex items-center justify-center font-bold text-[10px]" style={{ background: 'var(--green-dim)', color: 'var(--green)', border: '1px solid var(--green)' }}>V</div>
+                      <div>
+                        <span className="font-rajdhani text-xs font-bold" style={{ color: 'var(--green)' }}>Safe ASI</span>
+                        <p className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>Compute ≥ 1e24 FLOPS + Safety ≥ 80% + Year ≥ 2030</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{ color: 'var(--cyan)' }}>DEFEAT CONDITIONS</h3>
+                  <div className="flex flex-col gap-1">
+                    {[
+                      { icon: 'E', text: 'Energy depleted', desc: 'Run out of power', clr: '#FFB84D' },
+                      { icon: 'B', text: 'Bankruptcy', desc: 'GDP reaches zero', clr: '#FF477E' },
+                      { icon: 'C', text: 'Political collapse', desc: 'Stability reaches zero', clr: '#FF8C42' },
+                      { icon: 'R', text: 'Rogue ASI', desc: 'Reach ASI with <50% safety', clr: '#7B61FF' },
+                    ].map(d => (
+                      <div key={d.text} className="flex items-center gap-2">
+                        <div className="shrink-0 w-5 h-5 rounded flex items-center justify-center font-bold text-[10px]" style={{ background: d.clr + '22', color: d.clr, border: `1px solid ${d.clr}44` }}>{d.icon}</div>
+                        <div>
+                          <span className="font-rajdhani text-xs font-bold" style={{ color: 'var(--rose)' }}>{d.text}</span>
+                          <span className="font-mono-data text-[8px] ml-2" style={{ color: 'var(--text-tertiary)' }}>{d.desc}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{ color: 'var(--cyan)' }}>RESOURCES</h3>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { name: 'GDP', color: '#00E5A0', desc: 'Money for buildings' },
+                      { name: 'Energy', color: '#FFB84D', desc: 'Power for infrastructure' },
+                      { name: 'Compute', color: '#00F0FF', desc: 'FLOPS — the key metric' },
+                      { name: 'Materials', color: '#8A8D9A', desc: 'For chip fabrication' },
+                      { name: 'Stability', color: '#3B82F6', desc: 'Political health' },
+                      { name: 'Safety', color: '#22C55E', desc: 'AI alignment research' },
+                    ].map(r => (
+                      <div key={r.name} className="p-1.5 rounded" style={{ background: 'var(--surface-elevated)', border: `1px solid ${r.color}33` }}>
+                        <span className="font-rajdhani text-xs font-bold" style={{ color: r.color }}>{r.name}</span>
+                        <p className="font-mono-data text-[7px]" style={{ color: 'var(--text-tertiary)' }}>{r.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{ color: 'var(--cyan)' }}>CONTROLS</h3>
+                  <div className="font-mono-data text-[10px] flex flex-col gap-1" style={{ color: 'var(--text-secondary)', lineHeight: '1.8' }}>
+                    <div className="flex justify-between"><span>[B]</span> <span style={{ color: 'var(--text-primary)' }}>Open Build Menu</span></div>
+                    <div className="flex justify-between"><span>[T]</span> <span style={{ color: 'var(--text-primary)' }}>Open Tech Tree</span></div>
+                    <div className="flex justify-between"><span>[D]</span> <span style={{ color: 'var(--text-primary)' }}>Open Diplomacy</span></div>
+                    <div className="flex justify-between"><span>[Space]</span> <span style={{ color: 'var(--text-primary)' }}>Pause / Resume</span></div>
+                    <div className="flex justify-between"><span>[1 / 2 / 3]</span> <span style={{ color: 'var(--text-primary)' }}>Game Speed</span></div>
+                    <div className="flex justify-between"><span>[Esc]</span> <span style={{ color: 'var(--text-primary)' }}>Close Panel</span></div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{ color: 'var(--cyan)' }}>TIPS</h3>
+                  <div className="flex flex-col gap-1 font-rajdhani text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    <p>• Build power plants early — energy is critical</p>
+                    <p>• Don't neglect Safety — Defense Grid prevents rogue AI</p>
+                    <p>• Balance compute buildings with energy production</p>
+                    <p>• Watch for historical events — they can help or hurt</p>
+                    <p>• AI opponents are also building — check Diplomacy tab</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SETTINGS */}
+            {activePanel === 'settings' && (
+              <div className="flex flex-col gap-5">
+                <div>
+                  <h3 className="font-orbitron text-[10px] mb-3 tracking-wider" style={{ color: 'var(--cyan)' }}>AUDIO</h3>
+                  <button
+                    onClick={() => {
+                      play('click');
+                      if (audioOn) {
+                        setAudioOn(false);
+                        play('click');
+                      } else {
+                        enableAudio();
+                        setAudioOn(true);
+                      }
+                    }}
+                    className="w-full py-2 px-3 rounded font-rajdhani text-sm font-bold transition-all"
+                    style={{
+                      background: audioOn ? 'var(--green-dim)' : 'var(--surface-elevated)',
+                      color: audioOn ? 'var(--green)' : 'var(--text-secondary)',
+                      border: `1px solid ${audioOn ? 'var(--green)' : 'var(--border)'}`,
+                    }}
+                  >
+                    {audioOn ? 'AUDIO ON' : 'AUDIO OFF'}
+                  </button>
+                  <p className="font-mono-data text-[8px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                    Sound effects generated via Web Audio API
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-orbitron text-[10px] mb-3 tracking-wider" style={{ color: 'var(--cyan)' }}>DEFAULT GAME SPEED</h3>
+                  <div className="flex gap-2">
+                    {[{ v: 1, label: '1x' }, { v: 2, label: '2x' }, { v: 3, label: '3x' }].map(s => (
+                      <button
+                        key={s.v}
+                        onClick={() => { play('click'); setGameSpeed(s.v); }}
+                        className="flex-1 py-2 rounded font-orbitron text-xs font-bold transition-all"
+                        style={{
+                          background: gameSpeed === s.v ? 'var(--cyan)' : 'var(--surface-elevated)',
+                          color: gameSpeed === s.v ? '#000' : 'var(--text-secondary)',
+                          border: `1px solid ${gameSpeed === s.v ? 'var(--cyan)' : 'var(--border)'}`,
+                        }}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="font-mono-data text-[8px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                    Default speed when starting a new game
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-orbitron text-[10px] mb-3 tracking-wider" style={{ color: 'var(--cyan)' }}>CRT EFFECT</h3>
+                  <div className="p-2.5 rounded font-rajdhani text-xs" style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+                    The CRT scanline effect is always active for authentic retro feel.
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-orbitron text-[10px] mb-3 tracking-wider" style={{ color: 'var(--cyan)' }}>GAME INFO</h3>
+                  <div className="font-mono-data text-[9px] flex flex-col gap-1" style={{ color: 'var(--text-tertiary)', lineHeight: '1.8' }}>
+                    <div className="flex justify-between"><span>Version</span> <span style={{ color: 'var(--text-primary)' }}>v3.1</span></div>
+                    <div className="flex justify-between"><span>Time Range</span> <span style={{ color: 'var(--text-primary)' }}>1960 — 2050</span></div>
+                    <div className="flex justify-between"><span>Continents</span> <span style={{ color: 'var(--text-primary)' }}>8 playable</span></div>
+                    <div className="flex justify-between"><span>Buildings</span> <span style={{ color: 'var(--text-primary)' }}>12 types</span></div>
+                    <div className="flex justify-between"><span>Technologies</span> <span style={{ color: 'var(--text-primary)' }}>14 milestones</span></div>
+                    <div className="flex justify-between"><span>Historical Events</span> <span style={{ color: 'var(--text-primary)' }}>10 events</span></div>
+                    <div className="flex justify-between"><span>AI Opponents</span> <span style={{ color: 'var(--text-primary)' }}>7 rivals</span></div>
+                    <div className="flex justify-between"><span>Territories</span> <span style={{ color: 'var(--text-primary)' }}>42 (Risk-style)</span></div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* CREDITS */}
+            {activePanel === 'credits' && (
+              <div className="flex flex-col gap-4">
+                <div>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{ color: 'var(--cyan)' }}>TERRA COMPUTE</h3>
+                  <p className="font-rajdhani text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                    A data-driven grand strategy game about the race to Artificial Superintelligence. Built with real historical data from Epoch AI, Stanford HAI, and academic research.
+                  </p>
+                </div>
+
+                <div>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{ color: 'var(--cyan)' }}>DATA SOURCES</h3>
+                  <div className="flex flex-col gap-1 font-mono-data text-[9px]" style={{ color: 'var(--text-secondary)', lineHeight: '1.8' }}>
+                    <div className="flex items-center gap-2"><span style={{ color: 'var(--cyan)' }}>◆</span> Epoch AI — Training compute trends</div>
+                    <div className="flex items-center gap-2"><span style={{ color: 'var(--cyan)' }}>◆</span> Stanford HAI — AI Index reports</div>
+                    <div className="flex items-center gap-2"><span style={{ color: 'var(--cyan)' }}>◆</span> Kaplan et al. 2020 — Scaling laws</div>
+                    <div className="flex items-center gap-2"><span style={{ color: 'var(--cyan)' }}>◆</span> Hoffmann et al. 2022 — Chinchilla</div>
+                    <div className="flex items-center gap-2"><span style={{ color: 'var(--cyan)' }}>◆</span> Ho et al. 2024 — Algorithmic progress</div>
+                    <div className="flex items-center gap-2"><span style={{ color: 'var(--cyan)' }}>◆</span> IEA — Energy & AI Report</div>
+                    <div className="flex items-center gap-2"><span style={{ color: 'var(--cyan)' }}>◆</span> WSTS — Semiconductor market</div>
+                    <div className="flex items-center gap-2"><span style={{ color: 'var(--cyan)' }}>◆</span> Grace et al. 2024 — Expert surveys</div>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{ color: 'var(--cyan)' }}>TECHNOLOGY</h3>
+                  <div className="font-mono-data text-[9px] flex flex-col gap-1" style={{ color: 'var(--text-secondary)', lineHeight: '1.8' }}>
+                    <div className="flex justify-between"><span>Engine</span> <span style={{ color: 'var(--text-primary)' }}>React 19 + TypeScript</span></div>
+                    <div className="flex justify-between"><span>Styling</span> <span style={{ color: 'var(--text-primary)' }}>Tailwind CSS v3</span></div>
+                    <div className="flex justify-between"><span>Build Tool</span> <span style={{ color: 'var(--text-primary)' }}>Vite v7</span></div>
+                    <div className="flex justify-between"><span>Audio</span> <span style={{ color: 'var(--text-primary)' }}>Web Audio API</span></div>
+                    <div className="flex justify-between"><span>Map</span> <span style={{ color: 'var(--text-primary)' }}>SVG Paths</span></div>
+                    <div className="flex justify-between"><span>UI</span> <span style={{ color: 'var(--text-primary)' }}>shadcn/ui</span></div>
+                  </div>
+                </div>
+
+                <div className="mt-2 p-2.5 rounded text-center" style={{ background: 'var(--surface-elevated)', border: '1px solid var(--border)' }}>
+                  <p className="font-rajdhani text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                    Inspired by <strong style={{ color: 'var(--amber)' }}>Risk</strong>, <strong style={{ color: 'var(--cyan)' }}>StarCraft</strong>, and <strong style={{ color: 'var(--green)' }}>Civilization</strong>
+                  </p>
+                  <p className="font-mono-data text-[8px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
+                    Built with real data. All projections are estimates.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
