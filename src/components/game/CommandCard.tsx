@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGame } from '../../App';
 import { play } from '../../hooks/useSound';
-import { useVideoPlayer } from '../../hooks/useVideo';
+import { isVideoPlayed, markVideoPlayed, getVideoUrl } from '../../hooks/useVideo';
 import VideoPlayer from './VideoPlayer';
 
 interface CommandAction {
@@ -22,9 +22,18 @@ const actions: CommandAction[] = [
   { key: 'SPACE', label: 'PAUSE', iconImg: '/assets/cards/action-pause.png', overlay: null, color: '#FFB84D', action: 'pause' },
 ];
 
+const actionVideoMap: Record<string, string> = {
+  B: 'action-build',
+  T: 'action-tech',
+  D: 'action-diplo',
+  A: 'action-attack',
+  S: 'action-spy',
+  SPACE: 'action-pause',
+};
+
 export default function CommandCard() {
   const { state, dispatch } = useGame();
-  const { activeVideo, playVideo, clearVideo } = useVideoPlayer();
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<CommandAction | null>(null);
 
   const executeAction = (action: CommandAction) => {
@@ -43,20 +52,18 @@ export default function CommandCard() {
 
   const handleAction = (action: CommandAction) => {
     play('click');
-
-    // Try to play action cinematic video first
-    const videoId = `action-${action.key.toLowerCase()}`;
-    const videoPlayed = playVideo(videoId, false);
-    if (videoPlayed) {
-      setPendingAction(action); // Video will complete then execute
+    const videoId = actionVideoMap[action.key];
+    if (videoId && !isVideoPlayed(videoId)) {
+      markVideoPlayed(videoId);
+      setVideoSrc(getVideoUrl(videoId));
+      setPendingAction(action);
     } else {
-      // Video already played or doesn't exist, execute directly
       executeAction(action);
     }
   };
 
   const handleVideoComplete = () => {
-    clearVideo();
+    setVideoSrc(null);
     if (pendingAction) {
       executeAction(pendingAction);
       setPendingAction(null);
@@ -83,7 +90,6 @@ export default function CommandCard() {
               boxShadow: isActive ? `0 0 12px ${action.color}55` : '0 2px 4px rgba(0,0,0,0.3)',
             }}
           >
-            {/* Card background */}
             <div className="absolute inset-0" style={{
               backgroundImage: `url(${action.iconImg})`,
               backgroundSize: 'cover',
@@ -91,13 +97,11 @@ export default function CommandCard() {
               filter: isActive ? 'brightness(0.9) saturate(1.2)' : 'brightness(0.6) saturate(0.8)',
               transition: 'filter 0.2s ease',
             }} />
-            {/* Dark overlay */}
             <div className="absolute inset-0" style={{
               background: isActive
                 ? `linear-gradient(to top, ${action.color}44, rgba(0,0,0,0.3))`
                 : 'linear-gradient(to top, rgba(0,0,0,0.7), rgba(0,0,0,0.2))',
             }} />
-            {/* Text */}
             <div className="relative z-10 flex flex-col items-center justify-center gap-0.5">
               <span className="font-orbitron text-[8px] font-bold tracking-wider" style={{
                 color: isActive ? action.color : '#FFFFFF',
@@ -116,13 +120,8 @@ export default function CommandCard() {
         );
       })}
 
-      {/* Cinematic Video Player */}
-      {activeVideo && (
-        <VideoPlayer
-          src={activeVideo}
-          onComplete={handleVideoComplete}
-          onSkip={handleVideoComplete}
-        />
+      {videoSrc && (
+        <VideoPlayer src={videoSrc} onComplete={handleVideoComplete} />
       )}
     </div>
   );

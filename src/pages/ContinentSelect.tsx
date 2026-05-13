@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useGame, continents } from '../App';
 import { play } from '../hooks/useSound';
-import { useVideoPlayer } from '../hooks/useVideo';
+import { isVideoPlayed, markVideoPlayed, getVideoUrl } from '../hooks/useVideo';
 import VideoPlayer from '../components/game/VideoPlayer';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -60,12 +60,23 @@ const staggerKeyframes = `
 //  COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
+const continentVideoMap: Record<string, string> = {
+  na: 'continent-usa',
+  eu: 'continent-europe',
+  su: 'continent-ussr',
+  cn: 'continent-china',
+  af: 'continent-africa',
+  sa: 'continent-southamerica',
+  in: 'continent-india',
+  oc: 'continent-oceania',
+};
+
 export default function ContinentSelect() {
   const { dispatch } = useGame();
   const [selected, setSelected] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const { activeVideo, playVideo, clearVideo } = useVideoPlayer();
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [pendingContinent, setPendingContinent] = useState<string | null>(null);
 
   useEffect(() => {
@@ -82,18 +93,18 @@ export default function ContinentSelect() {
     if (!selected) return;
     play('coin');
 
-    // Try to play faction cinematic video first
-    const videoPlayed = playVideo(`faction-${selected}`, false);
-    if (videoPlayed) {
-      setPendingContinent(selected); // Video will complete then start game
+    const videoId = continentVideoMap[selected];
+    if (videoId && !isVideoPlayed(videoId)) {
+      markVideoPlayed(videoId);
+      setVideoSrc(getVideoUrl(videoId));
+      setPendingContinent(selected);
     } else {
-      // Video already played or doesn't exist, start game directly
       dispatch({ type: 'START_GAME', continentId: selected });
     }
   };
 
   const handleVideoComplete = () => {
-    clearVideo();
+    setVideoSrc(null);
     if (pendingContinent) {
       dispatch({ type: 'START_GAME', continentId: pendingContinent });
       setPendingContinent(null);
@@ -471,13 +482,8 @@ export default function ContinentSelect() {
         }
       `}</style>
 
-      {/* Cinematic Video Player */}
-      {activeVideo && (
-        <VideoPlayer
-          src={activeVideo}
-          onComplete={handleVideoComplete}
-          onSkip={handleVideoComplete}
-        />
+      {videoSrc && (
+        <VideoPlayer src={videoSrc} onComplete={handleVideoComplete} />
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGame, buildings } from '../../App';
 import { play } from '../../hooks/useSound';
-import { useVideoPlayer } from '../../hooks/useVideo';
+import { isVideoPlayed, markVideoPlayed, getVideoUrl } from '../../hooks/useVideo';
 import VideoPlayer from './VideoPlayer';
 
 interface BuildingCategory {
@@ -126,7 +126,7 @@ function calculateROI(b: typeof buildings[0], state: { compute: number; algorith
 export default function BuildingMenu() {
   const { state, dispatch } = useGame();
   const [energyWarning, setEnergyWarning] = useState<string | null>(null);
-  const { activeVideo, playVideo, clearVideo } = useVideoPlayer();
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [pendingBuild, setPendingBuild] = useState<string | null>(null);
 
   const currentPhase = getCurrentPhase(state);
@@ -145,18 +145,18 @@ export default function BuildingMenu() {
     setEnergyWarning(null);
     play('build');
 
-    // Try to play building cinematic video first
-    const videoPlayed = playVideo(`build-${bId}`, false);
-    if (videoPlayed) {
-      setPendingBuild(bId); // Video will complete then build
+    const videoId = `build-${bId}`;
+    if (!isVideoPlayed(videoId)) {
+      markVideoPlayed(videoId);
+      setVideoSrc(getVideoUrl(videoId));
+      setPendingBuild(bId);
     } else {
-      // Video already played or doesn't exist, build directly
       dispatch({ type: 'BUILD', buildingId: bId });
     }
   };
 
   const handleVideoComplete = () => {
-    clearVideo();
+    setVideoSrc(null);
     if (pendingBuild) {
       dispatch({ type: 'BUILD', buildingId: pendingBuild });
       setPendingBuild(null);
@@ -364,13 +364,8 @@ export default function BuildingMenu() {
         </div>
       </div>
 
-      {/* Cinematic Video Player */}
-      {activeVideo && (
-        <VideoPlayer
-          src={activeVideo}
-          onComplete={handleVideoComplete}
-          onSkip={handleVideoComplete}
-        />
+      {videoSrc && (
+        <VideoPlayer src={videoSrc} onComplete={handleVideoComplete} />
       )}
     </div>
   );

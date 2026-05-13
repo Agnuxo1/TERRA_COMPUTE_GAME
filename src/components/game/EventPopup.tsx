@@ -1,7 +1,7 @@
 import { useGame, events } from '../../App';
 import { play } from '../../hooks/useSound';
 import { useEffect, useState, useRef } from 'react';
-import { useVideoPlayer } from '../../hooks/useVideo';
+import { getVideoUrl } from '../../hooks/useVideo';
 import VideoPlayer from './VideoPlayer';
 
 const eventCardMap: Record<string, string> = {
@@ -44,7 +44,7 @@ const eventCardMap: Record<string, string> = {
 
 export default function EventPopup() {
   const { state, dispatch } = useGame();
-  const { activeVideo, playVideo, clearVideo } = useVideoPlayer();
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [videoCompleted, setVideoCompleted] = useState(false);
   const lastEventRef = useRef<string | null>(null);
 
@@ -56,39 +56,35 @@ export default function EventPopup() {
       lastEventRef.current = eventId;
       setVideoCompleted(false);
       play('alert');
-      const videoId = `event-${eventId}`;
-      const videoPlayed = playVideo(videoId, true);
-      if (!videoPlayed) {
-        setVideoCompleted(true);
-      }
+      // For events: always try to play video (no localStorage check)
+      const videoUrl = getVideoUrl(`event-${eventId}`);
+      // Check if video file exists by setting src; VideoPlayer handles errors
+      setVideoSrc(videoUrl);
     }
     if (!eventId) {
       lastEventRef.current = null;
       setVideoCompleted(false);
+      setVideoSrc(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.showEvent]);
 
   const handleVideoComplete = () => {
-    clearVideo();
+    setVideoSrc(null);
     setVideoCompleted(true);
   };
 
   const handleAcknowledge = () => {
     play('click');
-    clearVideo();
+    setVideoSrc(null);
     dispatch({ type: 'DISMISS_EVENT' });
   };
 
   if (!evt) return null;
 
-  if (!videoCompleted && activeVideo) {
+  if (!videoCompleted && videoSrc) {
     return (
-      <VideoPlayer
-        src={activeVideo}
-        onComplete={handleVideoComplete}
-        onSkip={handleVideoComplete}
-      />
+      <VideoPlayer src={videoSrc} onComplete={handleVideoComplete} />
     );
   }
 
