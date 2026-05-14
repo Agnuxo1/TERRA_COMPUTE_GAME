@@ -1,8 +1,5 @@
 
-<img width="784" height="1168" alt="COMPLETE" src="https://github.com/user-attachments/assets/04bda93e-181f-405c-b67d-40a0b0370154" /><img width="784" height="1168" alt="ESTRATEGA" src="https://github.com/user-attachments/assets/b95ffd8e-8980-41ba-abb3-2ac102cfbf73" />
- 
-https://github.com/user-attachments/assets/20fb3e6d-87ff-4203-ae03-edb33b2e4ab7
-
+<img width="1442" height="812" alt="Terra-Compute" src="https://github.com/user-attachments/assets/7d6c47ed-39e3-4bcf-9489-6b36874889fd" />
 
 
 <p align="center">
