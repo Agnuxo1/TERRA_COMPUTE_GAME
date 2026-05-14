@@ -1,4 +1,8 @@
-![TERRA COMPUTE Banner](public/assets/github-banner.png)
+
+
+https://github.com/user-attachments/assets/20fb3e6d-87ff-4203-ae03-edb33b2e4ab7
+
+
 
 <p align="center">
   <a href="https://k6ct2riiidgqu.kimi.page"><img src="https://img.shields.io/badge/PLAY%20NOW-Online-33FF33?style=for-the-badge&logo=rocket&logoColor=white" alt="Play Now"></a>
