@@ -57,6 +57,7 @@ export interface AIOpponent {
   population: number;
   workers: number;
   employed: number;
+  unemployed: number;
   housing: number;
   food: number;
   foodProduction: number;
@@ -230,44 +231,44 @@ export const continents: ContinentData[] = [
 ];
 
 export const buildings: BuildingData[] = [
-  // ─── Population ───
-  {id:'housing', name:'Housing District', cost:30, energyUse:2, energyProduce:0, compute:0, yearRequired:1960, description:'Houses 5,000 workers. Workers pay taxes (GDP).', icon:'🏘️', category:'population', workersNeeded:0, workersProvided:5000, output:'housing', outputAmount:5000},
-  {id:'farm', name:'Farm', cost:20, energyUse:1, energyProduce:0, compute:0, yearRequired:1960, description:'Feeds 1,000 workers. Without food, population declines.', icon:'🌾', category:'population', workersNeeded:100, workersProvided:0, output:'food', outputAmount:1000},
-  {id:'hospital', name:'Hospital', cost:80, energyUse:10, energyProduce:0, compute:0, yearRequired:1965, description:'Improves population growth and stability.', icon:'🏥', category:'population', workersNeeded:100, workersProvided:0, output:'health', outputAmount:5},
+  // Population and worker values are in millions of people. Money is available public budget in $B.
+  {id:'housing', name:'Housing District', cost:90, energyUse:4, energyProduce:0, compute:0, yearRequired:1960, description:'Regional housing program. Adds capacity for 25M people.', icon:'🏘️', category:'population', workersNeeded:0, workersProvided:25, output:'housing', outputAmount:25},
+  {id:'farm', name:'Farm Belt', cost:75, energyUse:3, energyProduce:0, compute:0, yearRequired:1960, description:'Large agricultural zone. Feeds roughly 35M people.', icon:'🌾', category:'population', workersNeeded:2, workersProvided:0, output:'food', outputAmount:35},
+  {id:'hospital', name:'Hospital Network', cost:120, energyUse:12, energyProduce:0, compute:0, yearRequired:1965, description:'Regional healthcare system. Improves growth and stability.', icon:'🏥', category:'population', workersNeeded:1.2, workersProvided:0, output:'health', outputAmount:5},
 
   // ─── Economy ───
-  {id:'factory', name:'Factory', cost:60, energyUse:15, energyProduce:0, compute:0, yearRequired:1960, description:'Industrial production. Goods sold = GDP revenue.', icon:'🏭', category:'economy', workersNeeded:500, workersProvided:0, output:'goods', outputAmount:50},
-  {id:'market', name:'Market', cost:50, energyUse:3, energyProduce:0, compute:0, yearRequired:1960, description:'Trade hub. Boosts GDP from goods production.', icon:'🛒', category:'economy', workersNeeded:50, workersProvided:0, output:'trade', outputAmount:20},
-  {id:'seaport', name:'Seaport', cost:120, energyUse:20, energyProduce:0, compute:0, yearRequired:1970, description:'International trade. Major GDP boost.', icon:'⚓', category:'economy', workersNeeded:200, workersProvided:0, output:'trade', outputAmount:40},
+  {id:'factory', name:'Industrial Zone', cost:140, energyUse:18, energyProduce:0, compute:0, yearRequired:1960, description:'Creates millions of industrial jobs and budget income.', icon:'🏭', category:'economy', workersNeeded:6, workersProvided:0, output:'goods', outputAmount:70},
+  {id:'market', name:'Market Network', cost:85, energyUse:5, energyProduce:0, compute:0, yearRequired:1960, description:'Domestic trade and services. Broadens the tax base.', icon:'🛒', category:'economy', workersNeeded:3, workersProvided:0, output:'trade', outputAmount:35},
+  {id:'seaport', name:'Seaport Complex', cost:240, energyUse:25, energyProduce:0, compute:0, yearRequired:1970, description:'International trade corridor. Major budget boost.', icon:'⚓', category:'economy', workersNeeded:4, workersProvided:0, output:'trade', outputAmount:90},
 
   // ─── Education ───
-  {id:'school', name:'School', cost:40, energyUse:5, energyProduce:0, compute:0, yearRequired:1960, description:'Educates workers. Educated workers produce 2x GDP.', icon:'📚', category:'education', workersNeeded:50, workersProvided:0, output:'education', outputAmount:10},
-  {id:'uni', name:'University', cost:100, energyUse:10, energyProduce:0, compute:1e7, yearRequired:1960, description:'Educational institution. +10M FLOPS, produces researchers.', icon:'🎓', category:'education', workersNeeded:100, workersProvided:0, output:'researchers', outputAmount:5},
+  {id:'school', name:'School System', cost:70, energyUse:6, energyProduce:0, compute:0, yearRequired:1960, description:'National school expansion. Raises education over time.', icon:'📚', category:'education', workersNeeded:0.8, workersProvided:0, output:'education', outputAmount:10},
+  {id:'uni', name:'University System', cost:180, energyUse:12, energyProduce:0, compute:1e7, yearRequired:1960, description:'Higher education and research pipeline. +10M FLOPS.', icon:'🎓', category:'education', workersNeeded:1.2, workersProvided:0, output:'researchers', outputAmount:5},
 
   // ─── Compute ───
-  {id:'lab', name:'Research Lab', cost:50, energyUse:5, energyProduce:0, compute:1e6, yearRequired:1960, description:'Basic research facility. +1M FLOPS', icon:'🔬', category:'compute', workersNeeded:20, workersProvided:0, output:'compute', outputAmount:1e6},
-  {id:'mainframe', name:'Mainframe', cost:200, energyUse:20, energyProduce:0, compute:1e9, yearRequired:1965, description:'Early computing center. +1B FLOPS', icon:'💻', category:'compute', workersNeeded:50, workersProvided:0, output:'compute', outputAmount:1e9},
-  {id:'super', name:'Supercomputer', cost:500, energyUse:100, energyProduce:0, compute:1e12, yearRequired:1975, description:'High-performance computing. +1T FLOPS', icon:'🖥️', category:'compute', workersNeeded:100, workersProvided:0, output:'compute', outputAmount:1e12},
-  {id:'datacenter', name:'Data Center', cost:1000, energyUse:500, energyProduce:0, compute:1e15, yearRequired:1995, description:'Cloud computing facility. +1P FLOPS', icon:'🗄️', category:'compute', workersNeeded:200, workersProvided:0, output:'compute', outputAmount:1e15},
-  {id:'gpucluster', name:'GPU Cluster', cost:5000, energyUse:2000, energyProduce:0, compute:1e18, yearRequired:2010, description:'AI training cluster. +1E FLOPS', icon:'⚡', category:'compute', workersNeeded:300, workersProvided:0, output:'compute', outputAmount:1e18},
-  {id:'aifactory', name:'AI Factory', cost:20000, energyUse:10000, energyProduce:0, compute:1e21, yearRequired:2020, description:'Massive AI training facility. +1Z FLOPS', icon:'🤖', category:'compute', workersNeeded:500, workersProvided:0, output:'compute', outputAmount:1e21},
+  {id:'lab', name:'Research Lab Network', cost:95, energyUse:6, energyProduce:0, compute:1e6, yearRequired:1960, description:'Basic research infrastructure. +1M FLOPS.', icon:'🔬', category:'compute', workersNeeded:0.6, workersProvided:0, output:'compute', outputAmount:1e6},
+  {id:'mainframe', name:'Mainframe Center', cost:260, energyUse:25, energyProduce:0, compute:1e9, yearRequired:1965, description:'Early computing center. +1B FLOPS.', icon:'💻', category:'compute', workersNeeded:0.8, workersProvided:0, output:'compute', outputAmount:1e9},
+  {id:'super', name:'Supercomputer Program', cost:750, energyUse:120, energyProduce:0, compute:1e12, yearRequired:1975, description:'High-performance computing. +1T FLOPS.', icon:'🖥️', category:'compute', workersNeeded:1, workersProvided:0, output:'compute', outputAmount:1e12},
+  {id:'datacenter', name:'Data Center Region', cost:2200, energyUse:650, energyProduce:0, compute:1e15, yearRequired:1995, description:'Cloud computing region. +1P FLOPS.', icon:'🗄️', category:'compute', workersNeeded:1.8, workersProvided:0, output:'compute', outputAmount:1e15},
+  {id:'gpucluster', name:'GPU Cluster', cost:9500, energyUse:2600, energyProduce:0, compute:1e18, yearRequired:2010, description:'AI training cluster. +1E FLOPS.', icon:'⚡', category:'compute', workersNeeded:2.2, workersProvided:0, output:'compute', outputAmount:1e18},
+  {id:'aifactory', name:'AI Factory', cost:42000, energyUse:12000, energyProduce:0, compute:1e21, yearRequired:2020, description:'Frontier AI training megaproject. +1Z FLOPS.', icon:'🤖', category:'compute', workersNeeded:3, workersProvided:0, output:'compute', outputAmount:1e21},
 
   // ─── Energy ───
-  {id:'coal', name:'Coal Plant', cost:80, energyUse:0, energyProduce:500, compute:0, yearRequired:1960, description:'Cheap but dirty energy. +500 TWh', icon:'🏭', category:'energy', workersNeeded:50, workersProvided:0, output:'energy', outputAmount:500},
-  {id:'nuclear', name:'Nuclear Plant', cost:400, energyUse:0, energyProduce:800, compute:0, yearRequired:1965, description:'Clean baseload energy. +800 TWh', icon:'⚛️', category:'energy', workersNeeded:80, workersProvided:0, output:'energy', outputAmount:800},
-  {id:'solar', name:'Solar Farm', cost:200, energyUse:0, energyProduce:300, compute:0, yearRequired:1975, description:'Renewable energy. +300 TWh', icon:'☀️', category:'energy', workersNeeded:20, workersProvided:0, output:'energy', outputAmount:300},
+  {id:'coal', name:'Coal Plant Fleet', cost:110, energyUse:0, energyProduce:500, compute:0, yearRequired:1960, description:'Cheap but dirty energy. +500 TWh.', icon:'🏭', category:'energy', workersNeeded:0.7, workersProvided:0, output:'energy', outputAmount:500},
+  {id:'nuclear', name:'Nuclear Plant Fleet', cost:650, energyUse:0, energyProduce:1200, compute:0, yearRequired:1965, description:'Clean baseload energy. +1,200 TWh.', icon:'⚛️', category:'energy', workersNeeded:0.9, workersProvided:0, output:'energy', outputAmount:1200},
+  {id:'solar', name:'Solar Farm Grid', cost:380, energyUse:0, energyProduce:650, compute:0, yearRequired:1975, description:'Renewable power grid. +650 TWh.', icon:'☀️', category:'energy', workersNeeded:0.4, workersProvided:0, output:'energy', outputAmount:650},
 
   // ─── Production ───
-  {id:'chipfab', name:'Chip Fab', cost:2000, energyUse:200, energyProduce:0, compute:0, yearRequired:1975, description:'Semiconductor manufacturing. +materials', icon:'🔧', category:'production', workersNeeded:300, workersProvided:0, output:'materials', outputAmount:10},
+  {id:'chipfab', name:'Chip Fab Cluster', cost:3500, energyUse:300, energyProduce:0, compute:0, yearRequired:1975, description:'Semiconductor manufacturing cluster. +materials.', icon:'🔧', category:'production', workersNeeded:2.5, workersProvided:0, output:'materials', outputAmount:10},
 
   // ─── Defense ───
-  {id:'defense', name:'Defense Grid', cost:800, energyUse:50, energyProduce:0, compute:0, yearRequired:1970, description:'Cyber defense + stability. +safety', icon:'🛡️', category:'defense', workersNeeded:100, workersProvided:0, output:'defense', outputAmount:10},
+  {id:'defense', name:'Defense Grid', cost:900, energyUse:60, energyProduce:0, compute:0, yearRequired:1970, description:'Cyber defense, resilience and stability.', icon:'🛡️', category:'defense', workersNeeded:1.5, workersProvided:0, output:'defense', outputAmount:10},
 
   // ─── Telecommunications ───
-  {id:'satellite', name:'Communications Satellite', cost:1500, energyUse:80, energyProduce:0, compute:1e12, yearRequired:1965, description:'Launch a satellite into orbit. +5% data generation, visible on map.', icon:'🛰️', category:'telecom', workersNeeded:200, workersProvided:0, output:'data', outputAmount:50},
+  {id:'satellite', name:'Communications Satellite', cost:1800, energyUse:90, energyProduce:0, compute:1e12, yearRequired:1965, description:'Launch communications infrastructure. +5% data generation.', icon:'🛰️', category:'telecom', workersNeeded:0.5, workersProvided:0, output:'data', outputAmount:50},
 
   // ─── Automation (Phase 5) ───
-  {id:'robot', name:'Humanoid Robot', cost:3000, energyUse:100, energyProduce:0, compute:1e15, yearRequired:2010, description:'Autonomous worker. Replaces 500 human workers in factories.', icon:'🤖', category:'automation', workersNeeded:50, workersProvided:-500, output:'automation', outputAmount:500},
+  {id:'robot', name:'Humanoid Robot Program', cost:4500, energyUse:150, energyProduce:0, compute:1e15, yearRequired:2010, description:'Autonomous labor program. Replaces factory labor at scale.', icon:'🤖', category:'automation', workersNeeded:0.3, workersProvided:-2, output:'automation', outputAmount:2},
 ];
 
 export const techs: TechData[] = [
@@ -361,14 +362,15 @@ function createOpponents(playerContinentId: string): AIOpponent[] {
     .filter(c => c.id !== playerContinentId)
     .map(c => ({
       continentId: c.id,
-      gdp: c.gdp1960,
+      gdp: c.gdp1960 * 0.30 + 120,
       compute: 1e6,
-      population: c.basePopulation * 1e6,
-      workers: c.basePopulation * 1e6 * 0.4,
-      employed: c.basePopulation * 1e6 * 0.35,
-      housing: c.basePopulation * 1e6,
-      food: c.basePopulation * 1e6 * 0.5,
-      foodProduction: c.basePopulation * 1e6 * 0.1,
+      population: c.basePopulation,
+      workers: c.basePopulation * 0.45,
+      employed: c.basePopulation * 0.32,
+      unemployed: c.basePopulation * 0.13,
+      housing: c.basePopulation * 0.85,
+      food: c.basePopulation * 1.5,
+      foodProduction: c.basePopulation * 0.75,
       energy: c.energy1960,
       energyCapacity: c.energy1960,
       education: 20,
@@ -391,6 +393,16 @@ function createOpponents(playerContinentId: string): AIOpponent[] {
 
 function getBuildingDef(id: string): BuildingData | undefined {
   return buildings.find(b => b.id === id);
+}
+
+export function getScaledBuildingCost(buildingId: string, ownedCount: number = 0): number {
+  const b = getBuildingDef(buildingId);
+  if (!b) return Infinity;
+  const rate =
+    b.category === 'compute' ? 0.16 :
+    b.category === 'population' || b.category === 'energy' ? 0.055 :
+    0.09;
+  return Math.ceil(b.cost * Math.pow(1 + rate, ownedCount));
 }
 
 function countBuildings(buildings: Array<{type: string; count: number}>, type: string): number {
@@ -619,12 +631,12 @@ function aiChooseBuildings(opp: AIOpponent, year: number): string[] {
   }
 
   // Need more workers/housing?
-  if (opp.workers > opp.housing * 0.9) {
+  if (opp.population > opp.housing * 0.95) {
     bw.housing += 2;
   }
 
   // Need more food?
-  if (opp.food < opp.population * 0.1) {
+  if (opp.foodProduction < opp.population * 0.95 || opp.food < opp.population * 0.8) {
     bw.farm += 3;
   }
 
@@ -640,7 +652,10 @@ function aiChooseBuildings(opp: AIOpponent, year: number): string[] {
   else if (year >= 1995) bw.datacenter += 1;
 
   // Filter to affordable, available buildings
-  const available = buildings.filter(b => year >= b.yearRequired && opp.gdp >= b.cost * 1.5);
+  const available = buildings.filter(b => {
+    const owned = countBuildings(opp.buildings, b.id);
+    return year >= b.yearRequired && opp.gdp >= getScaledBuildingCost(b.id, owned) * 1.25;
+  });
   if (available.length === 0) return [];
 
   // Pick weighted random
@@ -680,9 +695,10 @@ function aiTick(opp: AIOpponent, year: number, algorithmicEff: number): AIOppone
 
     for (const bId of toBuild) {
       const b = getBuildingDef(bId);
-      if (!b || o.gdp < b.cost) continue;
-      o.gdp -= b.cost;
       const existing = o.buildings.find(x => x.type === bId);
+      const scaledCost = getScaledBuildingCost(bId, existing?.count || 0);
+      if (!b || o.gdp < scaledCost) continue;
+      o.gdp -= scaledCost;
       if (existing) {
         o.buildings = o.buildings.map(x => x.type === bId ? { ...x, count: x.count + 1 } : x);
       } else {
@@ -696,19 +712,24 @@ function aiTick(opp: AIOpponent, year: number, algorithmicEff: number): AIOppone
 
     // AI economy update
     const aiWorkers = o.workers;
-    const aiEmployed = Math.min(aiWorkers, calcBuildingWorkersNeeded(o.buildings));
+    const aiFormalJobs = calcBuildingWorkersNeeded(o.buildings);
+    const aiInformalJobs = Math.min(aiWorkers * 0.65, o.population * 0.28);
+    const aiEmployed = Math.min(aiWorkers, aiFormalJobs + aiInformalJobs);
+    o.employed = aiEmployed;
+    o.unemployed = Math.max(0, aiWorkers - aiEmployed);
     const aiEduMult = 1 + (o.education / 100);
-    const aiGdpGrowth = (aiEmployed * 0.001 * aiEduMult) + (countBuildings(o.buildings, 'factory') * 0.02) + (countBuildings(o.buildings, 'market') * 0.01);
+    const aiBudgetIncome = aiEmployed * 0.7 * aiEduMult + countBuildings(o.buildings, 'factory') * 18 + countBuildings(o.buildings, 'market') * 9;
+    const aiGdpGrowth = 0.004 + (aiBudgetIncome / Math.max(o.gdp, 1)) * 0.02;
     o.gdp *= (1 + aiGdpGrowth * dt);
     o.stability = Math.max(0, Math.min(100, o.stability + (countBuildings(o.buildings, 'defense') * 0.05 * dt)));
     o.safety = Math.min(100, o.safety + countBuildings(o.buildings, 'defense') * 0.1 * dt);
 
     // Population growth
-    const foodProd = countBuildings(o.buildings, 'farm') * 1000;
-    const foodCons = o.population * 0.1;
+    const foodProd = countBuildings(o.buildings, 'farm') * 35;
+    const foodCons = o.population;
     o.food = Math.max(0, o.food + (foodProd - foodCons) * dt);
     o.foodProduction = foodProd;
-    const housingCap = calcBuildingWorkersProvided(o.buildings) + o.population * 0.5;
+    const housingCap = calcBuildingWorkersProvided(o.buildings) + o.population * 0.75;
     o.housing = housingCap;
 
     if (o.food > foodCons * 1.1 && housingCap > o.population) {
@@ -716,7 +737,7 @@ function aiTick(opp: AIOpponent, year: number, algorithmicEff: number): AIOppone
     } else if (o.food < foodCons) {
       o.population *= (1 - 0.005 * dt);
     }
-    o.workers = o.population * 0.4;
+    o.workers = o.population * 0.45;
   }
 
   return o;
@@ -828,13 +849,13 @@ function gameReducer(state: GameState, action: Action): GameState {
       const isPioneer = mode === 'pioneer';
       const isStrategist = mode === 'strategist';
       const startYear = isStrategist ? 1980 : 1960;
-      const basePop = c.basePopulation * 1e6;
+      const basePop = c.basePopulation;
       const startBuildings = isStrategist
         ? [{type:'farm',count:8},{type:'housing',count:5},{type:'school',count:3},{type:'factory',count:3},{type:'market',count:2},{type:'coal',count:3},{type:'lab',count:2},{type:'hospital',count:2}]
-        : [{type:'farm',count:2},{type:'housing',count:1}];
+        : [{type:'farm',count:2},{type:'housing',count:1},{type:'coal',count:1}];
       const startIcons = isStrategist
         ? Array.from({length:8},(_,i)=>({type:startBuildings[i]?.type||'farm',territory:'home' as const,x:20+Math.random()*60,y:20+Math.random()*40}))
-        : [{type:'farm',territory:'home',x:40+Math.random()*20,y:30+Math.random()*20},{type:'farm',territory:'home',x:40+Math.random()*20,y:30+Math.random()*20},{type:'housing',territory:'home',x:40+Math.random()*20,y:30+Math.random()*20}];
+        : [{type:'farm',territory:'home',x:40+Math.random()*20,y:30+Math.random()*20},{type:'farm',territory:'home',x:40+Math.random()*20,y:30+Math.random()*20},{type:'housing',territory:'home',x:40+Math.random()*20,y:30+Math.random()*20},{type:'coal',territory:'home',x:40+Math.random()*20,y:30+Math.random()*20}];
       const opponents = isPioneer ? [] : createOpponents(action.continentId);
       const startPhase = isStrategist ? 2 : 1;
       return {
@@ -846,17 +867,17 @@ function gameReducer(state: GameState, action: Action): GameState {
         gameMode: mode,
 
         population: basePop,
-        workers: basePop * 0.4,
-        employed: basePop * 0.35,
-        unemployed: basePop * 0.05,
-        housing: basePop * 0.8,
-        food: basePop * 3,
-        foodProduction: basePop * 0.1,
-        foodConsumption: basePop * 0.1,
+        workers: basePop * 0.45,
+        employed: basePop * 0.32,
+        unemployed: basePop * 0.13,
+        housing: basePop * 0.85,
+        food: basePop * 2.2,
+        foodProduction: basePop * 0.75,
+        foodConsumption: basePop,
         buildings: startBuildings,
         buildingIcons: startIcons,
 
-        gdp: c.gdp1960,
+        gdp: c.gdp1960 * (isStrategist ? 0.35 : 0.25) + 150,
         taxRate: 0.15,
         industrialOutput: 0,
         tradeRevenue: 0,
@@ -998,8 +1019,8 @@ function gameReducer(state: GameState, action: Action): GameState {
       // ──────────────────────────────────────────
       // 3. FOOD BALANCE
       // ──────────────────────────────────────────
-      s.foodProduction = farmCount * 1000;
-      s.foodConsumption = s.population * 0.1;
+      s.foodProduction = farmCount * 35;
+      s.foodConsumption = s.population;
       // During grace period (first 600 ticks = ~10 seconds), food does not deplete
       // This gives the player time to build farms before food matters
       const isGracePeriod = s.tickCount < 600;
@@ -1015,36 +1036,34 @@ function gameReducer(state: GameState, action: Action): GameState {
       // ──────────────────────────────────────────
       // 4. POPULATION DYNAMICS
       // ──────────────────────────────────────────
-      const housingCap = housingCount * 5000 + s.population * 0.5; // base housing + existing
+      const housingCap = housingCount * 25 + s.population * 0.75; // legacy housing + new districts
       s.housing = housingCap;
 
       const healthBonus = hospitalCount * 0.02;
-      const foodPenalty = s.food < s.foodConsumption ? 0.02 : 0;
-      const housingPenalty = s.population > housingCap ? 0.005 : 0;
+      const foodRatioForGrowth = s.foodConsumption > 0 ? s.foodProduction / s.foodConsumption : 1;
+      const foodPenalty = foodRatioForGrowth < 0.8 ? 0.018 : foodRatioForGrowth < 1 ? 0.006 : 0;
+      const housingPenalty = s.population > housingCap ? 0.006 : 0;
       const unemploymentRate = s.workers > 0 ? s.unemployed / s.workers : 0;
-      const unrestPenalty = unemploymentRate > 0.2 ? 0.003 : 0;
+      const unrestPenalty = unemploymentRate > 0.25 ? 0.004 : 0;
 
-      const popGrowthRate = 0.001 * (1 + healthBonus) - foodPenalty - housingPenalty - unrestPenalty;
+      const popGrowthRate = 0.004 * (1 + healthBonus) - foodPenalty - housingPenalty - unrestPenalty;
       s.population = Math.max(0, s.population * (1 + popGrowthRate * dt));
-      s.workers = s.population * 0.4; // working age
+      s.workers = s.population * 0.45; // working age
 
       // ──────────────────────────────────────────
       // 5. EMPLOYMENT
       // ──────────────────────────────────────────
-      let workersNeeded = calcBuildingWorkersNeeded(s.buildings);
-      // Baseline: if no formal buildings yet, workers are in subsistence agriculture
-      // This is historically accurate for 1960 - most people were farmers
-      if (workersNeeded === 0 && s.workers > 0) {
-        workersNeeded = s.workers * 0.8; // 80% employed in subsistence farming
-      }
+      const formalJobs = calcBuildingWorkersNeeded(s.buildings);
+      const informalJobs = Math.min(s.workers * 0.65, s.population * 0.28);
+      let workersNeeded = informalJobs + formalJobs;
 
       // ═══ ROBOT AUTOMATION: each robot reduces factory worker needs by 500 ═══
       const robotCount = countBuildings(s.buildings, 'robot');
       if (robotCount > 0) {
         const factoryCountForRobots = countBuildings(s.buildings, 'factory');
         const workerReduction = Math.min(
-          robotCount * 500,
-          factoryCountForRobots * 500
+          robotCount * 2,
+          factoryCountForRobots * 3
         );
         workersNeeded = Math.max(0, workersNeeded - workerReduction);
       }
@@ -1067,23 +1086,35 @@ function gameReducer(state: GameState, action: Action): GameState {
       // ──────────────────────────────────────────
       // 8. ECONOMY (GDP)
       // ──────────────────────────────────────────
-      const educationMult = 1 + (s.education / 100) * 2; // 1.0 to 3.0, education matters more
-      const wagePerWorker = 40; // workers generate solid income
+      const educationMult = 1 + (s.education / 100) * 1.4;
+      const budgetPerMillionWorkers = 2.2;
 
       // ═══ POLITICAL STATE PENALTIES applied to GDP ═══
       const politicallyAdjustedEmployed = s.employed * politicalState.workerEfficiency;
-      const workerGDP = politicallyAdjustedEmployed * wagePerWorker * educationMult * 0.001;
-      s.industrialOutput = factoryCount * 180 * energyRatio; // factories very profitable
-      s.tradeRevenue = (marketCount * 80 + seaportCount * 200) * energyRatio; // trade is lucrative
-      const taxBase = s.population * s.taxRate * 0.3; // steady tax income
+      const workerGDP = politicallyAdjustedEmployed * budgetPerMillionWorkers * educationMult;
+      s.industrialOutput = factoryCount * 42 * energyRatio;
+      s.tradeRevenue = (marketCount * 22 + seaportCount * 75) * energyRatio;
+      const taxBase = s.population * s.taxRate * 1.5;
+      const maintenance = (
+        farmCount * 3 + housingCount * 2 + hospitalCount * 4 + schoolCount * 2 +
+        factoryCount * 6 + marketCount * 2 + seaportCount * 7 + labCount * 4 +
+        uniCount * 5 + chipfabCount * 15 + defenseCount * 12 +
+        countBuildings(s.buildings, 'mainframe') * 8 +
+        countBuildings(s.buildings, 'super') * 18 +
+        countBuildings(s.buildings, 'datacenter') * 60 +
+        countBuildings(s.buildings, 'gpucluster') * 180 +
+        countBuildings(s.buildings, 'aifactory') * 520 +
+        countBuildings(s.buildings, 'robot') * 35 +
+        countBuildings(s.buildings, 'satellite') * 25
+      ) * energyRatio;
 
-      const baseGdpGrowth = 0.025; // generous base growth
+      const baseGdpGrowth = 0.006;
       const techBonus = (s.unlockedTechs.includes('pc') ? 0.015 : 0) + (s.unlockedTechs.includes('aiboom') ? 0.025 : 0);
-      const unemploymentGdpPenalty = unemploymentRate > 0.2 ? -0.01 : 0;
+      const unemploymentGdpPenalty = unemploymentRate > 0.25 ? -0.012 : 0;
       const politicalGdpPenalty = politicalState.gdpPenalty;
       const gdpGrowth = baseGdpGrowth + techBonus + unemploymentGdpPenalty + politicalGdpPenalty;
 
-      s.gdp = Math.max(10, s.gdp * (1 + gdpGrowth * dt) + (workerGDP + s.industrialOutput + s.tradeRevenue + taxBase) * dt);
+      s.gdp = Math.max(10, s.gdp * (1 + gdpGrowth * dt) + (workerGDP + s.industrialOutput + s.tradeRevenue + taxBase - maintenance) * dt);
 
       // ═══ EMERGENCY LOCK COUNTDOWN ═══
       if (s.emergencyLock > 0) {
@@ -1125,8 +1156,8 @@ function gameReducer(state: GameState, action: Action): GameState {
 
       let stabilityChange = -0.05 * dt; // slow natural decay
       stabilityChange += defenseCount * 0.03 * dt; // defense helps
-      stabilityChange += (s.food > s.foodConsumption ? 0.02 : -0.05) * dt; // food matters
-      stabilityChange += (unemploymentRate > 0.2 ? -0.05 : 0) * dt; // unemployment hurts
+      stabilityChange += (foodRatioForGrowth >= 1 ? 0.02 : foodRatioForGrowth >= 0.8 ? -0.02 : -0.07) * dt;
+      stabilityChange += (unemploymentRate > 0.25 ? -0.05 : unemploymentRate < 0.12 ? 0.01 : 0) * dt;
       stabilityChange += (s.energy > 0 ? 0 : -0.1) * dt; // energy crisis
       s.stability = Math.max(0, Math.min(100, s.stability + stabilityChange));
 
@@ -1329,15 +1360,15 @@ function gameReducer(state: GameState, action: Action): GameState {
         const foodThreshold = isPioneerMode ? 0.1 : 0.3;
         const energyThreshold = isPioneerMode ? 0.05 : 0.2;
         const stabilityThreshold = isPioneerMode ? 5 : 10;
-        const unemploymentThreshold = isPioneerMode ? 0.7 : 0.5;
+        const unemploymentThreshold = isPioneerMode ? 0.7 : 0.35;
 
         if (s.food < s.foodConsumption * foodThreshold) {
-          s.deathWarning = { type: 'food', ticksLeft: isPioneerMode ? 999 : 10, solution: 'Build 2+ Farms' };
+          s.deathWarning = { type: 'food', ticksLeft: isPioneerMode ? 999 : 10, solution: 'Build Farm Belts' };
           s.notifications = [{
             id: `warning-food-${Date.now()}`,
             text: isPioneerMode
               ? `Tip: Your food is running low! Try building more Farms.`
-              : `WARNING: Severe food shortage! Famine imminent in 10 ticks. Build 2+ Farms`,
+              : `WARNING: Severe food shortage! Famine imminent in 10 ticks. Build Farm Belts`,
             type: isPioneerMode ? 'info' : 'danger',
             time: Date.now(),
           }, ...s.notifications].slice(0, 6);
@@ -1386,7 +1417,7 @@ function gameReducer(state: GameState, action: Action): GameState {
             resolved = s.stability >= 20;
             break;
           case 'unemployment':
-            resolved = s.workers > 0 && s.unemployed / s.workers < 0.30;
+            resolved = s.workers > 0 && s.unemployed / s.workers < 0.25;
             break;
         }
         if (resolved) {
@@ -1475,7 +1506,10 @@ You survived the critical period, but never achieved the compute or safety neede
 
     case 'BUILD': {
       const b = getBuildingDef(action.buildingId);
-      if (!b || state.gdp < b.cost) return state;
+      if (!b) return state;
+      const existing = state.buildings.find(x => x.type === action.buildingId);
+      const scaledCost = getScaledBuildingCost(action.buildingId, existing?.count || 0);
+      if (state.gdp < scaledCost) return state;
       if (state.year < b.yearRequired) return state;
       // ═══ PHASE RESTRICTION ═══
       if (!canBuildInPhase(action.buildingId, state.phase)) return state;
@@ -1485,7 +1519,6 @@ You survived the critical period, but never achieved the compute or safety neede
         // Allow only defense buildings during emergency
         if (action.buildingId !== 'defense') return state;
       }
-      const existing = state.buildings.find(x => x.type === action.buildingId);
       const newBuildings = existing
         ? state.buildings.map(x => x.type === action.buildingId ? { ...x, count: x.count + 1 } : x)
         : [...state.buildings, { type: action.buildingId, count: 1 }];
@@ -1495,7 +1528,7 @@ You survived the critical period, but never achieved the compute or safety neede
 
       // Immediate effects
       let newState = { ...state };
-      newState.gdp -= b.cost;
+      newState.gdp -= scaledCost;
       newState.buildings = newBuildings;
       newState.totalBuildings += 1;
       newState.buildingIcons = [...state.buildingIcons, {

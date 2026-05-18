@@ -136,7 +136,7 @@ export default function CyberAttackMenu() {
                   <div>
                     <span className="font-mono-data text-[7px]" style={{ color: 'var(--text-tertiary)' }}>POP</span>
                     <span className="font-mono-data text-[9px] ml-1" style={{ color: 'var(--text-primary)' }}>
-                      {opp.population >= 1e6 ? (opp.population/1e6).toFixed(0)+'M' : Math.floor(opp.population)}
+                      {opp.population >= 1000 ? (opp.population/1000).toFixed(1)+'B' : Math.floor(opp.population)+'M'}
                     </span>
                   </div>
                   <div>

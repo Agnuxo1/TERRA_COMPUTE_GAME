@@ -12,18 +12,16 @@ function fmtNumber(n: number): string {
 }
 
 function fmtMoney(n: number): string {
-  if (n >= 1e12) return '$' + (n / 1e12).toFixed(1) + 'T';
-  if (n >= 1e9) return '$' + (n / 1e9).toFixed(1) + 'B';
-  if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'M';
-  if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'K';
-  return '$' + n.toFixed(0);
+  if (n >= 1e6) return '$' + (n / 1e6).toFixed(1) + 'Q';
+  if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'T';
+  return '$' + n.toFixed(0) + 'B';
 }
 
 function fmtPop(n: number): string {
-  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
-  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
-  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
-  return n.toFixed(0);
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'B';
+  if (n >= 10) return n.toFixed(0) + 'M';
+  if (n >= 1) return n.toFixed(1) + 'M';
+  return Math.round(n * 1000) + 'K';
 }
 
 // Political state mapping
@@ -152,9 +150,9 @@ export default function ResourceBar() {
           </span>
         </div>
 
-        {/* GDP */}
+        {/* Budget */}
         <div className="flex flex-col px-1.5" style={{ minWidth: '70px' }}>
-          <span className="font-mono-data text-[8px]" style={{ color: 'var(--text-tertiary)' }}>GDP</span>
+          <span className="font-mono-data text-[8px]" style={{ color: 'var(--text-tertiary)' }}>BUDGET</span>
           <span className="font-mono-data text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
             {fmtMoney(state.gdp)}
           </span>

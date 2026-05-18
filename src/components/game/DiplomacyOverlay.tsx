@@ -11,10 +11,10 @@ function fmtNumber(n: number): string {
 }
 
 function fmtPop(n: number): string {
-  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
-  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
-  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
-  return n.toFixed(0);
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'B';
+  if (n >= 10) return n.toFixed(0) + 'M';
+  if (n >= 1) return n.toFixed(1) + 'M';
+  return Math.round(n * 1000) + 'K';
 }
 
 const strategyLabels: Record<string, { label: string; color: string }> = {

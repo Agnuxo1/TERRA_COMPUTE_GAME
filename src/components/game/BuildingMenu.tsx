@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useGame, buildings } from '../../App';
+import { useGame, buildings, getScaledBuildingCost } from '../../App';
 import { play } from '../../hooks/useSound';
 import { isVideoPlayed, markVideoPlayed, getVideoUrl } from '../../hooks/useVideo';
 import VideoPlayer from './VideoPlayer';
@@ -90,6 +90,11 @@ function formatUnlockReq(bId: string): string {
   return parts.join(' | ');
 }
 
+function fmtPeopleMillions(n: number): string {
+  if (Math.abs(n) >= 1) return `${n.toFixed(n >= 10 ? 0 : 1)}M`;
+  return `${Math.round(n * 1000)}K`;
+}
+
 function calculateROI(b: typeof buildings[0], state: { compute: number; algorithmicEfficiency: number; gdp: number }): string {
   if (b.category === 'compute' && b.compute > 0) {
     const effectiveCompute = b.compute * state.algorithmicEfficiency;
@@ -100,13 +105,11 @@ function calculateROI(b: typeof buildings[0], state: { compute: number; algorith
     return `+${b.energyProduce} TWh`;
   }
   if (b.category === 'economy' && b.outputAmount > 0) {
-    const gdpPerTick = b.outputAmount * 2;
-    const roiTicks = b.cost > 0 ? Math.ceil(b.cost / Math.max(gdpPerTick, 1)) : 0;
-    return `+$${gdpPerTick}B/tick est.${roiTicks > 0 ? ` | ROI: ${roiTicks}t` : ''}`;
+    return `+$${b.outputAmount}B/y economy`;
   }
   if (b.category === 'population') {
-    if (b.workersProvided > 0) return `+${b.workersProvided >= 1000 ? (b.workersProvided / 1000).toFixed(0) + 'K' : b.workersProvided} workers`;
-    if (b.outputAmount > 0 && b.id === 'farm') return `+${b.outputAmount} food`;
+    if (b.workersProvided > 0) return `+${fmtPeopleMillions(b.workersProvided)} housing`;
+    if (b.outputAmount > 0 && b.id === 'farm') return `feeds ~${fmtPeopleMillions(b.outputAmount)}`;
   }
   if (b.category === 'education' && b.compute > 0) {
     return `+${b.compute >= 1e9 ? (b.compute / 1e9).toFixed(0) + 'G' : b.compute >= 1e6 ? (b.compute / 1e6).toFixed(0) + 'M' : b.compute}F`;
@@ -133,7 +136,9 @@ export default function BuildingMenu() {
 
   const handleBuild = (bId: string) => {
     const b = buildings.find(x => x.id === bId);
-    if (!b || state.gdp < b.cost) return;
+    const owned = state.buildings.find(x => x.type === bId)?.count || 0;
+    const scaledCost = getScaledBuildingCost(bId, owned);
+    if (!b || state.gdp < scaledCost) return;
     // Check energy requirement
     if (b.energyUse > 0 && state.energy < b.energyUse) {
       setEnergyWarning(`⚠ Insufficient energy for ${b.name}! Build power plants first.`);
@@ -190,8 +195,8 @@ export default function BuildingMenu() {
             </span>
           </div>
           <p className="font-mono-data text-[8px]" style={{ color: 'var(--text-tertiary)' }}>
-            GDP: {state.gdp >= 1e9 ? '$'+(state.gdp/1e9).toFixed(1)+'T' : state.gdp >= 1e6 ? '$'+(state.gdp/1e6).toFixed(1)+'B' : '$'+Math.floor(state.gdp)+'B'}
-            {' | '}Workers: {state.employed >= 1e6 ? (state.employed/1e6).toFixed(1)+'M' : state.employed >= 1e3 ? (state.employed/1e3).toFixed(1)+'K' : Math.floor(state.employed)}
+            Budget: {state.gdp >= 1e6 ? '$'+(state.gdp/1e6).toFixed(1)+'M' : '$'+Math.floor(state.gdp)+'B'}
+            {' | '}Workers: {fmtPeopleMillions(state.employed)}
           </p>
         </div>
         <button onClick={handleClose}
@@ -233,12 +238,13 @@ export default function BuildingMenu() {
                 {/* Buildings in this category - card style */}
                 <div className="flex flex-col gap-1.5">
                   {catBuildings.map(b => {
-                    const canAfford = state.gdp >= b.cost;
+                    const owned = state.buildings.find(x => x.type === b.id);
+                    const count = owned?.count || 0;
+                    const scaledCost = getScaledBuildingCost(b.id, count);
+                    const canAfford = state.gdp >= scaledCost;
                     const yearOk = state.year >= b.yearRequired;
                     const unlocked = isBuildingUnlocked(b.id, state);
                     const hasEnoughEnergy = b.energyUse === 0 || state.energy >= b.energyUse;
-                    const owned = state.buildings.find(x => x.type === b.id);
-                    const count = owned?.count || 0;
                     const cardImg = buildingCardMap[b.id];
                     const roiText = calculateROI(b, state);
                     const isEnergyBlocked = b.energyUse > 0 && !hasEnoughEnergy;
@@ -319,7 +325,7 @@ export default function BuildingMenu() {
                               color: canAfford ? '#00E5A0' : '#FF477E',
                               textShadow: '0 1px 2px rgba(0,0,0,0.9)',
                             }}>
-                              ${b.cost >= 1e9 ? (b.cost/1e9).toFixed(0)+'T' : b.cost >= 1e6 ? (b.cost/1e6).toFixed(0)+'M' : b.cost}B
+                              ${scaledCost >= 1e6 ? (scaledCost/1e6).toFixed(0)+'M' : scaledCost}B
                             </span>
                             {b.energyUse > 0 && (
                               <span className="font-mono-data text-[7px]" style={{ color: '#FFB84D', textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
