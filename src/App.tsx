@@ -958,13 +958,15 @@ function gameReducer(state: GameState, action: Action): GameState {
       const timeScale = 0.008 + 0.06 * Math.pow(progress, 1.5); // 0.008→0.068
       // Pre-2025: slow logarithmic curve
       // Post-2025: much faster
+      // The UI's normal speed is intentionally half the original pacing.
+      const speedScale = state.speed * 0.5;
       let dt: number;
       if (year < 2025) {
-        dt = timeScale * state.speed; // ~0.008 to ~0.068 years per tick
+        dt = timeScale * speedScale; // ~0.004 to ~0.034 years per tick at 1x
       } else if (year < 2035) {
-        dt = 0.15 * state.speed; // 2025-2035: fast but playable
+        dt = 0.15 * speedScale; // 2025-2035: fast but playable
       } else {
-        dt = 0.4 * state.speed; // 2035+: zips by
+        dt = 0.4 * speedScale; // 2035+: zips by
       }
       let s: GameState = { ...state, tickCount: state.tickCount + 1 };
       s.year += dt;
