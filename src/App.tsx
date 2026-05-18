@@ -262,7 +262,7 @@ export const buildings: BuildingData[] = [
   {id:'chipfab', name:'Chip Fab Cluster', cost:3500, energyUse:300, energyProduce:0, compute:0, yearRequired:1975, description:'Semiconductor manufacturing cluster. +materials.', icon:'🔧', category:'production', workersNeeded:2.5, workersProvided:0, output:'materials', outputAmount:10},
 
   // ─── Defense ───
-  {id:'defense', name:'Defense Grid', cost:900, energyUse:60, energyProduce:0, compute:0, yearRequired:1970, description:'Cyber defense, resilience and stability.', icon:'🛡️', category:'defense', workersNeeded:1.5, workersProvided:0, output:'defense', outputAmount:10},
+  {id:'defense', name:'AI Safety Grid', cost:900, energyUse:60, energyProduce:0, compute:0, yearRequired:1970, description:'Alignment labs, cyber defense and resilience. Raises AI safety immediately.', icon:'🛡️', category:'defense', workersNeeded:1.5, workersProvided:0, output:'defense', outputAmount:6},
 
   // ─── Telecommunications ───
   {id:'satellite', name:'Communications Satellite', cost:1800, energyUse:90, energyProduce:0, compute:1e12, yearRequired:1965, description:'Launch communications infrastructure. +5% data generation.', icon:'🛰️', category:'telecom', workersNeeded:0.5, workersProvided:0, output:'data', outputAmount:50},
@@ -1153,7 +1153,7 @@ function gameReducer(state: GameState, action: Action): GameState {
       // ──────────────────────────────────────────
       // 11. SAFETY & STABILITY
       // ──────────────────────────────────────────
-      s.safety = Math.min(100, s.safety + defenseCount * 0.05 * dt);
+      s.safety = Math.min(100, s.safety + defenseCount * 0.12 * dt);
       s.defenseLevel = 10 + defenseCount * 10 + (s.safety * 0.3);
 
       let stabilityChange = -0.05 * dt; // slow natural decay
@@ -1546,6 +1546,11 @@ You survived the critical period, but never achieved the compute or safety neede
       }
       if (b.id === 'farm') {
         newState.foodProduction += b.outputAmount;
+      }
+      if (b.id === 'defense') {
+        newState.safety = Math.min(100, newState.safety + b.outputAmount);
+        newState.stability = Math.min(100, newState.stability + 1.5);
+        newState.defenseLevel = 10 + countBuildings(newState.buildings, 'defense') * 10 + (newState.safety * 0.3);
       }
 
       return newState;

@@ -118,7 +118,7 @@ function calculateROI(b: typeof buildings[0], state: { compute: number; algorith
     return `+${b.outputAmount} materials/tick`;
   }
   if (b.category === 'defense') {
-    return `+${b.outputAmount} safety`;
+    return `+${b.outputAmount} safety now`;
   }
   if (b.category === 'telecom') {
     return `+${b.outputAmount}% data gen`;
