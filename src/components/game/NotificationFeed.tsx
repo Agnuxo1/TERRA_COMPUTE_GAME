@@ -20,7 +20,10 @@ export default function NotificationFeed() {
   };
 
   return (
-    <div className="absolute top-2 left-2 flex flex-col gap-1.5" style={{zIndex: 10, maxWidth: '280px'}}>
+    <div
+      className="absolute top-3 left-[152px] flex flex-col gap-1.5 max-md:left-[112px] max-md:top-2"
+      style={{ zIndex: 10, maxWidth: '280px' }}
+    >
       {state.notifications.slice(0, 5).map((n, i) => (
         <div
           key={n.id}

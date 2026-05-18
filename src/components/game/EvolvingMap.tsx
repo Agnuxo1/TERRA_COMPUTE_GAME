@@ -552,7 +552,7 @@ export default function EvolvingMap() {
       })}
 
       {/* ─── ERA INDICATOR ─── */}
-      <div className="absolute top-2 left-2 px-2 py-1 rounded font-orbitron text-[9px] font-bold"
+      <div className="absolute top-2 left-[152px] max-md:left-[112px] px-2 py-1 rounded font-orbitron text-[9px] font-bold"
         style={{
           background: year < 1970 ? 'rgba(0,0,0,0.7)' : year < 1990 ? 'rgba(139,119,85,0.4)' : year < 2010 ? 'rgba(0,0,0,0.5)' : 'rgba(0,100,150,0.3)',
           color: year < 1970 ? '#888' : year < 1990 ? '#C4A265' : year < 2000 ? '#00F0FF' : year < 2010 ? '#FFF' : year < 2030 ? '#00E5FF' : '#7B61FF',
@@ -564,7 +564,7 @@ export default function EvolvingMap() {
       </div>
 
       {/* ─── VEHICLE COUNT (planes only, + satellites) ─── */}
-      <div className="absolute bottom-2 left-2 flex items-center gap-2 px-2 py-1 rounded font-mono-data text-[8px]"
+      <div className="absolute bottom-2 left-[152px] max-md:left-[112px] flex items-center gap-2 px-2 py-1 rounded font-mono-data text-[8px]"
         style={{ background: 'rgba(5,5,8,0.7)', color: 'var(--text-tertiary)', border: '1px solid var(--border)', zIndex: 50 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
           <img src={planeImg} alt="" style={{ width: '16px', height: '10px', objectFit: 'contain', opacity: 0.7 }} />
