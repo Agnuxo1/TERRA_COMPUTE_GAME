@@ -231,6 +231,41 @@ export const continents: ContinentData[] = [
   {id:'oc', name:'Oceania', color:'#06B6D4', gdp1960:250, energy1960:60, techLevel:5, solarPotential:0.9, description:'Isolated but rich in uranium and solar.', specialBonus:'+15% Uranium, Defensive', basePopulation:15},
 ];
 
+const YOTTAFLOP_ASI_THRESHOLD = 1e24;
+const STRATEGIST_SAFE_ASI_THRESHOLD = 1e21;
+
+function getSafeAsiComputeThreshold(mode: GameState['gameMode']): number {
+  return mode === 'strategist' ? STRATEGIST_SAFE_ASI_THRESHOLD : YOTTAFLOP_ASI_THRESHOLD;
+}
+
+function hasSafeAsiBreakthrough(s: GameState): boolean {
+  const hasSafety = s.safety >= 80;
+  const hasCapstone = s.unlockedTechs.includes('asi');
+  const hasCompute = s.compute >= getSafeAsiComputeThreshold(s.gameMode);
+  return s.year >= 2032 && hasSafety && hasCompute && (s.gameMode === 'strategist' ? hasCapstone : true);
+}
+
+function getSafeAsiMissingRequirements(s: GameState): string {
+  const missing: string[] = [];
+  const requiredCompute = getSafeAsiComputeThreshold(s.gameMode);
+  if (s.safety < 80) missing.push(`Safety ${Math.floor(s.safety)}% / 80%`);
+  if (s.compute < requiredCompute) {
+    const target = requiredCompute >= 1e24 ? '1.0YF' : '1.0ZF';
+    const current = s.compute >= 1e24
+      ? `${(s.compute / 1e24).toFixed(2)}YF`
+      : s.compute >= 1e21
+        ? `${(s.compute / 1e21).toFixed(2)}ZF`
+        : s.compute >= 1e18
+          ? `${(s.compute / 1e18).toFixed(2)}EF`
+          : `${(s.compute / 1e15).toFixed(2)}PF`;
+    missing.push(`Compute ${current} / ${target}`);
+  }
+  if (s.gameMode === 'strategist' && !s.unlockedTechs.includes('asi')) {
+    missing.push('Safe ASI technology not researched');
+  }
+  return missing.length > 0 ? missing.join(' | ') : 'Final ASI trigger not reached';
+}
+
 export const buildings: BuildingData[] = [
   // Population and worker values are in millions of people. Money is available public budget in $B.
   {id:'housing', name:'Housing District', cost:90, energyUse:4, energyProduce:0, compute:0, yearRequired:1960, description:'Regional housing program. Adds capacity for 25M people.', icon:'🏘️', category:'population', workersNeeded:0, workersProvided:25, output:'housing', outputAmount:25},
@@ -1484,7 +1519,7 @@ function gameReducer(state: GameState, action: Action): GameState {
       
       // ── VICTORY: Safe ASI ──
       // The holy grail: massive compute + high safety + survive to 2032+
-      if (s.compute >= 1e24 && s.safety >= 80 && s.year >= 2032) {
+      if (hasSafeAsiBreakthrough(s)) {
         return { ...s, screen: 'victory', victoryYear: yearInt, 
           gameOverReason: `Safe ASI achieved in ${yearInt}! Your careful balance of compute power and safety research saved humanity.` };
       }
@@ -1542,10 +1577,15 @@ You achieved superintelligence without adequate safety measures. The AI quickly 
       // ── DEFEAT: Survived to 2038 but couldn't win ──
       // The window closes - if you haven't won by 2038, the world moves on
       if (s.year >= 2038 && s.screen === 'game') {
+        const missing = getSafeAsiMissingRequirements(s);
         return { ...s, screen: 'gameover', gameOverReason: 
           `The window closed in ${yearInt}.
           
-You survived the critical period, but never achieved the compute or safety needed for ASI. Other powers consolidated their lead. Your bloc enters the post-AGI era as a technological backwater.` };
+You survived the critical period, but never completed Safe ASI.
+
+Missing: ${missing}
+
+Other powers consolidated their lead. Your bloc enters the post-AGI era as a technological backwater.` };
       }
 
       return s;
