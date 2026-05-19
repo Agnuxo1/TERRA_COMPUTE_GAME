@@ -292,7 +292,7 @@ Immersive era-specific audio:
 </p>
 
 <p align="center">
-  <a href="https://k6ct2riiidgqu.kimi.page">
+  <a href="https://huggingface.co/spaces/Agnuxo/terra-compute-game">
     <img src="https://img.shields.io/badge/PLAY%20TERRA%20COMPUTE%20NOW-33FF33?style=for-the-badge&logoColor=black&logo=rocket" alt="Play Now">
   </a>
 </p>
