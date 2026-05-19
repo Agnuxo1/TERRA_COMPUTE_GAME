@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { events, useGame } from '../../App';
 import { play } from '../../hooks/useSound';
 import { getVideoUrl } from '../../hooks/useVideo';
@@ -43,6 +43,7 @@ const eventCardMap: Record<string, string> = {
 };
 
 const puzzleEvents = new Set(['turing', 'moore']);
+const TURING_TARGET = [1, 9, 4, 3];
 
 function PuzzleShell({
   title,
@@ -117,16 +118,14 @@ function PuzzleShell({
 function TuringPuzzle({ onSolved }: { onSolved: () => void }) {
   const [rotors, setRotors] = useState([0, 0, 0, 0]);
   const [solved, setSolved] = useState(false);
-  const target = [1, 9, 4, 3];
+  const isCorrect = rotors.every((value, i) => value === TURING_TARGET[i]);
 
   useEffect(() => {
-    if (!solved && rotors.every((value, i) => value === target[i])) {
-      setSolved(true);
-      play('success');
-      const t = setTimeout(onSolved, 950);
-      return () => clearTimeout(t);
-    }
-  }, [rotors, solved, onSolved]);
+    if (!isCorrect || solved) return;
+    setSolved(true);
+    play('victory');
+    window.setTimeout(onSolved, 950);
+  }, [isCorrect, solved, onSolved]);
 
   const cycle = (index: number, direction: number) => {
     if (solved) return;
@@ -202,9 +201,9 @@ function TuringPuzzle({ onSolved }: { onSolved: () => void }) {
               key={label}
               className="font-mono-data text-center text-[10px] py-2"
               style={{
-                color: rotors[i] === target[i] ? '#33FF33' : '#C4A265',
-                border: `1px solid ${rotors[i] === target[i] ? '#33FF33' : '#C4A26555'}`,
-                background: rotors[i] === target[i] ? '#33FF3314' : 'rgba(196,162,101,0.07)',
+                color: rotors[i] === TURING_TARGET[i] ? '#33FF33' : '#C4A265',
+                border: `1px solid ${rotors[i] === TURING_TARGET[i] ? '#33FF33' : '#C4A26555'}`,
+                background: rotors[i] === TURING_TARGET[i] ? '#33FF3314' : 'rgba(196,162,101,0.07)',
               }}
             >
               ROTOR {label}
@@ -220,15 +219,14 @@ function MoorePuzzle({ onSolved }: { onSolved: () => void }) {
   const slots = [0, 1, 2, 3, 4, 5];
   const [placed, setPlaced] = useState<boolean[]>([false, false, false, false, false, false]);
   const [solved, setSolved] = useState(false);
+  const isComplete = placed.every(Boolean);
 
   useEffect(() => {
-    if (!solved && placed.every(Boolean)) {
-      setSolved(true);
-      play('success');
-      const t = setTimeout(onSolved, 900);
-      return () => clearTimeout(t);
-    }
-  }, [placed, solved, onSolved]);
+    if (!isComplete || solved) return;
+    setSolved(true);
+    play('victory');
+    window.setTimeout(onSolved, 900);
+  }, [isComplete, solved, onSolved]);
 
   const toggle = (index: number) => {
     if (solved) return;
@@ -391,9 +389,9 @@ export default function EventPopup() {
     }
   };
 
-  const handlePuzzleSolved = () => {
+  const handlePuzzleSolved = useCallback(() => {
     dispatch({ type: 'DISMISS_EVENT' });
-  };
+  }, [dispatch]);
 
   if (!evt) return null;
 
