@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { events, useGame } from '../../App';
 import { play } from '../../hooks/useSound';
 import { getVideoUrl } from '../../hooks/useVideo';
@@ -42,28 +42,334 @@ const eventCardMap: Record<string, string> = {
   beyondmoore: '/assets/cards/event-beyondmoore.png',
 };
 
+const puzzleEvents = new Set(['turing', 'moore']);
+
+function PuzzleShell({
+  title,
+  subtitle,
+  accent,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  accent: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className="absolute inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ background: 'rgba(5,5,8,0.92)', backdropFilter: 'blur(5px)' }}
+    >
+      <div
+        className="relative overflow-hidden"
+        style={{
+          width: 'min(92vw, 920px)',
+          minHeight: 'min(78vh, 620px)',
+          border: `2px solid ${accent}`,
+          boxShadow: `0 0 52px ${accent}33, inset 0 0 36px rgba(255,255,255,0.04)`,
+          background: '#090A0D',
+        }}
+      >
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage:
+              `repeating-linear-gradient(0deg, transparent, transparent 27px, ${accent}14 28px), repeating-linear-gradient(90deg, transparent, transparent 27px, rgba(255,244,194,0.06) 28px)`,
+            mixBlendMode: 'screen',
+          }}
+        />
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              `radial-gradient(circle at 50% 42%, ${accent}22, transparent 34%), linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.72))`,
+          }}
+        />
+        <div className="relative z-10 flex h-full min-h-[inherit] flex-col p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="font-mono-data text-[9px] tracking-[0.28em]" style={{ color: accent }}>
+                HISTORICAL INTELLIGENCE EXERCISE
+              </div>
+              <h2 className="font-orbitron text-2xl font-black tracking-wider" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
+                {title}
+              </h2>
+              <p className="font-rajdhani text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                {subtitle}
+              </p>
+            </div>
+            <div
+              className="font-mono-data text-[9px] px-2 py-1"
+              style={{ color: '#050508', background: accent, border: `1px solid ${accent}` }}
+            >
+              LOCKED UNTIL SOLVED
+            </div>
+          </div>
+          <div className="relative mt-4 flex flex-1 items-center justify-center">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TuringPuzzle({ onSolved }: { onSolved: () => void }) {
+  const [rotors, setRotors] = useState([0, 0, 0, 0]);
+  const [solved, setSolved] = useState(false);
+  const target = [1, 9, 4, 3];
+
+  useEffect(() => {
+    if (!solved && rotors.every((value, i) => value === target[i])) {
+      setSolved(true);
+      play('success');
+      const t = setTimeout(onSolved, 950);
+      return () => clearTimeout(t);
+    }
+  }, [rotors, solved, onSolved]);
+
+  const cycle = (index: number, direction: number) => {
+    if (solved) return;
+    play('click', 0.45);
+    setRotors(prev => prev.map((value, i) => i === index ? (value + direction + 10) % 10 : value));
+  };
+
+  return (
+    <PuzzleShell
+      title="BOMBE ROTOR ARRAY"
+      subtitle="Bletchley Park cryptanalytic machine"
+      accent="#33FF33"
+    >
+      <div className="flex w-full max-w-[760px] flex-col items-center gap-7">
+        <div
+          className="relative flex w-full items-center justify-center gap-4 p-6"
+          style={{
+            border: '2px solid #2B342B',
+            background: 'linear-gradient(180deg, #1B1A16, #090A0D)',
+            boxShadow: solved ? '0 0 42px rgba(51,255,51,0.5)' : 'inset 0 0 30px rgba(0,0,0,0.75)',
+          }}
+        >
+          <div className="absolute left-5 top-5 h-3 w-3 rounded-full" style={{ background: solved ? '#33FF33' : '#3A3D45', boxShadow: solved ? '0 0 18px #33FF33' : 'none' }} />
+          <div className="absolute right-5 top-5 h-3 w-16" style={{ border: '1px solid #C4A265', background: solved ? '#33FF3322' : '#111318' }} />
+          {rotors.map((value, index) => (
+            <div key={index} className="flex flex-col items-center gap-2">
+              <button
+                onClick={() => cycle(index, 1)}
+                className="font-orbitron text-xs font-bold"
+                style={{ color: '#33FF33', width: 44, height: 28, border: '1px solid #33FF3366', background: '#10140F' }}
+              >
+                ▲
+              </button>
+              <div
+                className="relative flex items-center justify-center"
+                style={{
+                  width: 92,
+                  height: 150,
+                  borderRadius: 8,
+                  border: '2px solid #C4A265',
+                  background:
+                    'repeating-linear-gradient(90deg, #24221C 0 9px, #121318 9px 14px), linear-gradient(180deg, #454135, #15161A)',
+                  boxShadow: 'inset 0 0 24px rgba(0,0,0,0.8), 0 10px 18px rgba(0,0,0,0.45)',
+                }}
+              >
+                <div
+                  className="flex items-center justify-center font-orbitron text-5xl font-black"
+                  style={{
+                    width: 62,
+                    height: 82,
+                    color: solved ? '#33FF33' : '#FFF4C2',
+                    background: '#050508',
+                    border: `2px solid ${solved ? '#33FF33' : '#62563E'}`,
+                    boxShadow: solved ? '0 0 18px #33FF3377' : 'inset 0 0 10px rgba(0,0,0,0.8)',
+                  }}
+                >
+                  {value}
+                </div>
+              </div>
+              <button
+                onClick={() => cycle(index, -1)}
+                className="font-orbitron text-xs font-bold"
+                style={{ color: '#33FF33', width: 44, height: 28, border: '1px solid #33FF3366', background: '#10140F' }}
+              >
+                ▼
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="grid w-full grid-cols-4 gap-2">
+          {['I', 'IX', 'IV', 'III'].map((label, i) => (
+            <div
+              key={label}
+              className="font-mono-data text-center text-[10px] py-2"
+              style={{
+                color: rotors[i] === target[i] ? '#33FF33' : '#C4A265',
+                border: `1px solid ${rotors[i] === target[i] ? '#33FF33' : '#C4A26555'}`,
+                background: rotors[i] === target[i] ? '#33FF3314' : 'rgba(196,162,101,0.07)',
+              }}
+            >
+              ROTOR {label}
+            </div>
+          ))}
+        </div>
+      </div>
+    </PuzzleShell>
+  );
+}
+
+function MoorePuzzle({ onSolved }: { onSolved: () => void }) {
+  const slots = [0, 1, 2, 3, 4, 5];
+  const [placed, setPlaced] = useState<boolean[]>([false, false, false, false, false, false]);
+  const [solved, setSolved] = useState(false);
+
+  useEffect(() => {
+    if (!solved && placed.every(Boolean)) {
+      setSolved(true);
+      play('success');
+      const t = setTimeout(onSolved, 900);
+      return () => clearTimeout(t);
+    }
+  }, [placed, solved, onSolved]);
+
+  const toggle = (index: number) => {
+    if (solved) return;
+    play('click', 0.45);
+    setPlaced(prev => prev.map((value, i) => i === index ? !value : value));
+  };
+
+  return (
+    <PuzzleShell
+      title="TRANSISTOR DENSITY CIRCUIT"
+      subtitle="Moore's Law scaling board"
+      accent="#00F0FF"
+    >
+      <div className="relative w-full max-w-[780px] p-7" style={{ border: '2px solid #123B4A', background: '#071015' }}>
+        <svg viewBox="0 0 760 320" className="w-full" role="img" aria-label="Moore circuit">
+          <defs>
+            <filter id="circuit-glow">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          <rect x="20" y="20" width="720" height="280" fill="#0B1118" stroke="#C4A265" strokeWidth="2" />
+          <path
+            d="M 70 160 H 170 V 80 H 285 V 240 H 400 V 80 H 515 V 240 H 635 V 160 H 700"
+            fill="none"
+            stroke={solved ? '#00F0FF' : '#42515C'}
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            filter={solved ? 'url(#circuit-glow)' : undefined}
+          />
+          <path d="M 70 160 H 700" stroke="#C4A26533" strokeWidth="2" strokeDasharray="8 10" />
+          {slots.map((slot, i) => {
+            const positions = [
+              [170, 80],
+              [285, 240],
+              [400, 80],
+              [515, 240],
+              [635, 160],
+              [285, 80],
+            ];
+            const [x, y] = positions[i];
+            return (
+              <g key={slot} onClick={() => toggle(i)} style={{ cursor: 'pointer' }}>
+                <rect
+                  x={x - 31}
+                  y={y - 22}
+                  width="62"
+                  height="44"
+                  fill={placed[i] ? '#102B34' : '#15161A'}
+                  stroke={placed[i] ? '#00F0FF' : '#C4A265'}
+                  strokeWidth="2"
+                  filter={placed[i] ? 'url(#circuit-glow)' : undefined}
+                />
+                {placed[i] ? (
+                  <>
+                    <rect x={x - 16} y={y - 10} width="32" height="20" fill="#00F0FF" opacity="0.36" />
+                    <path d={`M ${x - 25} ${y - 15} H ${x + 25} M ${x - 25} ${y} H ${x + 25} M ${x - 25} ${y + 15} H ${x + 25}`} stroke="#FFF4C2" strokeWidth="1.6" />
+                  </>
+                ) : (
+                  <text x={x} y={y + 5} fill="#C4A265" fontFamily="Orbitron" fontSize="20" fontWeight="900" textAnchor="middle">+</text>
+                )}
+              </g>
+            );
+          })}
+          <circle cx="70" cy="160" r="14" fill={solved ? '#00F0FF' : '#242832'} stroke="#C4A265" strokeWidth="2" />
+          <circle cx="700" cy="160" r="14" fill={solved ? '#33FF33' : '#242832'} stroke="#C4A265" strokeWidth="2" />
+        </svg>
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          {slots.map((slot, i) => (
+            <button
+              key={slot}
+              onClick={() => toggle(i)}
+              className="font-mono-data text-[10px] py-2"
+              style={{
+                color: placed[i] ? '#00F0FF' : '#C4A265',
+                border: `1px solid ${placed[i] ? '#00F0FF' : '#C4A26566'}`,
+                background: placed[i] ? '#00F0FF14' : 'rgba(196,162,101,0.07)',
+              }}
+            >
+              {placed[i] ? 'TRANSISTOR SET' : 'PLACE TRANSISTOR'}
+            </button>
+          ))}
+        </div>
+      </div>
+    </PuzzleShell>
+  );
+}
+
 export default function EventPopup() {
   const { state, dispatch } = useGame();
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [videoCompleted, setVideoCompleted] = useState(false);
+  const [phase, setPhase] = useState<'video' | 'card' | 'puzzle'>('video');
   const lastEventRef = useRef<string | null>(null);
 
   const evt = events.find(e => e.id === state.showEvent);
+  const hasPuzzle = !!evt && puzzleEvents.has(evt.id);
 
   useEffect(() => {
     const eventId = state.showEvent;
     if (eventId && eventId !== lastEventRef.current) {
       lastEventRef.current = eventId;
       setVideoCompleted(false);
+      setPhase('video');
       play('alert');
       setVideoSrc(getVideoUrl(`event-${eventId}`));
     }
     if (!eventId) {
       lastEventRef.current = null;
       setVideoCompleted(false);
+      setPhase('video');
       setVideoSrc(null);
     }
   }, [state.showEvent]);
+
+  useEffect(() => {
+    if (videoCompleted && phase === 'video') {
+      setPhase('card');
+    }
+  }, [videoCompleted, phase]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!evt || phase !== 'card') return;
+      if (e.key === 'Enter' || e.key === 'Escape') {
+        e.preventDefault();
+        if (hasPuzzle) {
+          play('click');
+          setPhase('puzzle');
+        } else {
+          handleAcknowledge();
+        }
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const handleVideoComplete = () => {
     setVideoSrc(null);
@@ -76,10 +382,28 @@ export default function EventPopup() {
     dispatch({ type: 'DISMISS_EVENT' });
   };
 
+  const handleCardContinue = () => {
+    if (hasPuzzle) {
+      play('click');
+      setPhase('puzzle');
+    } else {
+      handleAcknowledge();
+    }
+  };
+
+  const handlePuzzleSolved = () => {
+    dispatch({ type: 'DISMISS_EVENT' });
+  };
+
   if (!evt) return null;
 
-  if (!videoCompleted && videoSrc) {
+  if (phase === 'video' && !videoCompleted && videoSrc) {
     return <VideoPlayer src={videoSrc} onComplete={handleVideoComplete} />;
+  }
+
+  if (phase === 'puzzle') {
+    if (evt.id === 'turing') return <TuringPuzzle onSolved={handlePuzzleSolved} />;
+    if (evt.id === 'moore') return <MoorePuzzle onSolved={handlePuzzleSolved} />;
   }
 
   const cardImage = eventCardMap[evt.id];
@@ -152,15 +476,15 @@ export default function EventPopup() {
               </div>
             )}
             <button
-              onClick={handleAcknowledge}
+              onClick={handleCardContinue}
               className="w-full py-2.5 rounded font-orbitron text-sm font-bold tracking-wider transition-all hover:brightness-120"
               style={{ background: typeColor + '22', color: typeColor, border: `2px solid ${typeColor}` }}
             >
-              ACKNOWLEDGE
+              {hasPuzzle ? 'BEGIN PUZZLE' : 'ACKNOWLEDGE'}
             </button>
             <div className="text-center">
               <span className="font-mono-data text-[8px]" style={{ color: 'var(--text-tertiary)' }}>
-                Press ENTER to dismiss
+                {hasPuzzle ? 'Press ENTER to begin puzzle' : 'Press ENTER to dismiss'}
               </span>
             </div>
           </div>
@@ -207,15 +531,15 @@ export default function EventPopup() {
           </div>
         )}
         <button
-          onClick={handleAcknowledge}
+          onClick={handleCardContinue}
           className="w-full py-2.5 mt-1 rounded font-orbitron text-sm font-bold tracking-wider transition-all hover:brightness-120"
           style={{ background: typeColor + '22', color: typeColor, border: `2px solid ${typeColor}` }}
         >
-          ACKNOWLEDGE
+          {hasPuzzle ? 'BEGIN PUZZLE' : 'ACKNOWLEDGE'}
         </button>
         <div className="text-center">
           <span className="font-mono-data text-[8px]" style={{ color: 'var(--text-tertiary)' }}>
-            Press ENTER to dismiss
+            {hasPuzzle ? 'Press ENTER to begin puzzle' : 'Press ENTER to dismiss'}
           </span>
         </div>
       </div>

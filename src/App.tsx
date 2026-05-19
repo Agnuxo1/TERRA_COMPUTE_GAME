@@ -1324,6 +1324,23 @@ function gameReducer(state: GameState, action: Action): GameState {
       // 14. EVENTS (scaled by difficulty)
       // ──────────────────────────────────────────
       const diff = getDifficulty(s.year);
+
+      if (s.tickCount >= 240 && !s.firedEvents.includes('turing') && !s.showEvent) {
+        const evt = events.find(e => e.id === 'turing');
+        if (evt) {
+          s.firedEvents = [...s.firedEvents, evt.id];
+          s.showEvent = evt.id;
+          s.paused = true;
+          if (evt.education) s.education = Math.max(0, Math.min(100, s.education + evt.education));
+          if (evt.researchPoints) s.researchPoints = Math.max(0, s.researchPoints + evt.researchPoints);
+          s.notifications = [{
+            id: `evt-${evt.id}-${Date.now()}`,
+            text: `${evt.name}: ${evt.description}`,
+            type: evt.type,
+            time: Date.now(),
+          }, ...s.notifications].slice(0, 6);
+        }
+      }
       
       for (const evt of events) {
         if (evt.year === yearInt && !s.firedEvents.includes(evt.id)) {

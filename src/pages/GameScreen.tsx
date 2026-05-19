@@ -38,9 +38,6 @@ export default function GameScreen() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Event popup has priority
       if (state.showEvent) {
-        if (e.key === 'Enter' || e.key === 'Escape') {
-          dispatch({ type: 'DISMISS_EVENT' });
-        }
         return;
       }
 
