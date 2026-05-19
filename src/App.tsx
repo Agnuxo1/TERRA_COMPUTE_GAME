@@ -1263,6 +1263,7 @@ function gameReducer(state: GameState, action: Action): GameState {
         if (evt.year === yearInt && !s.firedEvents.includes(evt.id)) {
           s.firedEvents = [...s.firedEvents, evt.id];
           s.showEvent = evt.id;
+          s.paused = true;
           // Event effects scale with difficulty - much harsher near 2035
           if (evt.gdp) s.gdp = Math.max(10, s.gdp * (1 + evt.gdp * diff));
           if (evt.energy) s.energy = Math.max(0, s.energy + evt.energy * diff);
@@ -1751,7 +1752,7 @@ You survived the critical period, but never achieved the compute or safety neede
     case 'SELECT_TERRITORY':
       return { ...state, selectedTerritory: action.territory };
     case 'DISMISS_EVENT':
-      return { ...state, showEvent: null };
+      return { ...state, showEvent: null, paused: false };
     case 'DISMISS_NOTIFICATION':
       return { ...state, notifications: state.notifications.filter(n => n.id !== action.id) };
     case 'SET_SCREEN':
