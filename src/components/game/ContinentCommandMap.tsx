@@ -42,6 +42,17 @@ const buildingTone: Record<string, string> = {
   automation: '#FFD700',
 };
 
+const factionCardMap: Record<string, string> = {
+  na: '/assets/cards/continent-usa.png',
+  eu: '/assets/cards/continent-europe.png',
+  su: '/assets/cards/continent-ussr.png',
+  cn: '/assets/cards/continent-china.png',
+  af: '/assets/cards/continent-africa.png',
+  sa: '/assets/cards/continent-southamerica.png',
+  in: '/assets/cards/continent-india.png',
+  oc: '/assets/cards/continent-oceania.png',
+};
+
 function getBounds(continentId: string) {
   const own = territories.filter(t => t.continent === continentId);
   const numbers = own.flatMap(t => {
@@ -76,6 +87,8 @@ export default function ContinentCommandMap({ onExit }: ContinentCommandMapProps
   const ownTerritories = territories.filter(t => t.continent === continentId);
   const bounds = getBounds(continentId);
   const placed = state.buildingIcons.filter(icon => territoryContinents[icon.territory] === continentId);
+  const factionCard = factionCardMap[continentId];
+  const factionColor = continent?.color || '#00F0FF';
 
   const handleTerritoryClick = (territoryId: string) => {
     play('click', 0.65);
@@ -84,19 +97,69 @@ export default function ContinentCommandMap({ onExit }: ContinentCommandMapProps
 
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: '#07070A' }}>
+      {factionCard && (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: `url(${factionCard})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'grayscale(1) contrast(1.25) brightness(0.42)',
+            opacity: 0.36,
+            transform: 'scale(1.08)',
+          }}
+        />
+      )}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            'linear-gradient(135deg, rgba(255,71,126,0.08), transparent 34%), radial-gradient(circle at 60% 40%, rgba(0,240,255,0.12), transparent 32%), #07070A',
+            `linear-gradient(135deg, ${factionColor}22, transparent 34%), radial-gradient(circle at 62% 42%, ${factionColor}26, transparent 34%), linear-gradient(180deg, rgba(5,5,8,0.26), rgba(5,5,8,0.88))`,
         }}
       />
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
           backgroundImage:
-            'repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(0,240,255,0.05) 32px), repeating-linear-gradient(90deg, transparent, transparent 31px, rgba(255,184,77,0.035) 32px)',
+            `repeating-linear-gradient(0deg, transparent, transparent 31px, ${factionColor}14 32px), repeating-linear-gradient(90deg, transparent, transparent 31px, rgba(255,244,194,0.055) 32px)`,
           mixBlendMode: 'screen',
+        }}
+      />
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          left: '50%',
+          top: '50%',
+          width: 'min(72vw, 72vh)',
+          height: 'min(72vw, 72vh)',
+          transform: 'translate(-50%, -50%)',
+          borderRadius: '50%',
+          border: `1px solid ${factionColor}55`,
+          boxShadow: `0 0 34px ${factionColor}22, inset 0 0 46px rgba(0,0,0,0.45)`,
+          background: `repeating-radial-gradient(circle, transparent 0 11%, ${factionColor}12 11.4%, transparent 12.2%), conic-gradient(from 220deg, transparent 0deg, ${factionColor}4D 18deg, transparent 42deg, transparent 360deg)`,
+          opacity: 0.78,
+        }}
+      />
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          left: '50%',
+          top: '50%',
+          width: 'min(84vw, 84vh)',
+          height: 'min(84vw, 84vh)',
+          transform: 'translate(-50%, -50%) rotate(-18deg)',
+          borderRadius: '50%',
+          background: `conic-gradient(from 0deg, transparent 0deg, transparent 312deg, ${factionColor}66 334deg, transparent 354deg)`,
+          mixBlendMode: 'screen',
+          opacity: 0.55,
+        }}
+      />
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            'linear-gradient(90deg, rgba(0,0,0,0.42), transparent 18%, transparent 82%, rgba(0,0,0,0.48)), repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 4px)',
+          mixBlendMode: 'overlay',
         }}
       />
 
@@ -111,7 +174,7 @@ export default function ContinentCommandMap({ onExit }: ContinentCommandMapProps
           </filter>
           <linearGradient id="territory-command-fill" x1="0" x2="1" y1="0" y2="1">
             <stop offset="0%" stopColor={continent?.color || '#00F0FF'} stopOpacity="0.72" />
-            <stop offset="100%" stopColor="#161821" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="#161821" stopOpacity="0.74" />
           </linearGradient>
         </defs>
 
@@ -120,7 +183,7 @@ export default function ContinentCommandMap({ onExit }: ContinentCommandMapProps
           y={bounds.minY}
           width={bounds.width}
           height={bounds.height}
-          fill="rgba(5,5,8,0.78)"
+          fill="rgba(5,5,8,0.32)"
         />
         <rect
           x={bounds.minX}
