@@ -29,6 +29,30 @@ const factionCardMap: Record<string, string> = {
   oc: '/assets/cards/continent-oceania.png',
 };
 
+const spriteMap: Record<string, string> = {
+  factory: '/assets/sprites/terra-factory.png',
+  chipfab: '/assets/sprites/terra-factory.png',
+  coal: '/assets/sprites/terra-power-plant.png',
+  nuclear: '/assets/sprites/terra-power-plant.png',
+  solar: '/assets/sprites/terra-power-plant.png',
+  housing: '/assets/sprites/terra-city.png',
+  hospital: '/assets/sprites/terra-city.png',
+  farm: '/assets/sprites/terra-farm.png',
+  datacenter: '/assets/sprites/terra-datacenter.png',
+  gpucluster: '/assets/sprites/terra-datacenter.png',
+  mainframe: '/assets/sprites/terra-datacenter.png',
+  super: '/assets/sprites/terra-datacenter.png',
+  aifactory: '/assets/sprites/terra-ai-factory.png',
+  robot: '/assets/sprites/terra-ai-factory.png',
+  lab: '/assets/sprites/terra-lab.png',
+  uni: '/assets/sprites/terra-university.png',
+  school: '/assets/sprites/terra-university.png',
+  market: '/assets/sprites/terra-market.png',
+  seaport: '/assets/sprites/terra-seaport.png',
+  satellite: '/assets/sprites/terra-seaport.png',
+  defense: '/assets/sprites/terra-defense-bunker.png',
+};
+
 function getBounds(continentId: string) {
   const own = territories.filter(t => t.continent === continentId);
   const numbers = own.flatMap(t => {
@@ -69,6 +93,43 @@ function makeRoadPath(from: [number, number], to: [number, number], i: number): 
 }
 
 function StructureIcon({ type, tone, category }: { type: string; tone: string; category: string }) {
+  const sprite = spriteMap[type];
+  if (sprite) {
+    const width = type === 'truck' ? 12 : category === 'compute' || type === 'aifactory' ? 42 : 38;
+    const height = type === 'truck' ? 8 : category === 'compute' || type === 'aifactory' ? 38 : 34;
+    const smoke = type === 'factory' || type === 'chipfab' || type === 'coal' || type === 'nuclear';
+    const power = category === 'energy' || type === 'datacenter' || type === 'gpucluster' || type === 'aifactory';
+    return (
+      <g>
+        <image
+          href={sprite}
+          x={-width / 2}
+          y={-height + 9}
+          width={width}
+          height={height}
+          preserveAspectRatio="xMidYMid meet"
+        />
+        {smoke && (
+          <>
+            <circle cx="-7" cy="-29" r="2.2" fill="#C7CEDA" opacity="0.34">
+              <animate attributeName="cy" values="-24;-36;-24" dur="2.8s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.34;0;0.34" dur="2.8s" repeatCount="indefinite" />
+            </circle>
+            <circle cx="2" cy="-27" r="2.8" fill="#C7CEDA" opacity="0.26">
+              <animate attributeName="cy" values="-22;-34;-22" dur="3.2s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.26;0;0.26" dur="3.2s" repeatCount="indefinite" />
+            </circle>
+          </>
+        )}
+        {power && (
+          <path d="M 13 -8 C 21 -8 25 -2 34 0" stroke={tone} strokeWidth="1" strokeDasharray="2 2" opacity="0.8">
+            <animate attributeName="stroke-dashoffset" values="0;-12" dur="1.2s" repeatCount="indefinite" />
+          </path>
+        )}
+      </g>
+    );
+  }
+
   if (type === 'farm') {
     return (
       <g>
@@ -346,11 +407,18 @@ export default function ContinentCommandMap({ onExit }: ContinentCommandMapProps
                 opacity={isPower ? 0.72 : 0.42}
                 filter={isPower ? 'url(#living-map-glow)' : undefined}
               />
-              <rect width="5.5" height="3.2" rx="0.6" fill={isPower ? '#00F0FF' : '#FFB84D'} stroke="#050508" strokeWidth="0.6" opacity="0.95">
+              <image
+                href="/assets/sprites/terra-truck.png"
+                x="-5"
+                y="-4"
+                width="10"
+                height="7"
+                opacity="0.96"
+              >
                 <animateMotion dur={`${5.5 + (i % 5)}s`} repeatCount="indefinite" begin={`${(i % 4) * 0.65}s`}>
                   <mpath href={`#${roadId}`} />
                 </animateMotion>
-              </rect>
+              </image>
             </g>
           );
         })}
