@@ -3,7 +3,7 @@
 
 
 <p align="center">
-  <a href="https://k6ct2riiidgqu.kimi.page"><img src="https://img.shields.io/badge/PLAY%20NOW-Online-33FF33?style=for-the-badge&logo=rocket&logoColor=white" alt="Play Now"></a>
+  <a href="https://huggingface.co/spaces/Agnuxo/terra-compute-game"><img src="https://img.shields.io/badge/PLAY%20NOW-Online-33FF33?style=for-the-badge&logo=rocket&logoColor=white" alt="Play Now"></a>
   <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=white" alt="React 19">
   <img src="https://img.shields.io/badge/TypeScript-5.7-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/Vite-7-646CFF?style=for-the-badge&logo=vite&logoColor=white" alt="Vite">
