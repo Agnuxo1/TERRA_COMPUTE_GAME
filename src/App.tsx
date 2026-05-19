@@ -286,8 +286,8 @@ export const buildings: BuildingData[] = [
   {id:'mainframe', name:'Mainframe Center', cost:260, energyUse:25, energyProduce:0, compute:1e9, yearRequired:1965, description:'Early computing center. +1B FLOPS.', icon:'💻', category:'compute', workersNeeded:0.8, workersProvided:0, output:'compute', outputAmount:1e9},
   {id:'super', name:'Supercomputer Program', cost:750, energyUse:120, energyProduce:0, compute:1e12, yearRequired:1975, description:'High-performance computing. +1T FLOPS.', icon:'🖥️', category:'compute', workersNeeded:1, workersProvided:0, output:'compute', outputAmount:1e12},
   {id:'datacenter', name:'Data Center Region', cost:2200, energyUse:650, energyProduce:0, compute:1e15, yearRequired:1995, description:'Cloud computing region. +1P FLOPS.', icon:'🗄️', category:'compute', workersNeeded:1.8, workersProvided:0, output:'compute', outputAmount:1e15},
-  {id:'gpucluster', name:'GPU Cluster', cost:9500, energyUse:2600, energyProduce:0, compute:1e18, yearRequired:2010, description:'AI training cluster. +1E FLOPS.', icon:'⚡', category:'compute', workersNeeded:2.2, workersProvided:0, output:'compute', outputAmount:1e18},
-  {id:'aifactory', name:'AI Factory', cost:42000, energyUse:12000, energyProduce:0, compute:1e21, yearRequired:2020, description:'Frontier AI training megaproject. +1Z FLOPS.', icon:'🤖', category:'compute', workersNeeded:3, workersProvided:0, output:'compute', outputAmount:1e21},
+  {id:'gpucluster', name:'GPU Cluster', cost:8000, energyUse:2400, energyProduce:0, compute:1e18, yearRequired:2010, description:'AI training cluster. +1E FLOPS.', icon:'⚡', category:'compute', workersNeeded:2.2, workersProvided:0, output:'compute', outputAmount:1e18},
+  {id:'aifactory', name:'AI Factory', cost:28000, energyUse:9500, energyProduce:0, compute:1e21, yearRequired:2020, description:'Frontier AI training megaproject. +1Z FLOPS.', icon:'🤖', category:'compute', workersNeeded:3, workersProvided:0, output:'compute', outputAmount:1e21},
 
   // ─── Energy ───
   {id:'coal', name:'Coal Plant Fleet', cost:110, energyUse:0, energyProduce:500, compute:0, yearRequired:1960, description:'Cheap but dirty energy. +500 TWh.', icon:'🏭', category:'energy', workersNeeded:0.7, workersProvided:0, output:'energy', outputAmount:500},
@@ -533,6 +533,27 @@ function calcComputeRaw(buildings: Array<{type: string; count: number}>): number
 // ═══════════════════════════════════════════════════════════════════════════════
 //  PHASE SYSTEM
 // ═══════════════════════════════════════════════════════════════════════════════
+
+function calcResearchGainPerYear(s: GameState, energyRatio: number): number {
+  const uniCount = countBuildings(s.buildings, 'uni');
+  const labCount = countBuildings(s.buildings, 'lab');
+  const datacenterCount = countBuildings(s.buildings, 'datacenter');
+  const gpuClusterCount = countBuildings(s.buildings, 'gpucluster');
+  const aiFactoryCount = countBuildings(s.buildings, 'aifactory');
+  const satelliteCount = countBuildings(s.buildings, 'satellite');
+
+  const humanResearch = (s.researchers * 2 + uniCount * 3 + labCount * 5) * (0.75 + s.education / 100);
+  const computeLog = Math.max(0, Math.log10(Math.max(s.compute, 1) / 1e15));
+  const computeResearch = s.year >= 2006 ? Math.pow(computeLog, 2) * 2200 : 0;
+  const infrastructureResearch =
+    datacenterCount * 550 +
+    gpuClusterCount * 1800 +
+    aiFactoryCount * 8500 +
+    satelliteCount * 120;
+  const dataResearch = s.year >= 1995 ? Math.log10(Math.max(s.data, 1)) * 180 : 0;
+
+  return (humanResearch + computeResearch + infrastructureResearch + dataResearch) * energyRatio;
+}
 
 function getPhaseName(phase: number): string {
   const names = [
@@ -1065,6 +1086,11 @@ function gameReducer(state: GameState, action: Action): GameState {
       const labCount = countBuildings(s.buildings, 'lab');
       const defenseCount = countBuildings(s.buildings, 'defense');
       const chipfabCount = countBuildings(s.buildings, 'chipfab');
+      const datacenterCount = countBuildings(s.buildings, 'datacenter');
+      const gpuClusterCount = countBuildings(s.buildings, 'gpucluster');
+      const aiFactoryCount = countBuildings(s.buildings, 'aifactory');
+      const robotCount = countBuildings(s.buildings, 'robot');
+      const satelliteCount = countBuildings(s.buildings, 'satellite');
 
       // ──────────────────────────────────────────
       // 2. ENERGY BALANCE
@@ -1139,7 +1165,6 @@ function gameReducer(state: GameState, action: Action): GameState {
       let workersNeeded = informalJobs + formalJobs;
 
       // ═══ ROBOT AUTOMATION: each robot reduces factory worker needs by 500 ═══
-      const robotCount = countBuildings(s.buildings, 'robot');
       if (robotCount > 0) {
         const factoryCountForRobots = countBuildings(s.buildings, 'factory');
         const workerReduction = Math.min(
@@ -1161,7 +1186,7 @@ function gameReducer(state: GameState, action: Action): GameState {
       // ──────────────────────────────────────────
       // 7. RESEARCH POINTS
       // ──────────────────────────────────────────
-      const rpGain = (s.researchers * 2 + uniCount * 3 + labCount * 5) * energyRatio;
+      const rpGain = calcResearchGainPerYear(s, energyRatio);
       s.researchPoints += rpGain * dt;
 
       // ──────────────────────────────────────────
@@ -1175,6 +1200,13 @@ function gameReducer(state: GameState, action: Action): GameState {
       const workerGDP = politicallyAdjustedEmployed * budgetPerMillionWorkers * educationMult;
       s.industrialOutput = factoryCount * 42 * energyRatio;
       s.tradeRevenue = (marketCount * 22 + seaportCount * 75) * energyRatio;
+      const computeSectorRevenue = (
+        datacenterCount * 160 +
+        gpuClusterCount * 520 +
+        aiFactoryCount * 2200 +
+        satelliteCount * 95 +
+        robotCount * 220
+      ) * energyRatio;
       const taxBase = s.population * s.taxRate * 1.5;
       const maintenance = (
         farmCount * 3 + housingCount * 2 + hospitalCount * 4 + schoolCount * 2 +
@@ -1182,11 +1214,11 @@ function gameReducer(state: GameState, action: Action): GameState {
         uniCount * 5 + chipfabCount * 15 + defenseCount * 12 +
         countBuildings(s.buildings, 'mainframe') * 8 +
         countBuildings(s.buildings, 'super') * 18 +
-        countBuildings(s.buildings, 'datacenter') * 60 +
-        countBuildings(s.buildings, 'gpucluster') * 180 +
-        countBuildings(s.buildings, 'aifactory') * 520 +
-        countBuildings(s.buildings, 'robot') * 35 +
-        countBuildings(s.buildings, 'satellite') * 25
+        datacenterCount * 60 +
+        gpuClusterCount * 180 +
+        aiFactoryCount * 520 +
+        robotCount * 35 +
+        satelliteCount * 25
       ) * energyRatio;
 
       const baseGdpGrowth = 0.006;
@@ -1195,7 +1227,7 @@ function gameReducer(state: GameState, action: Action): GameState {
       const politicalGdpPenalty = politicalState.gdpPenalty;
       const gdpGrowth = baseGdpGrowth + techBonus + unemploymentGdpPenalty + politicalGdpPenalty;
 
-      s.gdp = Math.max(10, s.gdp * (1 + gdpGrowth * dt) + (workerGDP + s.industrialOutput + s.tradeRevenue + taxBase - maintenance) * dt);
+      s.gdp = Math.max(10, s.gdp * (1 + gdpGrowth * dt) + (workerGDP + s.industrialOutput + s.tradeRevenue + computeSectorRevenue + taxBase - maintenance) * dt);
 
       // ═══ EMERGENCY LOCK COUNTDOWN ═══
       if (s.emergencyLock > 0) {
@@ -1256,9 +1288,8 @@ function gameReducer(state: GameState, action: Action): GameState {
       // ──────────────────────────────────────────
       // 12. DATA
       // ──────────────────────────────────────────
-      const satCount = countBuildings(s.buildings, 'satellite');
-      const satBonus = satCount * 5; // +5% per satellite
-      s.data += (uniCount * 10 + countBuildings(s.buildings, 'datacenter') * 100) * (1 + satBonus / 100) * dt;
+      const satBonus = satelliteCount * 5; // +5% per satellite
+      s.data += (uniCount * 10 + datacenterCount * 100) * (1 + satBonus / 100) * dt;
 
       // ──────────────────────────────────────────
       // 13. TECH AVAILABILITY & QUEUE
@@ -1271,8 +1302,7 @@ function gameReducer(state: GameState, action: Action): GameState {
       if (s.techQueue) {
         const tech = techs.find(t => t.id === s.techQueue);
         if (tech && s.researchPoints >= tech.rpCost * 0.1) {
-          const rpPerTick = s.researchers * 5 * energyRatio;
-          s.techProgress += (rpPerTick / tech.rpCost) * 100 * dt;
+          s.techProgress += (rpGain / tech.rpCost) * 100 * dt;
           if (s.techProgress >= 100) {
             s.unlockedTechs = [...s.unlockedTechs, s.techQueue];
             s.algorithmicEfficiency += tech.computeBonus;
