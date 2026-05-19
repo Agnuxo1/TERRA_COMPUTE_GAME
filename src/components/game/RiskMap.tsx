@@ -2,14 +2,14 @@ import { useGame, continents } from '../../App';
 import { useMemo } from 'react';
 import { play } from '../../hooks/useSound';
 
-interface Territory {
+export interface Territory {
   id: string;
   name: string;
   continent: string;
   path: string;
 }
 
-const territories: Territory[] = [
+export const territories: Territory[] = [
   /* North America (9) */
   {id:'na_alaska', name:'Alaska', continent:'na', path:'M 40 55 L 95 48 L 115 75 L 85 95 L 35 85 Z'},
   {id:'na_nwt', name:'N.W. Territory', continent:'na', path:'M 95 48 L 160 42 L 180 70 L 165 95 L 115 75 Z'},
@@ -235,12 +235,12 @@ export default function RiskMap() {
   );
 }
 
-function contColor(continentId: string): string {
+export function contColor(continentId: string): string {
   const c = continents.find(x => x.id === continentId);
   return c ? c.color : '#555';
 }
 
-function getCentroid(pathData: string): [number, number] {
+export function getCentroid(pathData: string): [number, number] {
   const numbers: number[] = [];
   const regex = /[-+]?[0-9]*\.?[0-9]+/g;
   let match;

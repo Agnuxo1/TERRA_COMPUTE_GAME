@@ -1,8 +1,9 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useGame } from '../App';
 import { play, startAmbient, stopAmbient } from '../hooks/useSound';
 import ResourceBar from '../components/game/ResourceBar';
 import EvolvingMap from '../components/game/EvolvingMap';
+import ContinentCommandMap from '../components/game/ContinentCommandMap';
 import Minimap from '../components/game/Minimap';
 import CommandCard from '../components/game/CommandCard';
 import EventPopup from '../components/game/EventPopup';
@@ -16,6 +17,7 @@ import Translator from '../components/game/Translator';
 
 export default function GameScreen() {
   const { state, dispatch } = useGame();
+  const [mapView, setMapView] = useState<'globe' | 'continent'>('globe');
 
   // Game loop tick every 250ms
   useEffect(() => {
@@ -142,7 +144,11 @@ export default function GameScreen() {
       <div className="flex flex-col flex-1 md:flex-row overflow-hidden" style={{ minHeight: 0 }}>
         {/* Map - ALWAYS VISIBLE */}
         <div className="relative flex-1 h-[35vh] md:h-auto" style={{ minWidth: 0, minHeight: '200px' }}>
-          <EvolvingMap />
+          {mapView === 'continent' ? (
+            <ContinentCommandMap onExit={() => setMapView('globe')} />
+          ) : (
+            <EvolvingMap onEnterContinent={() => setMapView('continent')} />
+          )}
           <NotificationFeed />
         </div>
 

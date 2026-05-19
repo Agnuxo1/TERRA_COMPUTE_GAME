@@ -1,5 +1,5 @@
-import { useGame } from '../../App';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { continents, useGame } from '../../App';
+import { useEffect, useState, useRef } from 'react';
 import { playSfx } from '../../hooks/useSound';
 
 // ─── SOUND PATHS ───
@@ -148,7 +148,30 @@ function useImagePreloader(srcs: string[]) {
   return { loaded, cache: cacheRef.current };
 }
 
-export default function EvolvingMap() {
+interface EvolvingMapProps {
+  onEnterContinent?: () => void;
+}
+
+function toGlobePercentX(x: number): number {
+  return x > 100 ? (x / 760) * 100 : x;
+}
+
+function toGlobePercentY(y: number): number {
+  return y > 100 ? (y / 450) * 100 : y;
+}
+
+const continentHitZones: Record<string, { left: string; top: string; width: string; height: string }> = {
+  na: { left: '4%', top: '8%', width: '33%', height: '44%' },
+  sa: { left: '18%', top: '48%', width: '18%', height: '38%' },
+  eu: { left: '42%', top: '11%', width: '18%', height: '23%' },
+  su: { left: '58%', top: '4%', width: '34%', height: '28%' },
+  cn: { left: '66%', top: '27%', width: '25%', height: '25%' },
+  in: { left: '60%', top: '44%', width: '13%', height: '22%' },
+  af: { left: '42%', top: '35%', width: '22%', height: '36%' },
+  oc: { left: '73%', top: '66%', width: '23%', height: '24%' },
+};
+
+export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
   const { state } = useGame();
   const [planes, setPlanes] = useState<Plane[]>([]);
   const [satellites, setSatellites] = useState<Satellite[]>([]);
@@ -162,6 +185,8 @@ export default function EvolvingMap() {
   const eraFilter = getEraFilter(year);
   const planeImg = getPlaneImage(year);
   const satImg = getSatelliteImage(year);
+  const playerContinent = continents.find(c => c.id === state.playerContinent);
+  const playerHitZone = state.playerContinent ? continentHitZones[state.playerContinent] : null;
 
   // Count satellite buildings for orbit count
   const satBuildingCount = state.buildings.find(b => b.type === 'satellite')?.count || 0;
@@ -367,6 +392,36 @@ export default function EvolvingMap() {
         }}
       />
 
+      {playerHitZone && onEnterContinent && (
+        <button
+          type="button"
+          aria-label={`Enter ${playerContinent?.name || 'continent'} command map`}
+          title={`Enter ${playerContinent?.name || 'continent'} command map`}
+          onClick={onEnterContinent}
+          className="absolute group"
+          style={{
+            ...playerHitZone,
+            zIndex: 18,
+            border: `1px solid ${playerContinent?.color || '#00F0FF'}33`,
+            background: `${playerContinent?.color || '#00F0FF'}08`,
+            boxShadow: `inset 0 0 24px ${playerContinent?.color || '#00F0FF'}10`,
+            clipPath: 'polygon(8% 18%, 88% 0%, 100% 70%, 72% 100%, 16% 82%, 0% 42%)',
+          }}
+        >
+          <span
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 px-2 py-1 font-orbitron text-[8px] font-bold tracking-wider opacity-0 transition-opacity group-hover:opacity-100"
+            style={{
+              color: playerContinent?.color || 'var(--cyan)',
+              background: 'rgba(5,5,8,0.82)',
+              border: `1px solid ${playerContinent?.color || '#00F0FF'}66`,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            ENTER COMMAND MAP
+          </span>
+        </button>
+      )}
+
       {/* Vignette */}
       <div className="absolute inset-0 pointer-events-none"
         style={{
@@ -529,8 +584,8 @@ export default function EvolvingMap() {
             key={`bld-${i}`}
             className="absolute"
             style={{
-              left: `${icon.x}%`,
-              top: `${icon.y}%`,
+              left: `${toGlobePercentX(icon.x)}%`,
+              top: `${toGlobePercentY(icon.y)}%`,
               transform: 'translate(-50%, -50%)',
               width: year >= 2030 ? '20px' : year >= 2010 ? '18px' : '16px',
               height: year >= 2030 ? '14px' : year >= 2010 ? '12px' : '11px',

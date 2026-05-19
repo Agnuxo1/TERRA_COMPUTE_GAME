@@ -345,6 +345,46 @@ export const territoryPositions: Record<string, {x: number; y: number}> = {
   'au_indonesia': {x:720,y:320}, 'au_new_guinea': {x:780,y:280}, 'au_western': {x:750,y:380}, 'au_eastern': {x:800,y:360},
 };
 
+export const territoryContinents: Record<string, string> = {
+  na_alaska: 'na', na_nwt: 'na', na_greenland: 'na', na_alberta: 'na', na_ontario: 'na', na_quebec: 'na',
+  na_western_us: 'na', na_eastern_us: 'na', na_central_america: 'na',
+  sa_venezuela: 'sa', sa_brazil: 'sa', sa_peru: 'sa', sa_argentina: 'sa',
+  eu_iceland: 'eu', eu_great_britain: 'eu', eu_scandinavia: 'eu', eu_northern_eu: 'eu', eu_ukraine: 'eu',
+  eu_southern_eu: 'eu', eu_western_eu: 'eu',
+  af_north: 'af', af_egypt: 'af', af_east: 'af', af_congo: 'af', af_south: 'af', af_madagascar: 'af',
+  as_ural: 'su', as_siberia: 'su', as_yakutsk: 'su', as_kamchatka: 'su', as_irkutsk: 'su',
+  as_afghanistan: 'su', as_middle_east: 'su',
+  as_mongolia: 'cn', as_japan: 'cn', as_china: 'cn', as_siam: 'cn',
+  as_india: 'in',
+  au_indonesia: 'oc', au_new_guinea: 'oc', au_western: 'oc', au_eastern: 'oc',
+};
+
+function getTerritoriesForContinent(continentId: string): string[] {
+  return Object.keys(territoryPositions).filter(id => territoryContinents[id] === continentId);
+}
+
+function getBuildTerritory(state: GameState): string {
+  const playerTerritories = getTerritoriesForContinent(state.playerContinent || '');
+  if (
+    state.selectedTerritory &&
+    playerTerritories.includes(state.selectedTerritory)
+  ) {
+    return state.selectedTerritory;
+  }
+  const pool = playerTerritories.length > 0 ? playerTerritories : Object.keys(territoryPositions);
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function makeBuildingIcon(type: string, territory: string, jitter = 14): {type: string; territory: string; x: number; y: number} {
+  const pos = territoryPositions[territory] || { x: 380, y: 225 };
+  return {
+    type,
+    territory,
+    x: pos.x + (Math.random() - 0.5) * jitter,
+    y: pos.y + (Math.random() - 0.5) * jitter,
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  AI OPPONENT INITIALIZATION
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -853,9 +893,12 @@ function gameReducer(state: GameState, action: Action): GameState {
       const startBuildings = isStrategist
         ? [{type:'farm',count:8},{type:'housing',count:5},{type:'school',count:3},{type:'factory',count:3},{type:'market',count:2},{type:'coal',count:3},{type:'lab',count:2},{type:'hospital',count:2}]
         : [{type:'farm',count:2},{type:'housing',count:1},{type:'coal',count:1}];
-      const startIcons = isStrategist
-        ? Array.from({length:8},(_,i)=>({type:startBuildings[i]?.type||'farm',territory:'home' as const,x:20+Math.random()*60,y:20+Math.random()*40}))
-        : [{type:'farm',territory:'home',x:40+Math.random()*20,y:30+Math.random()*20},{type:'farm',territory:'home',x:40+Math.random()*20,y:30+Math.random()*20},{type:'housing',territory:'home',x:40+Math.random()*20,y:30+Math.random()*20},{type:'coal',territory:'home',x:40+Math.random()*20,y:30+Math.random()*20}];
+      const homeTerritories = getTerritoriesForContinent(action.continentId);
+      const startIconTypes = startBuildings.flatMap(b => Array.from({ length: Math.min(b.count, 3) }, () => b.type));
+      const startIcons = startIconTypes.map((type, i) => {
+        const territory = homeTerritories.length > 0 ? homeTerritories[i % homeTerritories.length] : 'na_alberta';
+        return makeBuildingIcon(type, territory, 16);
+      });
       const opponents = isPioneer ? [] : createOpponents(action.continentId);
       const startPhase = isStrategist ? 2 : 1;
       return {
@@ -1524,21 +1567,14 @@ You survived the critical period, but never achieved the compute or safety neede
       const newBuildings = existing
         ? state.buildings.map(x => x.type === action.buildingId ? { ...x, count: x.count + 1 } : x)
         : [...state.buildings, { type: action.buildingId, count: 1 }];
-      const availableTerrs = Object.keys(territoryPositions);
-      const randomTerr = availableTerrs[Math.floor(Math.random() * availableTerrs.length)];
-      const pos = territoryPositions[randomTerr];
+      const randomTerr = getBuildTerritory(state);
 
       // Immediate effects
       let newState = { ...state };
       newState.gdp -= scaledCost;
       newState.buildings = newBuildings;
       newState.totalBuildings += 1;
-      newState.buildingIcons = [...state.buildingIcons, {
-        type: action.buildingId,
-        territory: randomTerr,
-        x: pos.x + (Math.random() - 0.5) * 20,
-        y: pos.y + (Math.random() - 0.5) * 20,
-      }];
+      newState.buildingIcons = [...state.buildingIcons, makeBuildingIcon(action.buildingId, randomTerr, 18)];
 
       // Immediate population/food effects for early buildings
       if (b.id === 'housing') {
