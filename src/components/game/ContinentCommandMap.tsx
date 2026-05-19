@@ -1,3 +1,4 @@
+import { useRef, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { buildings, continents, territoryContinents, useGame } from '../../App';
 import { contColor, getCentroid, territories } from './RiskMap';
 import { play } from '../../hooks/useSound';
@@ -225,17 +226,77 @@ function StructureIcon({ type, tone, category }: { type: string; tone: string; c
 
 export default function ContinentCommandMap({ onExit }: ContinentCommandMapProps) {
   const { state, dispatch } = useGame();
+  const svgRef = useRef<SVGSVGElement>(null);
   const continentId = state.playerContinent || 'na';
   const continent = continents.find(c => c.id === continentId);
   const ownTerritories = territories.filter(t => t.continent === continentId);
   const bounds = getBounds(continentId);
-  const placed = state.buildingIcons.filter(icon => territoryContinents[icon.territory] === continentId);
+  const placed = state.buildingIcons
+    .map((icon, index) => ({ ...icon, index }))
+    .filter(icon => territoryContinents[icon.territory] === continentId);
   const factionCard = factionCardMap[continentId];
   const factionColor = continent?.color || '#00F0FF';
 
   const handleTerritoryClick = (territoryId: string) => {
     play('click', 0.65);
     dispatch({ type: 'SELECT_TERRITORY', territory: territoryId });
+  };
+
+  const getSvgPointFromClient = (clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return null;
+    const point = svg.createSVGPoint();
+    point.x = clientX;
+    point.y = clientY;
+    const matrix = svg.getScreenCTM();
+    if (!matrix) return null;
+    return point.matrixTransform(matrix.inverse());
+  };
+
+  const getSvgPoint = (e: ReactPointerEvent<SVGElement>) => getSvgPointFromClient(e.clientX, e.clientY);
+
+  const handleSpritePointerDown = (e: ReactPointerEvent<SVGGElement>, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    play('click', 0.45);
+    const move = (event: PointerEvent) => {
+      const svg = svgRef.current;
+      if (!svg) return;
+      const point = svg.createSVGPoint();
+      point.x = event.clientX;
+      point.y = event.clientY;
+      const matrix = svg.getScreenCTM();
+      if (!matrix) return;
+      const pos = point.matrixTransform(matrix.inverse());
+      dispatch({ type: 'MOVE_BUILDING_ICON', index, x: pos.x, y: pos.y });
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    const pos = getSvgPoint(e);
+    if (pos) dispatch({ type: 'MOVE_BUILDING_ICON', index, x: pos.x, y: pos.y });
+  };
+
+  const handleSpriteMouseDown = (e: ReactMouseEvent<SVGGElement>, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    play('click', 0.45);
+    const move = (event: MouseEvent) => {
+      const pos = getSvgPointFromClient(event.clientX, event.clientY);
+      if (pos) dispatch({ type: 'MOVE_BUILDING_ICON', index, x: pos.x, y: pos.y });
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    const pos = getSvgPointFromClient(e.clientX, e.clientY);
+    if (pos) dispatch({ type: 'MOVE_BUILDING_ICON', index, x: pos.x, y: pos.y });
   };
 
   return (
@@ -306,7 +367,7 @@ export default function ContinentCommandMap({ onExit }: ContinentCommandMapProps
         }}
       />
 
-      <svg className="absolute inset-0 w-full h-full" viewBox={bounds.viewBox} preserveAspectRatio="xMidYMid slice">
+      <svg ref={svgRef} className="absolute inset-0 w-full h-full" viewBox={bounds.viewBox} preserveAspectRatio="xMidYMid slice">
         <defs>
           <filter id="continent-paper-grain">
             <feTurbulence baseFrequency="0.75" numOctaves="2" seed="7" type="fractalNoise" />
@@ -383,7 +444,7 @@ export default function ContinentCommandMap({ onExit }: ContinentCommandMapProps
         {placed.map((icon, i) => {
           const hub = getRoadHub(icon.territory);
           const roadPath = makeRoadPath(hub, [icon.x, icon.y], i);
-          const roadId = `road-${icon.territory}-${i}`;
+          const roadId = `road-${icon.territory}-${icon.index}`;
           const category = getCategory(icon.type);
           const isPower = category === 'energy' || icon.type === 'datacenter' || icon.type === 'gpucluster' || icon.type === 'aifactory';
           return (
@@ -423,15 +484,18 @@ export default function ContinentCommandMap({ onExit }: ContinentCommandMapProps
           );
         })}
 
-        {placed.map((icon, i) => {
+        {placed.map((icon) => {
           const category = getCategory(icon.type);
           const tone = buildingTone[category] || '#00F0FF';
           const scale = category === 'compute' || icon.type === 'aifactory' ? 1.15 : 1;
           return (
             <g
-              key={`${icon.type}-${icon.territory}-${i}`}
+              key={`${icon.type}-${icon.territory}-${icon.index}`}
               transform={`translate(${icon.x} ${icon.y}) scale(${scale})`}
               filter={`drop-shadow(0 0 4px ${tone}AA)`}
+              onPointerDown={(e) => handleSpritePointerDown(e, icon.index)}
+              onMouseDown={(e) => handleSpriteMouseDown(e, icon.index)}
+              style={{ cursor: 'grab', touchAction: 'none' }}
             >
               <ellipse cx="0" cy="10" rx="15" ry="4" fill="#050508" opacity="0.55" />
               <StructureIcon type={icon.type} tone={tone} category={category} />

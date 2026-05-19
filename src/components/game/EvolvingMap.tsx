@@ -1,5 +1,5 @@
 import { continents, useGame } from '../../App';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { playSfx } from '../../hooks/useSound';
 
 // ─── SOUND PATHS ───
@@ -171,12 +171,37 @@ const continentHitZones: Record<string, { left: string; top: string; width: stri
   oc: { left: '73%', top: '66%', width: '23%', height: '24%' },
 };
 
+const buildingSpriteMap: Record<string, string> = {
+  factory: '/assets/sprites/terra-factory.png',
+  chipfab: '/assets/sprites/terra-factory.png',
+  coal: '/assets/sprites/terra-power-plant.png',
+  nuclear: '/assets/sprites/terra-power-plant.png',
+  solar: '/assets/sprites/terra-power-plant.png',
+  housing: '/assets/sprites/terra-city.png',
+  hospital: '/assets/sprites/terra-city.png',
+  farm: '/assets/sprites/terra-farm.png',
+  datacenter: '/assets/sprites/terra-datacenter.png',
+  gpucluster: '/assets/sprites/terra-datacenter.png',
+  mainframe: '/assets/sprites/terra-datacenter.png',
+  super: '/assets/sprites/terra-datacenter.png',
+  aifactory: '/assets/sprites/terra-ai-factory.png',
+  robot: '/assets/sprites/terra-ai-factory.png',
+  lab: '/assets/sprites/terra-lab.png',
+  uni: '/assets/sprites/terra-university.png',
+  school: '/assets/sprites/terra-university.png',
+  market: '/assets/sprites/terra-market.png',
+  seaport: '/assets/sprites/terra-seaport.png',
+  satellite: '/assets/sprites/terra-seaport.png',
+  defense: '/assets/sprites/terra-defense-bunker.png',
+};
+
 export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
   const [planes, setPlanes] = useState<Plane[]>([]);
   const [satellites, setSatellites] = useState<Satellite[]>([]);
   const [rockets, setRockets] = useState<RocketLaunch[]>([]);
   const [bgLoaded, setBgLoaded] = useState(false);
+  const mapRef = useRef<HTMLDivElement>(null);
   const planeIdRef = useRef(0);
   const satIdRef = useRef(0);
   const rocketIdRef = useRef(0);
@@ -362,22 +387,68 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
     return () => clearInterval(interval);
   }, [state.paused, satellites.length]);
 
-  // ─── BUILDING CARD MAP (replacing emojis with card art) ───
-  const buildingCardMap: Record<string, string> = {
-    housing: '/assets/cards/build-housing.png', farm: '/assets/cards/build-farm.png',
-    factory: '/assets/cards/build-factory.png', hospital: '/assets/cards/build-hospital.png',
-    school: '/assets/cards/build-school.png', market: '/assets/cards/build-market.png',
-    seaport: '/assets/cards/build-seaport.png', lab: '/assets/cards/build-lab.png',
-    uni: '/assets/cards/build-uni.png', mainframe: '/assets/cards/build-mainframe.png',
-    super: '/assets/cards/build-super.png', datacenter: '/assets/cards/build-datacenter.png',
-    gpucluster: '/assets/cards/build-gpucluster.png', aifactory: '/assets/cards/build-aifactory.png',
-    chipfab: '/assets/cards/build-chipfab.png', coal: '/assets/cards/build-coal.png',
-    nuclear: '/assets/cards/build-nuclear.png', solar: '/assets/cards/build-solar.png',
-    defense: '/assets/cards/build-defense.png', satellite: '/assets/cards/build-satellite.png',
+  // ─── DRAGGABLE BUILDING SPRITES ───
+  const moveBuildingOnGlobe = (index: number, clientX: number, clientY: number) => {
+    const rect = mapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const xPercent = Math.max(2, Math.min(98, ((clientX - rect.left) / rect.width) * 100));
+    const yPercent = Math.max(4, Math.min(96, ((clientY - rect.top) / rect.height) * 100));
+    dispatch({
+      type: 'MOVE_BUILDING_ICON',
+      index,
+      x: (xPercent / 100) * 760,
+      y: (yPercent / 100) * 450,
+    });
+  };
+
+  const handleBuildingPointerDown = (e: ReactPointerEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    moveBuildingOnGlobe(index, e.clientX, e.clientY);
+    const move = (event: PointerEvent) => {
+      moveBuildingOnGlobe(index, event.clientX, event.clientY);
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  const handleBuildingPointerMove = (e: ReactPointerEvent<HTMLDivElement>, index: number) => {
+    if ((e.buttons & 1) !== 1) return;
+    e.preventDefault();
+    e.stopPropagation();
+    moveBuildingOnGlobe(index, e.clientX, e.clientY);
+  };
+
+  const handleBuildingPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  };
+
+  const handleBuildingMouseDown = (e: ReactMouseEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    moveBuildingOnGlobe(index, e.clientX, e.clientY);
+    const move = (event: MouseEvent) => {
+      moveBuildingOnGlobe(index, event.clientX, event.clientY);
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
   };
 
   return (
-    <div className="relative w-full h-full overflow-hidden" style={{ background: '#050508' }}>
+    <div ref={mapRef} className="relative w-full h-full overflow-hidden" style={{ background: '#050508' }}>
 
       {/* Globe map with era filter */}
       <div
@@ -578,27 +649,35 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
       {state.buildingIcons.map((icon, i) => {
         const isCompute = ['lab', 'uni', 'mainframe', 'super', 'datacenter', 'gpucluster', 'aifactory'].includes(icon.type);
         const isSatellite = icon.type === 'satellite';
-        const cardImg = buildingCardMap[icon.type];
+        const spriteImg = buildingSpriteMap[icon.type];
+        const size = isCompute || icon.type === 'aifactory' ? 46 : isSatellite ? 40 : 42;
         return (
           <div
             key={`bld-${i}`}
             className="absolute"
+            onPointerDown={(e) => handleBuildingPointerDown(e, i)}
+            onPointerMove={(e) => handleBuildingPointerMove(e, i)}
+            onPointerUp={handleBuildingPointerUp}
+            onPointerCancel={handleBuildingPointerUp}
+            onMouseDown={(e) => handleBuildingMouseDown(e, i)}
             style={{
               left: `${toGlobePercentX(icon.x)}%`,
               top: `${toGlobePercentY(icon.y)}%`,
               transform: 'translate(-50%, -50%)',
-              width: year >= 2030 ? '20px' : year >= 2010 ? '18px' : '16px',
-              height: year >= 2030 ? '14px' : year >= 2010 ? '12px' : '11px',
-              zIndex: isSatellite ? 26 : 15,
+              width: `${size}px`,
+              height: `${Math.round(size * 0.86)}px`,
+              zIndex: isSatellite ? 32 : 31,
               filter: (isCompute && year >= 2020) || isSatellite
                 ? 'drop-shadow(0 0 4px rgba(0,200,255,0.5))'
-                : 'none',
+                : 'drop-shadow(0 2px 4px rgba(0,0,0,0.65))',
               animation: 'building-pop 0.5s ease-out forwards',
               animationDelay: `${i * 0.08}s`,
+              cursor: 'grab',
+              touchAction: 'none',
             }}
           >
-            {cardImg ? (
-              <img src={cardImg} alt={icon.type} style={{ width: '100%', height: '100%', objectFit: 'contain' }} draggable={false} />
+            {spriteImg ? (
+              <img src={spriteImg} alt={icon.type} style={{ width: '100%', height: '100%', objectFit: 'contain' }} draggable={false} />
             ) : (
               <div style={{ width: '100%', height: '100%', borderRadius: '2px', background: 'rgba(200,220,255,0.3)' }} />
             )}

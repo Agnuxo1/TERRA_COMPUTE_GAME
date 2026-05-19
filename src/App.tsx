@@ -202,6 +202,7 @@ export type Action =
   | {type: 'START_GAME'; continentId: string}
   | {type: 'TICK'}
   | {type: 'BUILD'; buildingId: string}
+  | {type: 'MOVE_BUILDING_ICON'; index: number; x: number; y: number}
   | {type: 'RESEARCH'; techId: string}
   | {type: 'SET_SPEED'; speed: number}
   | {type: 'TOGGLE_PAUSE'}
@@ -1591,6 +1592,16 @@ You survived the critical period, but never achieved the compute or safety neede
       }
 
       return newState;
+    }
+
+    case 'MOVE_BUILDING_ICON': {
+      if (action.index < 0 || action.index >= state.buildingIcons.length) return state;
+      return {
+        ...state,
+        buildingIcons: state.buildingIcons.map((icon, i) =>
+          i === action.index ? { ...icon, x: action.x, y: action.y } : icon
+        ),
+      };
     }
 
     case 'RESEARCH': {
