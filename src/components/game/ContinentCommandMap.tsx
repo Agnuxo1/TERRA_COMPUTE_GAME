@@ -90,7 +90,7 @@ function makeRoadPath(from: [number, number], to: [number, number], i: number): 
   const mx = (from[0] + to[0]) / 2;
   const my = (from[1] + to[1]) / 2;
   const bend = i % 2 === 0 ? -7 : 7;
-  return `M ${from[0]} ${from[1]} Q ${mx} ${my + bend} ${to[0]} ${to[1] + 8}`;
+  return `M ${from[0]} ${from[1]} Q ${mx} ${my + bend} ${to[0]} ${to[1] + 4}`;
 }
 
 function StructureIcon({ type, tone, category }: { type: string; tone: string; category: string }) {
@@ -470,10 +470,10 @@ export default function ContinentCommandMap({ onExit }: ContinentCommandMapProps
               />
               <image
                 href="/assets/sprites/terra-truck.png"
-                x="-5"
-                y="-4"
-                width="10"
-                height="7"
+                x="-3"
+                y="-2.5"
+                width="6"
+                height="4.2"
                 opacity="0.96"
               >
                 <animateMotion dur={`${5.5 + (i % 5)}s`} repeatCount="indefinite" begin={`${(i % 4) * 0.65}s`}>
@@ -487,17 +487,17 @@ export default function ContinentCommandMap({ onExit }: ContinentCommandMapProps
         {placed.map((icon) => {
           const category = getCategory(icon.type);
           const tone = buildingTone[category] || '#00F0FF';
-          const scale = category === 'compute' || icon.type === 'aifactory' ? 1.15 : 1;
+          const scale = (category === 'compute' || icon.type === 'aifactory' ? 1.15 : 1) * 0.5;
           return (
             <g
               key={`${icon.type}-${icon.territory}-${icon.index}`}
               transform={`translate(${icon.x} ${icon.y}) scale(${scale})`}
-              filter={`drop-shadow(0 0 4px ${tone}AA)`}
+              filter={`drop-shadow(0 0 2px ${tone}AA)`}
               onPointerDown={(e) => handleSpritePointerDown(e, icon.index)}
               onMouseDown={(e) => handleSpriteMouseDown(e, icon.index)}
               style={{ cursor: 'grab', touchAction: 'none' }}
             >
-              <ellipse cx="0" cy="10" rx="15" ry="4" fill="#050508" opacity="0.55" />
+              <ellipse cx="0" cy="10" rx="12" ry="3.2" fill="#050508" opacity="0.5" />
               <StructureIcon type={icon.type} tone={tone} category={category} />
             </g>
           );
