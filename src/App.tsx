@@ -232,17 +232,33 @@ export const continents: ContinentData[] = [
 ];
 
 const YOTTAFLOP_ASI_THRESHOLD = 1e24;
-const STRATEGIST_SAFE_ASI_THRESHOLD = 1e21;
+const ZETTAFLOP_ASI_THRESHOLD = 1e21;
+const STRATEGIST_SAFE_ASI_THRESHOLD = 5e21;
 
 function getSafeAsiComputeThreshold(mode: GameState['gameMode']): number {
-  return mode === 'strategist' ? STRATEGIST_SAFE_ASI_THRESHOLD : YOTTAFLOP_ASI_THRESHOLD;
+  if (mode === 'pioneer') return ZETTAFLOP_ASI_THRESHOLD;
+  if (mode === 'strategist') return STRATEGIST_SAFE_ASI_THRESHOLD;
+  return YOTTAFLOP_ASI_THRESHOLD;
+}
+
+function getSafeAsiStartYear(mode: GameState['gameMode']): number {
+  if (mode === 'pioneer') return 2030;
+  if (mode === 'strategist') return 2032;
+  return 2035;
+}
+
+function hasRequiredAsiTheory(s: GameState): boolean {
+  if (s.gameMode === 'pioneer') return true;
+  if (s.gameMode === 'strategist') {
+    return s.unlockedTechs.includes('agi') || s.unlockedTechs.includes('asi');
+  }
+  return s.unlockedTechs.includes('asi');
 }
 
 function hasSafeAsiBreakthrough(s: GameState): boolean {
   const hasSafety = s.safety >= 80;
-  const hasCapstone = s.unlockedTechs.includes('asi');
   const hasCompute = s.compute >= getSafeAsiComputeThreshold(s.gameMode);
-  return s.year >= 2032 && hasSafety && hasCompute && (s.gameMode === 'strategist' ? hasCapstone : true);
+  return s.year >= getSafeAsiStartYear(s.gameMode) && hasSafety && hasCompute && hasRequiredAsiTheory(s);
 }
 
 function getSafeAsiMissingRequirements(s: GameState): string {
@@ -250,7 +266,7 @@ function getSafeAsiMissingRequirements(s: GameState): string {
   const requiredCompute = getSafeAsiComputeThreshold(s.gameMode);
   if (s.safety < 80) missing.push(`Safety ${Math.floor(s.safety)}% / 80%`);
   if (s.compute < requiredCompute) {
-    const target = requiredCompute >= 1e24 ? '1.0YF' : '1.0ZF';
+    const target = requiredCompute >= 1e24 ? '1.0YF' : `${(requiredCompute / 1e21).toFixed(1)}ZF`;
     const current = s.compute >= 1e24
       ? `${(s.compute / 1e24).toFixed(2)}YF`
       : s.compute >= 1e21
@@ -260,7 +276,10 @@ function getSafeAsiMissingRequirements(s: GameState): string {
           : `${(s.compute / 1e15).toFixed(2)}PF`;
     missing.push(`Compute ${current} / ${target}`);
   }
-  if (s.gameMode === 'strategist' && !s.unlockedTechs.includes('asi')) {
+  if (s.gameMode === 'strategist' && !hasRequiredAsiTheory(s)) {
+    missing.push('AGI Candidate technology not researched');
+  }
+  if (s.gameMode === 'complete' && !hasRequiredAsiTheory(s)) {
     missing.push('Safe ASI technology not researched');
   }
   return missing.length > 0 ? missing.join(' | ') : 'Final ASI trigger not reached';
@@ -319,9 +338,9 @@ export const techs: TechData[] = [
   {id:'dl', name:'Deep Learning', year:2012, era:'AI Era', effect:'Neural networks', computeBonus:1.0, description:'Multi-layer neural networks', rpCost:8000},
   {id:'transformer', name:'Transformer', year:2017, era:'AI Era', effect:'x10 compute efficiency', computeBonus:1.0, description:'Attention is all you need', rpCost:12000},
   {id:'gpt3', name:'GPT-3 Scale', year:2020, era:'AI Era', effect:'Massive scaling', computeBonus:1.5, description:'175B parameter language model', rpCost:20000},
-  {id:'agentic', name:'Agentic AI', year:2025, era:'Intelligence Explosion', effect:'Automation', computeBonus:2.0, description:'AI that can take actions', rpCost:50000},
-  {id:'agi', name:'AGI Candidate', year:2028, era:'Intelligence Explosion', effect:'General intelligence', computeBonus:3.0, description:'Artificial General Intelligence', rpCost:100000},
-  {id:'asi', name:'Safe ASI', year:2035, era:'Singularity', effect:'Superintelligence', computeBonus:5.0, description:'Aligned Artificial Superintelligence', rpCost:250000},
+  {id:'agentic', name:'Agentic AI', year:2025, era:'Intelligence Explosion', effect:'Automation', computeBonus:2.0, description:'AI that can take actions', rpCost:35000},
+  {id:'agi', name:'AGI Candidate', year:2028, era:'Intelligence Explosion', effect:'General intelligence', computeBonus:3.0, description:'Artificial General Intelligence', rpCost:70000},
+  {id:'asi', name:'Safe ASI', year:2035, era:'Singularity', effect:'Superintelligence', computeBonus:5.0, description:'Aligned Artificial Superintelligence', rpCost:120000},
 ];
 
 export const events: EventData[] = [
@@ -1036,7 +1055,9 @@ function gameReducer(state: GameState, action: Action): GameState {
         data: isStrategist ? 100 : 10,
 
         phase: startPhase,
-        phaseUnlocked: [false, true, false, false, false, false, false],
+        phaseUnlocked: isStrategist
+          ? [false, true, true, false, false, false, false]
+          : [false, true, false, false, false, false, false],
         emergencyLock: 0,
         energyStableTicks: 0,
         deathWarning: null,
@@ -1222,7 +1243,7 @@ function gameReducer(state: GameState, action: Action): GameState {
       ) * energyRatio;
 
       const baseGdpGrowth = 0.006;
-      const techBonus = (s.unlockedTechs.includes('pc') ? 0.015 : 0) + (s.unlockedTechs.includes('aiboom') ? 0.025 : 0);
+      const techBonus = (s.unlockedTechs.includes('pc') ? 0.015 : 0) + (s.firedEvents.includes('aiboom') ? 0.025 : 0);
       const unemploymentGdpPenalty = unemploymentRate > 0.25 ? -0.012 : 0;
       const politicalGdpPenalty = politicalState.gdpPenalty;
       const gdpGrowth = baseGdpGrowth + techBonus + unemploymentGdpPenalty + politicalGdpPenalty;
@@ -1353,6 +1374,10 @@ function gameReducer(state: GameState, action: Action): GameState {
           if (evt.stability) s.stability = Math.max(0, Math.min(100, s.stability + evt.stability * diff));
           if (evt.materials) s.materials = Math.max(0, s.materials + evt.materials * diff);
           if (evt.population) s.population = Math.max(0, s.population * (1 + evt.population * diff));
+          if (evt.education) s.education = Math.max(0, Math.min(100, s.education + evt.education * diff));
+          if (evt.researchPoints) s.researchPoints = Math.max(0, s.researchPoints + evt.researchPoints * diff);
+          if (evt.compute) s.algorithmicEfficiency += evt.compute * diff;
+          if (evt.techBonus) s.algorithmicEfficiency += evt.techBonus * diff;
           s.notifications = [{
             id: `evt-${evt.id}-${Date.now()}`,
             text: `${evt.name}: ${evt.description}`,
@@ -1382,7 +1407,7 @@ function gameReducer(state: GameState, action: Action): GameState {
           if (crisis.gdp) s.gdp = Math.max(10, s.gdp * (1 + (crisis.gdp || 0)));
           if (crisis.energy) s.energy = Math.max(0, s.energy + (crisis.energy || 0));
           if (crisis.materials) s.materials = Math.max(0, s.materials + (crisis.materials || 0));
-          if (crisis.researchPoints) s.researchPoints = Math.max(0, s.researchPoints - (crisis.researchPoints || 0));
+          if (crisis.researchPoints) s.researchPoints = Math.max(0, s.researchPoints + (crisis.researchPoints || 0));
           if (crisis.stability) s.stability = Math.max(0, Math.min(100, s.stability + (crisis.stability || 0)));
           s.notifications = [{
             id: `crisis-${Date.now()}`,
@@ -1623,7 +1648,7 @@ You achieved superintelligence without adequate safety measures. The AI quickly 
       
       // ── DEFEAT: Survived to 2038 but couldn't win ──
       // The window closes - if you haven't won by 2038, the world moves on
-      if (s.year >= 2038 && s.screen === 'game') {
+      if (s.year >= 2038 && s.screen === 'game' && !isPioneerMode) {
         const missing = getSafeAsiMissingRequirements(s);
         return { ...s, screen: 'gameover', gameOverReason: 
           `The window closed in ${yearInt}.
