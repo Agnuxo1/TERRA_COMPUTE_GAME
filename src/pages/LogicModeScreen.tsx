@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { useGame } from '../App';
-import { ClassicTechPuzzle, MoorePuzzle, TuringPuzzle, classicPuzzleMap } from '../components/game/EventPopup';
-import type { MooreDifficultyId, TuringDifficultyId } from '../components/game/EventPopup';
+import { ClassicTechPuzzle, MoorePuzzle, TuringPuzzle, PERCEPTRON_LEVELS } from '../components/game/EventPopup';
+import type { MooreDifficultyId, PerceptronDifficultyId, TuringDifficultyId } from '../components/game/EventPopup';
 import { play } from '../hooks/useSound';
 
 const LOGIC_CARD = '/assets/cards/LOGIC.png';
 const MOORE_CARD = '/assets/puzzles/moore-logic-machine.png';
+const PERCEPTRON_CARD = '/assets/puzzles/perceptron-weight-board.png';
 
 type ActivePuzzle =
   | { kind: 'turing'; difficulty: TuringDifficultyId }
   | { kind: 'moore'; difficulty: MooreDifficultyId }
-  | { kind: 'classic'; eventId: string };
+  | { kind: 'classic'; eventId: string; difficulty: PerceptronDifficultyId };
 
 const turingDifficulties: Array<{
   id: TuringDifficultyId;
@@ -113,15 +114,15 @@ export default function LogicModeScreen() {
     setActivePuzzle({ kind: 'moore', difficulty });
   };
 
-  const handleClassicPlay = (eventId: string) => {
+  const handleClassicPlay = (eventId: string, difficulty: PerceptronDifficultyId) => {
     play('click');
-    setActivePuzzle({ kind: 'classic', eventId });
+    setActivePuzzle({ kind: 'classic', eventId, difficulty });
   };
 
   const handleSolved = () => {
     if (activePuzzle) {
       const solvedId = activePuzzle.kind === 'classic'
-        ? `classic-${activePuzzle.eventId}`
+        ? `classic-${activePuzzle.eventId}-${activePuzzle.difficulty}`
         : `${activePuzzle.kind}-${activePuzzle.difficulty}`;
       setSolved(prev => prev.includes(solvedId) ? prev : [...prev, solvedId]);
     }
@@ -249,25 +250,26 @@ export default function LogicModeScreen() {
                 CLASSIC INTELLIGENCE MACHINES
               </div>
               <h2 className="font-orbitron text-lg font-black" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
-                HISTORICAL TECHNOLOGY PUZZLES
+                PERCEPTRON RELAY MACHINE
               </h2>
             </div>
             <div className="font-mono-data text-[9px]" style={{ color: '#C4A265' }}>
-              {Object.keys(classicPuzzleMap).length} EVENT
+              5 LEVELS
             </div>
           </div>
-          <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Object.entries(classicPuzzleMap).map(([eventId, puzzle]) => {
-              const solvedId = `classic-${eventId}`;
+          <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {Object.entries(PERCEPTRON_LEVELS).map(([difficultyId, puzzle]) => {
+              const difficulty = Number(difficultyId) as PerceptronDifficultyId;
+              const solvedId = `classic-perceptron-${difficulty}`;
               const isSolved = solved.includes(solvedId);
               return (
                 <button
-                  key={eventId}
+                  key={difficulty}
                   type="button"
-                  onClick={() => handleClassicPlay(eventId)}
+                  onClick={() => handleClassicPlay('perceptron', difficulty)}
                   className="group relative overflow-hidden text-left transition-all hover:scale-[1.02] hover:brightness-110"
                   style={{
-                    height: 280,
+                    height: 320,
                     border: `2px solid ${isSolved ? '#33FF33' : puzzle.accent}`,
                     boxShadow: isSolved
                       ? '0 0 28px rgba(51,255,51,0.28)'
@@ -278,10 +280,10 @@ export default function LogicModeScreen() {
                   <div
                     className="absolute inset-0"
                     style={{
-                      backgroundImage: `url(${LOGIC_CARD})`,
+                      backgroundImage: `url(${PERCEPTRON_CARD})`,
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
-                      filter: 'brightness(0.36) saturate(0.8)',
+                      filter: `brightness(${0.38 + difficulty * 0.05}) saturate(0.88)`,
                     }}
                   />
                   <div
@@ -294,7 +296,7 @@ export default function LogicModeScreen() {
                   <div className="relative z-10 flex h-full flex-col p-4">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-mono-data text-[9px] px-2 py-1" style={{ color: '#050508', background: puzzle.accent }}>
-                        {puzzle.kind.toUpperCase()}
+                        LEVEL {difficulty}
                       </span>
                       <span className="font-mono-data text-[9px]" style={{ color: isSolved ? '#33FF33' : '#C4A265' }}>
                         {isSolved ? 'SOLVED' : puzzle.panel.toUpperCase()}
@@ -436,6 +438,7 @@ export default function LogicModeScreen() {
       {activePuzzle?.kind === 'classic' && (
         <ClassicTechPuzzle
           eventId={activePuzzle.eventId}
+          difficulty={activePuzzle.difficulty}
           onSolved={handleSolved}
         />
       )}

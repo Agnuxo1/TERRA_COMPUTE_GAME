@@ -21,7 +21,7 @@ const eventCardMap: Record<string, string> = {
   quantum: '/assets/cards/event-quantum.png',
   turing: '/assets/cards/event-turing.png',
   dartmouth: '/assets/cards/event-dartmouth.png',
-  perceptron: '/assets/cards/event-perceptron.png',
+  perceptron: '/assets/puzzles/perceptron-weight-board.png',
   lisp: '/assets/cards/event-lisp.png',
   ml: '/assets/cards/event-ml.png',
   moore: '/assets/cards/event-moore.png',
@@ -89,6 +89,66 @@ export const classicPuzzleMap: Record<string, ClassicPuzzleConfig> = {
     nodes: ['X1', 'X2', 'X3', 'W1', 'W2', 'OUT'],
     initial: [false, true, false, false, true, false],
     target: [true, false, true, false, true, true],
+    masks: [[0, 1], [0, 2, 3], [1, 2, 4], [2, 3, 5], [0, 4, 5], [1, 3, 5]],
+  },
+};
+
+export type PerceptronDifficultyId = 1 | 2 | 3 | 4 | 5;
+
+export const PERCEPTRON_LEVELS: Record<PerceptronDifficultyId, Extract<ClassicPuzzleConfig, { kind: 'switchboard' }>> = {
+  1: {
+    kind: 'switchboard',
+    title: 'PERCEPTRON RELAY MACHINE: LEVEL 1',
+    subtitle: 'One independent input relay. Learn how a single neuron socket switches on.',
+    accent: '#33FF33',
+    panel: 'single relay',
+    nodes: ['X1', 'X2', 'X3', 'W1', 'W2', 'OUT'],
+    initial: [false, false, false, false, false, false],
+    target: [true, false, false, false, false, false],
+    masks: [[0], [1], [2], [3], [4], [5]],
+  },
+  2: {
+    kind: 'switchboard',
+    title: 'PERCEPTRON RELAY MACHINE: LEVEL 2',
+    subtitle: 'Two relays are mechanically linked. One switch can move two sockets.',
+    accent: '#33FF33',
+    panel: 'paired relays',
+    nodes: ['X1', 'X2', 'X3', 'W1', 'W2', 'OUT'],
+    initial: [false, false, false, false, false, false],
+    target: [true, true, false, false, false, false],
+    masks: [[0, 1], [1], [2], [3], [4], [5]],
+  },
+  3: {
+    kind: 'switchboard',
+    title: 'PERCEPTRON RELAY MACHINE: LEVEL 3',
+    subtitle: 'A three-socket training chain introduces drift between input relays.',
+    accent: '#33FF33',
+    panel: 'training chain',
+    nodes: ['X1', 'X2', 'X3', 'W1', 'W2', 'OUT'],
+    initial: [false, true, false, false, false, false],
+    target: [true, true, false, true, false, false],
+    masks: [[0, 1], [1, 2], [2, 3], [3], [4], [5]],
+  },
+  4: {
+    kind: 'switchboard',
+    title: 'PERCEPTRON RELAY MACHINE: LEVEL 4',
+    subtitle: 'Inputs and weights are cross-coupled. Tune the hidden layer before the output.',
+    accent: '#33FF33',
+    panel: 'weighted layer',
+    nodes: ['X1', 'X2', 'X3', 'W1', 'W2', 'OUT'],
+    initial: [true, false, true, false, true, false],
+    target: [false, true, true, true, false, true],
+    masks: [[0, 3], [1, 3], [2, 4], [3, 5], [0, 4, 5], [1, 2, 5]],
+  },
+  5: {
+    kind: 'switchboard',
+    title: 'PERCEPTRON RELAY MACHINE: LEVEL 5',
+    subtitle: 'Full six-relay perceptron. Coupled inputs, weights and output must all match.',
+    accent: '#33FF33',
+    panel: 'full perceptron',
+    nodes: ['X1', 'X2', 'X3', 'W1', 'W2', 'OUT'],
+    initial: [false, true, false, false, true, false],
+    target: [false, false, false, true, false, true],
     masks: [[0, 1], [0, 2, 3], [1, 2, 4], [2, 3, 5], [0, 4, 5], [1, 3, 5]],
   },
 };
@@ -731,12 +791,14 @@ export function MoorePuzzle({
 
 export function ClassicTechPuzzle({
   eventId,
+  difficulty = 5,
   onSolved,
 }: {
   eventId: string;
+  difficulty?: PerceptronDifficultyId;
   onSolved: () => void;
 }) {
-  const config = classicPuzzleMap[eventId];
+  const config = eventId === 'perceptron' ? PERCEPTRON_LEVELS[difficulty] : classicPuzzleMap[eventId];
   const [solved, setSolved] = useState(false);
   const cardImage = puzzleBackgroundMap[eventId] || eventCardMap[eventId];
 
