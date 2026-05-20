@@ -42,6 +42,10 @@ const eventCardMap: Record<string, string> = {
   beyondmoore: '/assets/cards/event-beyondmoore.png',
 };
 
+const puzzleBackgroundMap: Record<string, string> = {
+  perceptron: '/assets/puzzles/perceptron-weight-board.png',
+};
+
 const techPuzzleIds = [
   'turing',
   'dartmouth',
@@ -961,7 +965,7 @@ export function ClassicTechPuzzle({
 }) {
   const config = classicPuzzleMap[eventId];
   const [solved, setSolved] = useState(false);
-  const cardImage = eventCardMap[eventId];
+  const cardImage = puzzleBackgroundMap[eventId] || eventCardMap[eventId];
 
   const finish = () => {
     if (solved) return;
@@ -989,7 +993,7 @@ export function ClassicTechPuzzle({
             alt=""
             className="absolute inset-0 h-full w-full object-cover"
             draggable={false}
-            style={{ filter: 'grayscale(0.85) brightness(0.36) contrast(1.3) saturate(0.8)' }}
+            style={{ filter: puzzleBackgroundMap[eventId] ? 'brightness(0.72) contrast(1.12) saturate(0.95)' : 'grayscale(0.85) brightness(0.36) contrast(1.3) saturate(0.8)' }}
           />
         )}
         <div
