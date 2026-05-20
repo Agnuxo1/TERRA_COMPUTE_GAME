@@ -485,7 +485,13 @@ export function MoorePuzzle({
             {solved ? 'CIRCUIT STABLE' : config.target}
           </div>
         </div>
-        <svg viewBox="0 0 760 360" className="absolute inset-[7%] h-[78%] w-[86%]" role="img" aria-label="Moore transistor logic maze">
+        <div
+          className="absolute right-4 top-4 font-mono-data text-[8px] px-2 py-1"
+          style={{ color: '#00F0FF', background: 'rgba(5,9,12,0.74)', border: '1px solid rgba(0,240,255,0.45)' }}
+        >
+          CLICK TRANSISTOR BLOCKS TO CHANGE CONTROL SIGNAL
+        </div>
+        <svg viewBox="0 0 760 360" className="absolute inset-x-[7%] top-[9%] h-[68%] w-[86%]" role="img" aria-label="Moore transistor logic maze">
           <defs>
             <filter id="circuit-glow">
               <feGaussianBlur stdDeviation="3" result="blur" />
@@ -546,6 +552,9 @@ export function MoorePuzzle({
                       <text x={x} y={y + 42} fill={open ? '#00F0FF' : '#C4A265'} fontFamily="monospace" fontSize="9" textAnchor="middle">
                         {open ? 'OPEN' : 'CLOSED'}
                       </text>
+                      <text x={x} y={y - 36} fill="#C4A265" fontFamily="monospace" fontSize="8" textAnchor="middle">
+                        T{slot + 1}
+                      </text>
                     </g>
                   );
                 })}
@@ -555,46 +564,62 @@ export function MoorePuzzle({
           <circle cx="82" cy="122" r="12" fill="#00F0FF" stroke="#FFF4C2" strokeWidth="2" filter="url(#circuit-glow)" />
           <circle cx="678" cy="122" r="12" fill={outputFor(currentInput) ? '#33FF33' : '#242832'} stroke="#FFF4C2" strokeWidth="2" filter={outputFor(currentInput) ? 'url(#circuit-glow)' : undefined} />
         </svg>
-        <div className="absolute bottom-4 left-4 right-4 grid grid-cols-[1fr_1.25fr] gap-3">
-          <div className="grid grid-cols-4 gap-1">
+        <div className="absolute bottom-4 left-4 right-4 grid grid-cols-[1.05fr_1.55fr] gap-3">
+          <div
+            className="p-2"
+            style={{ background: 'rgba(5,9,12,0.78)', border: '1px solid rgba(196,162,101,0.48)' }}
+          >
+            <div className="font-mono-data text-[8px] mb-1" style={{ color: '#C4A265' }}>
+              GOAL
+            </div>
+            <div className="font-orbitron text-[12px] font-black" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
+              {config.target}
+            </div>
+            <div className="mt-1 font-rajdhani text-[11px] font-semibold leading-tight" style={{ color: 'var(--text-secondary)' }}>
+              Set each transistor control on the circuit board. A branch conducts only when every transistor on that branch is open.
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                play('click', 0.25);
+                setSelectedRow((selectedRow + 1) % rows.length);
+              }}
+              className="mt-2 w-full py-1 font-mono-data text-[8px]"
+              style={{ color: '#050508', background: '#00F0FF', border: '1px solid #FFF4C2' }}
+            >
+              TEST NEXT INPUT
+            </button>
+          </div>
+
+          <div
+            className="grid gap-1 p-2"
+            style={{ background: 'rgba(5,9,12,0.78)', border: '1px solid rgba(0,240,255,0.36)' }}
+          >
+            <div className="grid grid-cols-[1.1fr_0.7fr_0.7fr] gap-1 font-mono-data text-[8px]" style={{ color: '#C4A265' }}>
+              <div>INPUT</div>
+              <div>WANTED</div>
+              <div>NOW</div>
+            </div>
             {rows.map((input, index) => {
               const target = config.rule(input);
               const actual = outputFor(input);
+              const matches = actual === target;
               return (
-                <button
+                <div
                   key={index}
-                  type="button"
-                  onClick={() => {
-                    play('click', 0.25);
-                    setSelectedRow(index);
-                  }}
-                  className="font-mono-data text-[8px] py-1"
+                  className="grid grid-cols-[1.1fr_0.7fr_0.7fr] gap-1 font-mono-data text-[8px] py-1 px-1 text-left"
                   style={{
-                    color: index === selectedRow ? '#050508' : actual === target ? '#33FF33' : '#FF477E',
+                    color: index === selectedRow ? '#050508' : matches ? '#33FF33' : '#FF477E',
                     background: index === selectedRow ? '#00F0FF' : 'rgba(5,9,12,0.76)',
-                    border: `1px solid ${actual === target ? '#33FF33' : '#FF477E'}`,
+                    border: `1px solid ${matches ? '#33FF33' : '#FF477E'}`,
                   }}
                 >
-                  {config.variables.map(variable => `${variable}${input[variable] ? 1 : 0}`).join(' ')} / {target ? 1 : 0}
-                </button>
+                  <span>{config.variables.map(variable => `${variable}=${input[variable] ? 1 : 0}`).join(' ')}</span>
+                  <span>{target ? 'ON' : 'OFF'}</span>
+                  <span>{actual ? 'ON' : 'OFF'}</span>
+                </div>
               );
             })}
-          </div>
-          <div className="grid grid-cols-3 gap-1">
-            {assignments.map((signal, i) => (
-              <button
-                key={i}
-                onClick={() => toggle(i)}
-                className="font-mono-data text-[9px] py-1"
-                style={{
-                  color: signal ? '#00F0FF' : '#C4A265',
-                  border: `1px solid ${signal ? '#00F0FF' : '#C4A26566'}`,
-                  background: signal ? '#00F0FF14' : 'rgba(196,162,101,0.07)',
-                }}
-              >
-                T{i + 1}: {signal || '?'}
-              </button>
-            ))}
           </div>
         </div>
       </div>
