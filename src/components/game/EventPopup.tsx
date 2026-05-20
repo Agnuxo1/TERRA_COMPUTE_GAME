@@ -306,16 +306,13 @@ function PuzzleShell({
 }) {
   return (
     <div
-      className="absolute inset-0 z-[60] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[80] flex items-stretch justify-stretch"
       style={{ background: 'rgba(5,5,8,0.92)', backdropFilter: 'blur(5px)' }}
     >
       <div
-        className="relative overflow-hidden"
+        className="relative flex h-[100dvh] w-full overflow-hidden"
         style={{
-          width: 'min(92vw, 920px)',
-          minHeight: 'min(78vh, 620px)',
-          border: `2px solid ${accent}`,
-          boxShadow: `0 0 52px ${accent}33, inset 0 0 36px rgba(255,255,255,0.04)`,
+          boxShadow: `inset 0 0 72px ${accent}22, inset 0 0 36px rgba(255,255,255,0.04)`,
           background: '#090A0D',
         }}
       >
@@ -334,8 +331,8 @@ function PuzzleShell({
               `radial-gradient(circle at 50% 42%, ${accent}22, transparent 34%), linear-gradient(180deg, rgba(0,0,0,0.1), rgba(0,0,0,0.72))`,
           }}
         />
-        <div className="relative z-10 flex h-full min-h-[inherit] flex-col p-5">
-          <div className="flex items-start justify-between gap-4">
+        <div className="relative z-10 flex h-full min-h-0 w-full flex-col p-4 md:p-5">
+          <div className="flex shrink-0 items-start justify-between gap-4">
             <div>
               <div className="font-mono-data text-[9px] tracking-[0.28em]" style={{ color: accent }}>
                 HISTORICAL INTELLIGENCE EXERCISE
@@ -354,7 +351,7 @@ function PuzzleShell({
               LOCKED UNTIL SOLVED
             </div>
           </div>
-          <div className="relative mt-4 flex flex-1 items-center justify-center">
+          <div className="relative mt-3 flex min-h-0 flex-1 items-center justify-center">
             {children}
           </div>
         </div>
@@ -397,7 +394,7 @@ export function TuringPuzzle({
       subtitle={config.subtitle}
       accent="#33FF33"
     >
-      <div className="relative w-full max-w-[840px] overflow-hidden" style={{ aspectRatio: '16 / 9', border: '2px solid #C4A265', background: '#050508' }}>
+      <div className="relative w-full overflow-hidden" style={{ width: 'min(calc(100vw - 32px), calc((100dvh - 122px) * 16 / 9))', aspectRatio: '16 / 9', border: '2px solid #C4A265', background: '#050508' }}>
         <img
           src={TURING_BG}
           alt=""
@@ -572,7 +569,7 @@ export function MoorePuzzle({
       subtitle={config.subtitle}
       accent="#00F0FF"
     >
-      <div className="relative w-full max-w-[840px] overflow-hidden" style={{ aspectRatio: '16 / 9', border: '2px solid #123B4A', background: '#071015' }}>
+      <div className="relative w-full overflow-hidden" style={{ width: 'min(calc(100vw - 32px), calc((100dvh - 122px) * 16 / 9))', aspectRatio: '16 / 9', border: '2px solid #123B4A', background: '#071015' }}>
         <img
           src={MOORE_BG}
           alt=""
