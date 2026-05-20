@@ -5,6 +5,7 @@ import ContinentSelect from './pages/ContinentSelect';
 import GameScreen from './pages/GameScreen';
 import GameOverScreen from './pages/GameOverScreen';
 import VictoryScreen from './pages/VictoryScreen';
+import LogicModeScreen from './pages/LogicModeScreen';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  TYPES
@@ -95,8 +96,8 @@ export interface SpyOperation {
 }
 
 export interface GameState {
-  screen: 'title' | 'mode' | 'select' | 'game' | 'gameover' | 'victory';
-  gameMode: 'pioneer' | 'strategist' | 'complete' | null;
+  screen: 'title' | 'mode' | 'select' | 'game' | 'logic' | 'gameover' | 'victory';
+  gameMode: 'pioneer' | 'strategist' | 'complete' | 'logic' | null;
   year: number;
   tickCount: number;
   playerContinent: string | null;
@@ -198,7 +199,7 @@ export interface GameState {
 }
 
 export type Action =
-  | {type: 'SET_MODE'; mode: 'pioneer' | 'strategist' | 'complete'}
+  | {type: 'SET_MODE'; mode: 'pioneer' | 'strategist' | 'complete' | 'logic'}
   | {type: 'START_GAME'; continentId: string}
   | {type: 'TICK'}
   | {type: 'BUILD'; buildingId: string}
@@ -955,6 +956,9 @@ const initialState: GameState = {
 function gameReducer(state: GameState, action: Action): GameState {
   switch (action.type) {
     case 'SET_MODE': {
+      if (action.mode === 'logic') {
+        return { ...state, screen: 'logic', gameMode: action.mode };
+      }
       return { ...state, screen: 'select', gameMode: action.mode };
     }
 
@@ -1921,6 +1925,7 @@ function Router() {
     case 'mode': return <ModeSelect />;
     case 'select': return <ContinentSelect />;
     case 'game': return <GameScreen />;
+    case 'logic': return <LogicModeScreen />;
     case 'gameover': return <GameOverScreen />;
     case 'victory': return <VictoryScreen />;
     default: return <TitleScreen />;

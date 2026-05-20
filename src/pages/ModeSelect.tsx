@@ -41,6 +41,19 @@ const modes = [
     unlocked: false,
     cardImage: '/assets/cards/COMPLETE.jpg',
   },
+  {
+    id: 'logic' as const,
+    name: 'LOGIC',
+    startYear: 1950,
+    startLabel: 'PUZZLES',
+    color: '#FFF4C2',
+    description: 'Standalone intelligence exercises based on the historical technology events.',
+    features: ['Puzzle-only mode', 'Turing Bombe challenge', 'No economy pressure', 'More events coming'],
+    gradient: 'from-amber-950 to-green-950',
+    accent: '#FFF4C2',
+    unlocked: true,
+    cardImage: '/assets/cards/LOGIC.png',
+  },
 ];
 
 const videoMap: Record<string, string> = {
@@ -93,7 +106,7 @@ export default function ModeSelect() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full max-w-4xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-6xl">
         {modes.map((mode, index) => (
           <button
             key={mode.id}
@@ -134,7 +147,7 @@ export default function ModeSelect() {
                   {mode.name}
                 </h2>
                 <div className="font-mono-data text-[9px] mb-2" style={{ color: 'var(--text-tertiary)' }}>
-                  START: {mode.startYear}
+                  START: {'startLabel' in mode ? mode.startLabel : mode.startYear}
                 </div>
                 <p className="font-rajdhani text-xs leading-relaxed mb-3" style={{ color: 'var(--text-secondary)' }}>
                   {mode.description}

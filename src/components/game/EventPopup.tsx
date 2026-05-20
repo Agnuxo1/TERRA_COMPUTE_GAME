@@ -122,7 +122,7 @@ function PuzzleShell({
   );
 }
 
-function TuringPuzzle({ onSolved }: { onSolved: () => void }) {
+export function TuringPuzzle({ onSolved }: { onSolved: () => void }) {
   const [rotors, setRotors] = useState([0, 0, 0, 0]);
   const [solved, setSolved] = useState(false);
   const isCorrect = rotors.every((value, i) => value === TURING_TARGET[i]);
