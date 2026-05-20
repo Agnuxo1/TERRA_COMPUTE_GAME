@@ -42,7 +42,279 @@ const eventCardMap: Record<string, string> = {
   beyondmoore: '/assets/cards/event-beyondmoore.png',
 };
 
-const puzzleEvents = new Set(['turing', 'moore']);
+const techPuzzleIds = [
+  'turing',
+  'dartmouth',
+  'perceptron',
+  'lisp',
+  'ml',
+  'moore',
+  'eliza',
+  'aiwinter1',
+  'expert',
+  'auto86',
+  'deepblue',
+  'watson',
+  'alexnet',
+  'alphago',
+  'transformers',
+  'gpt3',
+  'chatgpt',
+  'multimodal',
+  'agents',
+  'agentic',
+  'beyondmoore',
+  'quantum',
+  'chipwar',
+  'aiboom',
+];
+const puzzleEvents = new Set(techPuzzleIds);
+
+type ClassicPuzzleConfig =
+  | {
+      kind: 'sequence';
+      title: string;
+      subtitle: string;
+      accent: string;
+      panel: string;
+      nodes: string[];
+      solution: number[];
+    }
+  | {
+      kind: 'switchboard';
+      title: string;
+      subtitle: string;
+      accent: string;
+      panel: string;
+      nodes: string[];
+      initial: boolean[];
+      target: boolean[];
+      masks: number[][];
+    }
+  | {
+      kind: 'hanoi';
+      title: string;
+      subtitle: string;
+      accent: string;
+      panel: string;
+      disks: number;
+    };
+
+export const classicPuzzleMap: Record<string, ClassicPuzzleConfig> = {
+  dartmouth: {
+    kind: 'sequence',
+    title: 'DARTMOUTH CONFERENCE: RESEARCH PROPOSAL',
+    subtitle: 'Classic sequence puzzle: assemble the founding AI agenda in working order.',
+    accent: '#00F0FF',
+    panel: 'proposal board',
+    nodes: ['LOGIC', 'LANGUAGE', 'LEARNING', 'SEARCH'],
+    solution: [0, 2, 3, 1],
+  },
+  perceptron: {
+    kind: 'switchboard',
+    title: 'PERCEPTRON WEIGHT BOARD',
+    subtitle: 'Classic switch puzzle: tune linked weights until the classifier pattern matches the target.',
+    accent: '#33FF33',
+    panel: 'neural relay',
+    nodes: ['W1', 'W2', 'W3', 'BIAS', 'THRESH', 'OUT'],
+    initial: [false, true, false, false, true, false],
+    target: [true, false, true, true, false, true],
+    masks: [[0, 1], [0, 1, 2], [1, 2, 5], [0, 3, 4], [3, 4, 5], [2, 4, 5]],
+  },
+  lisp: {
+    kind: 'sequence',
+    title: 'LISP SYMBOL STACK',
+    subtitle: 'Classic ordering puzzle: evaluate the symbolic expression without breaking the chain.',
+    accent: '#C4A265',
+    panel: 'symbolic machine',
+    nodes: ['QUOTE', 'CAR', 'CDR', 'CONS', 'EVAL'],
+    solution: [0, 1, 2, 3, 4],
+  },
+  ml: {
+    kind: 'switchboard',
+    title: 'MACHINE LEARNING FEEDBACK LOOP',
+    subtitle: 'Classic lights puzzle: train by feedback until every learning relay reaches the target state.',
+    accent: '#FFB84D',
+    panel: 'training console',
+    nodes: ['DATA', 'MODEL', 'ERROR', 'UPDATE', 'SCORE'],
+    initial: [true, false, false, true, false],
+    target: [true, true, false, false, true],
+    masks: [[0, 1], [1, 2, 3], [0, 2, 4], [2, 3], [1, 4]],
+  },
+  eliza: {
+    kind: 'sequence',
+    title: 'ELIZA DIALOGUE SCRIPT',
+    subtitle: 'Classic response-chain puzzle: route the conversation through the right therapy script.',
+    accent: '#FF477E',
+    panel: 'conversation terminal',
+    nodes: ['INPUT', 'KEYWORD', 'REFLECT', 'PROMPT', 'LOOP'],
+    solution: [0, 1, 2, 3, 4],
+  },
+  aiwinter1: {
+    kind: 'hanoi',
+    title: 'AI WINTER FUNDING TOWERS',
+    subtitle: 'Classic Towers of Hanoi: move the research stack through the funding winter.',
+    accent: '#FFB84D',
+    panel: 'funding archive',
+    disks: 3,
+  },
+  expert: {
+    kind: 'sequence',
+    title: 'EXPERT SYSTEM RULE CHAIN',
+    subtitle: 'Classic inference puzzle: fire the production rules in the only valid order.',
+    accent: '#00F0FF',
+    panel: 'rule engine',
+    nodes: ['FACTS', 'IF', 'THEN', 'DIAGNOSE', 'EXPLAIN'],
+    solution: [0, 1, 2, 3, 4],
+  },
+  auto86: {
+    kind: 'switchboard',
+    title: 'AUTONOMOUS VEHICLE SENSOR GRID',
+    subtitle: 'Classic linked-switch puzzle: align camera, radar and steering relays.',
+    accent: '#33FF33',
+    panel: 'autobahn control',
+    nodes: ['CAM', 'RADAR', 'LANE', 'BRAKE', 'STEER', 'ROAD'],
+    initial: [false, true, true, false, true, false],
+    target: [true, true, false, true, false, true],
+    masks: [[0, 2], [0, 1, 3], [1, 2, 4], [3, 5], [2, 4, 5], [0, 4, 5]],
+  },
+  deepblue: {
+    kind: 'sequence',
+    title: 'DEEP BLUE SEARCH LINE',
+    subtitle: 'Classic move-order puzzle: calculate the forcing line before the clock expires.',
+    accent: '#00F0FF',
+    panel: 'chess search array',
+    nodes: ['OPEN', 'PIN', 'FORK', 'CHECK', 'MATE'],
+    solution: [0, 2, 1, 3, 4],
+  },
+  watson: {
+    kind: 'sequence',
+    title: 'WATSON QUESTION PIPELINE',
+    subtitle: 'Classic pipeline puzzle: parse the clue, retrieve evidence and buzz with confidence.',
+    accent: '#C4A265',
+    panel: 'quiz engine',
+    nodes: ['CLUE', 'PARSE', 'RETRIEVE', 'RANK', 'BUZZ'],
+    solution: [0, 1, 2, 3, 4],
+  },
+  alexnet: {
+    kind: 'switchboard',
+    title: 'ALEXNET FEATURE MAP',
+    subtitle: 'Classic lights puzzle: activate the convolution stack into a clean image classifier.',
+    accent: '#33FF33',
+    panel: 'vision array',
+    nodes: ['PIXEL', 'CONV', 'RELU', 'POOL', 'FC', 'CLASS'],
+    initial: [true, false, true, false, false, true],
+    target: [true, true, true, true, false, true],
+    masks: [[0, 1], [1, 2], [0, 2, 3], [3, 4], [1, 4, 5], [2, 5]],
+  },
+  alphago: {
+    kind: 'sequence',
+    title: 'ALPHAGO MOVE 37 LADDER',
+    subtitle: 'Classic pattern puzzle: find the unexpected strategic sequence.',
+    accent: '#FFF4C2',
+    panel: 'go board oracle',
+    nodes: ['READ', 'POLICY', 'VALUE', 'SEARCH', 'MOVE 37'],
+    solution: [0, 1, 3, 2, 4],
+  },
+  transformers: {
+    kind: 'switchboard',
+    title: 'TRANSFORMER ATTENTION MATRIX',
+    subtitle: 'Classic switch puzzle: open the attention heads that carry the signal.',
+    accent: '#00F0FF',
+    panel: 'attention grid',
+    nodes: ['Q', 'K', 'V', 'HEAD', 'MLP', 'TOKEN'],
+    initial: [false, false, true, true, false, false],
+    target: [true, true, true, false, true, true],
+    masks: [[0, 1, 3], [1, 2], [0, 2, 5], [3, 4], [1, 4, 5], [0, 5]],
+  },
+  gpt3: {
+    kind: 'hanoi',
+    title: 'GPT-3 SCALING TOWERS',
+    subtitle: 'Classic Towers of Hanoi: move the parameter stack from lab prototype to scale model.',
+    accent: '#C4A265',
+    panel: 'parameter silo',
+    disks: 4,
+  },
+  chatgpt: {
+    kind: 'sequence',
+    title: 'CHATGPT ALIGNMENT CHAT LOOP',
+    subtitle: 'Classic response-chain puzzle: route prompt, policy and answer in the correct order.',
+    accent: '#33FF33',
+    panel: 'public terminal',
+    nodes: ['PROMPT', 'POLICY', 'REASON', 'ANSWER', 'FEEDBACK'],
+    solution: [0, 1, 2, 3, 4],
+  },
+  multimodal: {
+    kind: 'switchboard',
+    title: 'MULTIMODAL SENSOR FUSION',
+    subtitle: 'Classic linked-switch puzzle: fuse text, image, audio and video into one model state.',
+    accent: '#FF477E',
+    panel: 'fusion console',
+    nodes: ['TEXT', 'IMAGE', 'AUDIO', 'VIDEO', 'WORLD', 'OUT'],
+    initial: [true, false, true, false, true, false],
+    target: [true, true, true, true, false, true],
+    masks: [[0, 1], [1, 4], [2, 3], [3, 5], [0, 4, 5], [2, 4, 5]],
+  },
+  agents: {
+    kind: 'sequence',
+    title: 'AI AGENTS TASK PLAN',
+    subtitle: 'Classic planning puzzle: decompose the mission into executable steps.',
+    accent: '#00F0FF',
+    panel: 'agent planner',
+    nodes: ['GOAL', 'PLAN', 'TOOL', 'ACT', 'CHECK'],
+    solution: [0, 1, 2, 3, 4],
+  },
+  agentic: {
+    kind: 'switchboard',
+    title: 'AGENTIC AI CONTROL ROOM',
+    subtitle: 'Classic relay puzzle: coordinate memory, tools and verification without losing control.',
+    accent: '#33FF33',
+    panel: 'autonomy relay',
+    nodes: ['MEM', 'TOOL', 'CODE', 'VERIFY', 'PLAN', 'STOP'],
+    initial: [false, true, false, true, false, true],
+    target: [true, true, true, true, false, true],
+    masks: [[0, 4], [0, 1, 2], [2, 3], [1, 3, 5], [0, 4, 5], [2, 5]],
+  },
+  beyondmoore: {
+    kind: 'hanoi',
+    title: 'BEYOND MOORE ACCELERATION STACK',
+    subtitle: 'Classic Towers of Hanoi: move the compute stack into the post-Moore architecture.',
+    accent: '#00F0FF',
+    panel: 'compute silo',
+    disks: 4,
+  },
+  quantum: {
+    kind: 'switchboard',
+    title: 'QUANTUM COMPUTING QUBIT LATTICE',
+    subtitle: 'Classic linked-switch puzzle: collapse the qubit lattice into the target readout.',
+    accent: '#FF477E',
+    panel: 'quantum lattice',
+    nodes: ['Q0', 'Q1', 'Q2', 'Q3', 'Q4'],
+    initial: [false, true, false, true, false],
+    target: [true, false, true, false, true],
+    masks: [[0, 1, 4], [1, 2], [0, 2, 3], [3, 4], [1, 4]],
+  },
+  chipwar: {
+    kind: 'sequence',
+    title: 'CHIP WAR SUPPLY ROUTE',
+    subtitle: 'Classic route-order puzzle: secure lithography, wafers and packaging in sequence.',
+    accent: '#FFB84D',
+    panel: 'semiconductor map',
+    nodes: ['EUV', 'WAFER', 'FAB', 'PACK', 'SHIP'],
+    solution: [0, 1, 2, 3, 4],
+  },
+  aiboom: {
+    kind: 'switchboard',
+    title: 'AI INVESTMENT BOOM CAPITAL GRID',
+    subtitle: 'Classic linked-switch puzzle: route capital into compute, talent and deployment.',
+    accent: '#33FF33',
+    panel: 'capital relay',
+    nodes: ['FUND', 'GPU', 'DATA', 'LAB', 'PRODUCT'],
+    initial: [true, false, false, true, false],
+    target: [true, true, true, false, true],
+    masks: [[0, 1], [1, 2], [0, 2, 3], [3, 4], [1, 4]],
+  },
+};
 const TURING_TARGET = [1, 9, 4, 3];
 const TURING_BG = '/assets/puzzles/turing-bombe-background.png';
 const TURING_ROTOR_POSITIONS = [
@@ -679,6 +951,333 @@ export function MoorePuzzle({
     </PuzzleShell>
   );
 }
+
+export function ClassicTechPuzzle({
+  eventId,
+  onSolved,
+}: {
+  eventId: string;
+  onSolved: () => void;
+}) {
+  const config = classicPuzzleMap[eventId];
+  const [solved, setSolved] = useState(false);
+  const cardImage = eventCardMap[eventId];
+
+  const finish = () => {
+    if (solved) return;
+    setSolved(true);
+    play('victory');
+    window.setTimeout(onSolved, 900);
+  };
+
+  if (!config) return null;
+
+  return (
+    <PuzzleShell title={config.title} subtitle={config.subtitle} accent={config.accent}>
+      <div
+        className="relative w-full overflow-hidden"
+        style={{
+          width: 'min(calc(100vw - 32px), calc((100dvh - 122px) * 16 / 9))',
+          aspectRatio: '16 / 9',
+          border: `2px solid ${config.accent}`,
+          background: '#07090D',
+        }}
+      >
+        {cardImage && (
+          <img
+            src={cardImage}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            draggable={false}
+            style={{ filter: 'grayscale(0.85) brightness(0.36) contrast(1.3) saturate(0.8)' }}
+          />
+        )}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage:
+              `radial-gradient(circle at 50% 48%, ${config.accent}22, transparent 34%), repeating-linear-gradient(0deg, transparent, transparent 23px, ${config.accent}18 24px), repeating-linear-gradient(90deg, transparent, transparent 23px, rgba(255,244,194,0.08) 24px), linear-gradient(180deg, rgba(5,5,8,0.18), rgba(5,5,8,0.72))`,
+            mixBlendMode: 'screen',
+          }}
+        />
+        <div className="absolute left-4 top-4 flex items-center gap-2">
+          <div className="h-3 w-3 rounded-full" style={{ background: solved ? '#33FF33' : config.accent, boxShadow: `0 0 16px ${solved ? '#33FF33' : config.accent}` }} />
+          <div className="font-mono-data text-[9px] px-2 py-1" style={{ color: '#050508', background: solved ? '#33FF33' : config.accent }}>
+            {solved ? 'SYSTEM SOLVED' : config.panel.toUpperCase()}
+          </div>
+        </div>
+        {config.kind === 'sequence' && (
+          <SequencePuzzle config={config} solved={solved} onSolved={finish} />
+        )}
+        {config.kind === 'switchboard' && (
+          <SwitchboardPuzzle config={config} solved={solved} onSolved={finish} />
+        )}
+        {config.kind === 'hanoi' && (
+          <HanoiPuzzle config={config} solved={solved} onSolved={finish} />
+        )}
+      </div>
+    </PuzzleShell>
+  );
+}
+
+function SequencePuzzle({
+  config,
+  solved,
+  onSolved,
+}: {
+  config: Extract<ClassicPuzzleConfig, { kind: 'sequence' }>;
+  solved: boolean;
+  onSolved: () => void;
+}) {
+  const [progress, setProgress] = useState<number[]>([]);
+  const nextTarget = config.solution[progress.length];
+
+  const press = (index: number) => {
+    if (solved) return;
+    play('click', 0.45);
+    if (index !== nextTarget) {
+      setProgress([]);
+      return;
+    }
+    const next = [...progress, index];
+    setProgress(next);
+    if (next.length === config.solution.length) onSolved();
+  };
+
+  const positions = [
+    { x: '18%', y: '58%' },
+    { x: '34%', y: '34%' },
+    { x: '50%', y: '58%' },
+    { x: '66%', y: '34%' },
+    { x: '82%', y: '58%' },
+  ];
+
+  return (
+    <div className="absolute inset-[10%]">
+      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" aria-hidden="true">
+        {config.solution.slice(0, -1).map((nodeIndex, i) => {
+          const a = positions[nodeIndex] || positions[0];
+          const b = positions[config.solution[i + 1]] || positions[0];
+          const active = i < progress.length - 1;
+          return (
+            <line
+              key={`${nodeIndex}-${i}`}
+              x1={a.x}
+              y1={a.y}
+              x2={b.x}
+              y2={b.y}
+              stroke={active ? config.accent : '#4B535B'}
+              strokeWidth={active ? 1.4 : 0.9}
+              strokeDasharray={active ? undefined : '2 2'}
+            />
+          );
+        })}
+      </svg>
+      {config.nodes.map((label, index) => {
+        const pos = positions[index] || positions[positions.length - 1];
+        const active = progress.includes(index);
+        const next = index === nextTarget;
+        return (
+          <button
+            key={label}
+            type="button"
+            onClick={() => press(index)}
+            className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full font-orbitron text-xs font-black"
+            style={{
+              left: pos.x,
+              top: pos.y,
+              width: 'clamp(76px, 11vw, 124px)',
+              height: 'clamp(76px, 11vw, 124px)',
+              color: active ? '#050508' : '#FFF4C2',
+              background: active ? config.accent : 'rgba(5,5,8,0.84)',
+              border: `2px solid ${next || active ? config.accent : '#C4A265'}`,
+              boxShadow: active || next ? `0 0 24px ${config.accent}88` : '0 12px 28px rgba(0,0,0,0.65)',
+            }}
+          >
+            {label}
+          </button>
+        );
+      })}
+      <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-2">
+        {config.solution.map((_, index) => (
+          <div
+            key={index}
+            className="h-2 w-10"
+            style={{ background: index < progress.length ? config.accent : '#3A3D45', boxShadow: index < progress.length ? `0 0 10px ${config.accent}` : 'none' }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SwitchboardPuzzle({
+  config,
+  solved,
+  onSolved,
+}: {
+  config: Extract<ClassicPuzzleConfig, { kind: 'switchboard' }>;
+  solved: boolean;
+  onSolved: () => void;
+}) {
+  const [states, setStates] = useState(config.initial);
+
+  const toggle = (index: number) => {
+    if (solved) return;
+    play('click', 0.45);
+    setStates(prev => {
+      const next = prev.map((state, i) => config.masks[index].includes(i) ? !state : state);
+      if (next.every((state, i) => state === config.target[i])) window.setTimeout(onSolved, 120);
+      return next;
+    });
+  };
+
+  return (
+    <div className="absolute inset-[10%] grid grid-cols-[1fr_220px] gap-6">
+      <div className="relative">
+        <svg className="absolute inset-0 h-full w-full" viewBox="0 0 620 330" aria-hidden="true">
+          {config.nodes.map((_, index) => {
+            const x = 86 + (index % 3) * 210;
+            const y = index < 3 ? 100 : 235;
+            return config.masks[index].map(target => {
+              if (target === index) return null;
+              const tx = 86 + (target % 3) * 210;
+              const ty = target < 3 ? 100 : 235;
+              return (
+                <line
+                  key={`${index}-${target}`}
+                  x1={x}
+                  y1={y}
+                  x2={tx}
+                  y2={ty}
+                  stroke={states[index] ? config.accent : '#4B535B'}
+                  strokeWidth="5"
+                  strokeOpacity="0.42"
+                />
+              );
+            });
+          })}
+        </svg>
+        {config.nodes.map((label, index) => {
+          const x = 14 + (index % 3) * 36;
+          const y = index < 3 ? 30 : 70;
+          const matched = states[index] === config.target[index];
+          return (
+            <button
+              key={label}
+              type="button"
+              onClick={() => toggle(index)}
+              className="absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full font-orbitron text-xs font-black"
+              style={{
+                left: `${x}%`,
+                top: `${y}%`,
+                width: 'clamp(72px, 10vw, 112px)',
+                height: 'clamp(72px, 10vw, 112px)',
+                color: states[index] ? '#050508' : '#FFF4C2',
+                background: states[index] ? config.accent : 'rgba(5,5,8,0.86)',
+                border: `2px solid ${matched ? '#33FF33' : '#C4A265'}`,
+                boxShadow: states[index] ? `0 0 24px ${config.accent}88` : '0 12px 28px rgba(0,0,0,0.65)',
+              }}
+            >
+              <span>{label}</span>
+              <span className="font-mono-data text-[9px]">{states[index] ? 'ON' : 'OFF'}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="self-center p-4" style={{ background: 'rgba(5,5,8,0.78)', border: `1px solid ${config.accent}` }}>
+        <div className="font-mono-data text-[9px] tracking-[0.2em]" style={{ color: config.accent }}>TARGET BUS</div>
+        <div className="mt-4 space-y-2">
+          {config.nodes.map((label, index) => (
+            <div key={label} className="flex items-center justify-between gap-3 font-mono-data text-[10px]" style={{ color: '#FFF4C2' }}>
+              <span>{label}</span>
+              <span style={{ color: config.target[index] ? '#33FF33' : '#FF477E' }}>{config.target[index] ? 'ON' : 'OFF'}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HanoiPuzzle({
+  config,
+  solved,
+  onSolved,
+}: {
+  config: Extract<ClassicPuzzleConfig, { kind: 'hanoi' }>;
+  solved: boolean;
+  onSolved: () => void;
+}) {
+  const [towers, setTowers] = useState<number[][]>(() => [
+    Array.from({ length: config.disks }, (_, index) => config.disks - index),
+    [],
+    [],
+  ]);
+  const [selected, setSelected] = useState<number | null>(null);
+
+  const pressTower = (towerIndex: number) => {
+    if (solved) return;
+    play('click', 0.45);
+    if (selected === null) {
+      if (towers[towerIndex].length) setSelected(towerIndex);
+      return;
+    }
+    if (selected === towerIndex) {
+      setSelected(null);
+      return;
+    }
+    setTowers(prev => {
+      const moving = prev[selected][prev[selected].length - 1];
+      const targetTop = prev[towerIndex][prev[towerIndex].length - 1];
+      if (!moving || (targetTop && targetTop < moving)) return prev;
+      const next = prev.map(tower => [...tower]);
+      next[selected].pop();
+      next[towerIndex].push(moving);
+      setSelected(null);
+      if (next[2].length === config.disks) window.setTimeout(onSolved, 120);
+      return next;
+    });
+  };
+
+  return (
+    <div className="absolute inset-[11%] grid grid-cols-3 gap-5">
+      {towers.map((tower, towerIndex) => (
+        <button
+          key={towerIndex}
+          type="button"
+          onClick={() => pressTower(towerIndex)}
+          className="relative overflow-hidden"
+          style={{
+            background: 'rgba(5,5,8,0.72)',
+            border: `2px solid ${selected === towerIndex ? config.accent : '#C4A265'}`,
+            boxShadow: selected === towerIndex ? `0 0 24px ${config.accent}77` : '0 14px 32px rgba(0,0,0,0.65)',
+          }}
+        >
+          <div className="absolute bottom-[16%] left-1/2 h-[68%] w-2 -translate-x-1/2" style={{ background: '#C4A265' }} />
+          <div className="absolute bottom-[15%] left-[12%] right-[12%] h-2" style={{ background: '#C4A265' }} />
+          <div className="absolute bottom-[18%] left-0 right-0 flex flex-col-reverse items-center gap-2">
+            {tower.map(disk => (
+              <div
+                key={disk}
+                className="h-8"
+                style={{
+                  width: `${28 + disk * 12}%`,
+                  background: disk % 2 ? config.accent : '#FFF4C2',
+                  border: '2px solid rgba(5,5,8,0.78)',
+                  boxShadow: `0 0 18px ${config.accent}55`,
+                }}
+              />
+            ))}
+          </div>
+          <div className="absolute left-0 right-0 top-4 text-center font-mono-data text-[10px]" style={{ color: towerIndex === 2 ? '#33FF33' : config.accent }}>
+            {towerIndex === 0 ? 'ORIGIN' : towerIndex === 1 ? 'BUFFER' : 'TARGET'}
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
 export default function EventPopup() {
   const { state, dispatch } = useGame();
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
@@ -762,6 +1361,7 @@ export default function EventPopup() {
   if (phase === 'puzzle') {
     if (evt.id === 'turing') return <TuringPuzzle onSolved={handlePuzzleSolved} />;
     if (evt.id === 'moore') return <MoorePuzzle onSolved={handlePuzzleSolved} />;
+    if (classicPuzzleMap[evt.id]) return <ClassicTechPuzzle eventId={evt.id} onSolved={handlePuzzleSolved} />;
   }
 
   const cardImage = eventCardMap[evt.id];

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGame } from '../App';
-import { MoorePuzzle, TuringPuzzle } from '../components/game/EventPopup';
+import { ClassicTechPuzzle, MoorePuzzle, TuringPuzzle, classicPuzzleMap } from '../components/game/EventPopup';
 import type { MooreDifficultyId, TuringDifficultyId } from '../components/game/EventPopup';
 import { play } from '../hooks/useSound';
 
@@ -9,7 +9,8 @@ const MOORE_CARD = '/assets/puzzles/moore-logic-machine.png';
 
 type ActivePuzzle =
   | { kind: 'turing'; difficulty: TuringDifficultyId }
-  | { kind: 'moore'; difficulty: MooreDifficultyId };
+  | { kind: 'moore'; difficulty: MooreDifficultyId }
+  | { kind: 'classic'; eventId: string };
 
 const turingDifficulties: Array<{
   id: TuringDifficultyId;
@@ -112,9 +113,16 @@ export default function LogicModeScreen() {
     setActivePuzzle({ kind: 'moore', difficulty });
   };
 
+  const handleClassicPlay = (eventId: string) => {
+    play('click');
+    setActivePuzzle({ kind: 'classic', eventId });
+  };
+
   const handleSolved = () => {
     if (activePuzzle) {
-      const solvedId = `${activePuzzle.kind}-${activePuzzle.difficulty}`;
+      const solvedId = activePuzzle.kind === 'classic'
+        ? `classic-${activePuzzle.eventId}`
+        : `${activePuzzle.kind}-${activePuzzle.difficulty}`;
       setSolved(prev => prev.includes(solvedId) ? prev : [...prev, solvedId]);
     }
     setActivePuzzle(null);
@@ -234,6 +242,84 @@ export default function LogicModeScreen() {
         </div>
         </section>
 
+        <section className="w-full max-w-6xl">
+          <div className="mb-2 flex items-end justify-between gap-3">
+            <div>
+              <div className="font-mono-data text-[9px] tracking-[0.28em]" style={{ color: '#FFB84D' }}>
+                CLASSIC INTELLIGENCE MACHINES
+              </div>
+              <h2 className="font-orbitron text-lg font-black" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
+                HISTORICAL TECHNOLOGY PUZZLES
+              </h2>
+            </div>
+            <div className="font-mono-data text-[9px]" style={{ color: '#C4A265' }}>
+              {Object.keys(classicPuzzleMap).length} EVENTS
+            </div>
+          </div>
+          <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Object.entries(classicPuzzleMap).map(([eventId, puzzle]) => {
+              const solvedId = `classic-${eventId}`;
+              const isSolved = solved.includes(solvedId);
+              return (
+                <button
+                  key={eventId}
+                  type="button"
+                  onClick={() => handleClassicPlay(eventId)}
+                  className="group relative overflow-hidden text-left transition-all hover:scale-[1.02] hover:brightness-110"
+                  style={{
+                    height: 280,
+                    border: `2px solid ${isSolved ? '#33FF33' : puzzle.accent}`,
+                    boxShadow: isSolved
+                      ? '0 0 28px rgba(51,255,51,0.28)'
+                      : `0 0 24px ${puzzle.accent}33`,
+                    background: '#090A0D',
+                  }}
+                >
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      backgroundImage: `url(${LOGIC_CARD})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      filter: 'brightness(0.36) saturate(0.8)',
+                    }}
+                  />
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      background:
+                        `radial-gradient(circle at 50% 30%, ${puzzle.accent}33, transparent 36%), linear-gradient(to top, rgba(0,0,0,0.96), rgba(0,0,0,0.24))`,
+                    }}
+                  />
+                  <div className="relative z-10 flex h-full flex-col p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono-data text-[9px] px-2 py-1" style={{ color: '#050508', background: puzzle.accent }}>
+                        {puzzle.kind.toUpperCase()}
+                      </span>
+                      <span className="font-mono-data text-[9px]" style={{ color: isSolved ? '#33FF33' : '#C4A265' }}>
+                        {isSolved ? 'SOLVED' : puzzle.panel.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex-1" />
+                    <h2 className="font-orbitron text-sm font-black tracking-wider" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
+                      {puzzle.title}
+                    </h2>
+                    <p className="mt-2 line-clamp-3 font-rajdhani text-sm font-semibold leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                      {puzzle.subtitle}
+                    </p>
+                    <div
+                      className="mt-4 py-2 text-center font-orbitron text-[10px] font-bold tracking-wider"
+                      style={{ color: puzzle.accent, border: `1px solid ${puzzle.accent}88`, background: `${puzzle.accent}1F` }}
+                    >
+                      PLAY PUZZLE
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
         <div
           className="grid w-full max-w-4xl grid-cols-4 gap-2 px-1"
           aria-label="Turing difficulty progress"
@@ -344,6 +430,12 @@ export default function LogicModeScreen() {
       {activePuzzle?.kind === 'moore' && (
         <MoorePuzzle
           difficulty={activePuzzle.difficulty}
+          onSolved={handleSolved}
+        />
+      )}
+      {activePuzzle?.kind === 'classic' && (
+        <ClassicTechPuzzle
+          eventId={activePuzzle.eventId}
           onSolved={handleSolved}
         />
       )}
