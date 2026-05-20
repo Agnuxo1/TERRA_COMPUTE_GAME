@@ -233,7 +233,7 @@ export const continents: ContinentData[] = [
 
 const YOTTAFLOP_ASI_THRESHOLD = 1e24;
 const ZETTAFLOP_ASI_THRESHOLD = 1e21;
-const STRATEGIST_SAFE_ASI_THRESHOLD = 5e21;
+const STRATEGIST_SAFE_ASI_THRESHOLD = 3e21;
 
 function getSafeAsiComputeThreshold(mode: GameState['gameMode']): number {
   if (mode === 'pioneer') return ZETTAFLOP_ASI_THRESHOLD;
@@ -304,9 +304,9 @@ export const buildings: BuildingData[] = [
   {id:'lab', name:'Research Lab Network', cost:95, energyUse:6, energyProduce:0, compute:1e6, yearRequired:1960, description:'Basic research infrastructure. +1M FLOPS.', icon:'🔬', category:'compute', workersNeeded:0.6, workersProvided:0, output:'compute', outputAmount:1e6},
   {id:'mainframe', name:'Mainframe Center', cost:260, energyUse:25, energyProduce:0, compute:1e9, yearRequired:1965, description:'Early computing center. +1B FLOPS.', icon:'💻', category:'compute', workersNeeded:0.8, workersProvided:0, output:'compute', outputAmount:1e9},
   {id:'super', name:'Supercomputer Program', cost:750, energyUse:120, energyProduce:0, compute:1e12, yearRequired:1975, description:'High-performance computing. +1T FLOPS.', icon:'🖥️', category:'compute', workersNeeded:1, workersProvided:0, output:'compute', outputAmount:1e12},
-  {id:'datacenter', name:'Data Center Region', cost:2200, energyUse:650, energyProduce:0, compute:1e15, yearRequired:1995, description:'Cloud computing region. +1P FLOPS.', icon:'🗄️', category:'compute', workersNeeded:1.8, workersProvided:0, output:'compute', outputAmount:1e15},
-  {id:'gpucluster', name:'GPU Cluster', cost:8000, energyUse:2400, energyProduce:0, compute:1e18, yearRequired:2010, description:'AI training cluster. +1E FLOPS.', icon:'⚡', category:'compute', workersNeeded:2.2, workersProvided:0, output:'compute', outputAmount:1e18},
-  {id:'aifactory', name:'AI Factory', cost:28000, energyUse:9500, energyProduce:0, compute:1e21, yearRequired:2020, description:'Frontier AI training megaproject. +1Z FLOPS.', icon:'🤖', category:'compute', workersNeeded:3, workersProvided:0, output:'compute', outputAmount:1e21},
+  {id:'datacenter', name:'Data Center Region', cost:1800, energyUse:650, energyProduce:0, compute:1e15, yearRequired:1995, description:'Cloud computing region. +1P FLOPS.', icon:'🗄️', category:'compute', workersNeeded:1.8, workersProvided:0, output:'compute', outputAmount:1e15},
+  {id:'gpucluster', name:'GPU Cluster', cost:6000, energyUse:2400, energyProduce:0, compute:1e18, yearRequired:2010, description:'AI training cluster. +1E FLOPS.', icon:'⚡', category:'compute', workersNeeded:2.2, workersProvided:0, output:'compute', outputAmount:1e18},
+  {id:'aifactory', name:'AI Factory', cost:16000, energyUse:9500, energyProduce:0, compute:1e21, yearRequired:2020, description:'Frontier AI training megaproject. +1Z FLOPS.', icon:'🤖', category:'compute', workersNeeded:3, workersProvided:0, output:'compute', outputAmount:1e21},
 
   // ─── Energy ───
   {id:'coal', name:'Coal Plant Fleet', cost:110, energyUse:0, energyProduce:500, compute:0, yearRequired:1960, description:'Cheap but dirty energy. +500 TWh.', icon:'🏭', category:'energy', workersNeeded:0.7, workersProvided:0, output:'energy', outputAmount:500},
@@ -338,9 +338,9 @@ export const techs: TechData[] = [
   {id:'dl', name:'Deep Learning', year:2012, era:'AI Era', effect:'Neural networks', computeBonus:1.0, description:'Multi-layer neural networks', rpCost:8000},
   {id:'transformer', name:'Transformer', year:2017, era:'AI Era', effect:'x10 compute efficiency', computeBonus:1.0, description:'Attention is all you need', rpCost:12000},
   {id:'gpt3', name:'GPT-3 Scale', year:2020, era:'AI Era', effect:'Massive scaling', computeBonus:1.5, description:'175B parameter language model', rpCost:20000},
-  {id:'agentic', name:'Agentic AI', year:2025, era:'Intelligence Explosion', effect:'Automation', computeBonus:2.0, description:'AI that can take actions', rpCost:35000},
-  {id:'agi', name:'AGI Candidate', year:2028, era:'Intelligence Explosion', effect:'General intelligence', computeBonus:3.0, description:'Artificial General Intelligence', rpCost:70000},
-  {id:'asi', name:'Safe ASI', year:2035, era:'Singularity', effect:'Superintelligence', computeBonus:5.0, description:'Aligned Artificial Superintelligence', rpCost:120000},
+  {id:'agentic', name:'Agentic AI', year:2025, era:'Intelligence Explosion', effect:'Automation', computeBonus:2.0, description:'AI that can take actions', rpCost:25000},
+  {id:'agi', name:'AGI Candidate', year:2028, era:'Intelligence Explosion', effect:'General intelligence', computeBonus:3.0, description:'Artificial General Intelligence', rpCost:45000},
+  {id:'asi', name:'Safe ASI', year:2035, era:'Singularity', effect:'Superintelligence', computeBonus:5.0, description:'Aligned Artificial Superintelligence', rpCost:90000},
 ];
 
 export const events: EventData[] = [
@@ -594,7 +594,7 @@ function getPhaseBuildings(phase: number): string[] {
     case 2: // Industrial (1972-1985)
       return ['housing', 'farm', 'hospital', 'school', 'coal', 'factory', 'market', 'seaport', 'nuclear', 'lab', 'mainframe'];
     case 3: // Knowledge (1985-2000)
-      return ['housing', 'farm', 'hospital', 'school', 'coal', 'factory', 'market', 'seaport', 'nuclear', 'lab', 'mainframe', 'uni', 'super', 'solar', 'chipfab'];
+      return ['housing', 'farm', 'hospital', 'school', 'coal', 'factory', 'market', 'seaport', 'nuclear', 'lab', 'mainframe', 'uni', 'super', 'solar', 'chipfab', 'defense'];
     case 4: // Digital (2000-2010)
       return ['housing', 'farm', 'hospital', 'school', 'coal', 'factory', 'market', 'seaport', 'nuclear', 'lab', 'mainframe', 'uni', 'super', 'solar', 'chipfab', 'datacenter'];
     case 5: // AI Era (2010-2025)
@@ -967,7 +967,7 @@ function gameReducer(state: GameState, action: Action): GameState {
       const startYear = isStrategist ? 1980 : 1960;
       const basePop = c.basePopulation;
       const startBuildings = isStrategist
-        ? [{type:'farm',count:8},{type:'housing',count:5},{type:'school',count:3},{type:'factory',count:3},{type:'market',count:2},{type:'coal',count:3},{type:'lab',count:2},{type:'hospital',count:2}]
+        ? [{type:'farm',count:8},{type:'housing',count:5},{type:'school',count:5},{type:'factory',count:4},{type:'market',count:3},{type:'coal',count:3},{type:'nuclear',count:1},{type:'lab',count:3},{type:'uni',count:2},{type:'mainframe',count:1},{type:'super',count:1},{type:'hospital',count:2}]
         : [{type:'farm',count:2},{type:'housing',count:1},{type:'coal',count:1}];
       const homeTerritories = getTerritoriesForContinent(action.continentId);
       const startIconTypes = startBuildings.flatMap(b => Array.from({ length: Math.min(b.count, 3) }, () => b.type));
@@ -976,7 +976,13 @@ function gameReducer(state: GameState, action: Action): GameState {
         return makeBuildingIcon(type, territory, 16);
       });
       const opponents = isPioneer ? [] : createOpponents(action.continentId);
-      const startPhase = isStrategist ? 2 : 1;
+      const startPhase = isStrategist ? 3 : 1;
+      const startTechs = isStrategist ? ['transistor', 'ic', 'micro', 'moore'] : [];
+      const startEfficiency = isStrategist
+        ? 1 + techs
+          .filter(t => startTechs.includes(t.id))
+          .reduce((sum, t) => sum + t.computeBonus, 0)
+        : 1.0;
       return {
         ...state,
         screen: 'game',
@@ -996,7 +1002,7 @@ function gameReducer(state: GameState, action: Action): GameState {
         buildings: startBuildings,
         buildingIcons: startIcons,
 
-        gdp: c.gdp1960 * (isStrategist ? 0.35 : 0.25) + 150,
+        gdp: c.gdp1960 * (isStrategist ? 0.5 : 0.25) + (isStrategist ? 500 : 150),
         taxRate: 0.15,
         industrialOutput: 0,
         tradeRevenue: 0,
@@ -1005,13 +1011,13 @@ function gameReducer(state: GameState, action: Action): GameState {
         energyDemand: 0,
         energyCapacity: c.energy1960,
 
-        education: isStrategist ? 30 : 20,
-        researchPoints: 0,
+        education: isStrategist ? 45 : 20,
+        researchPoints: isStrategist ? 1500 : 0,
         researchers: 0,
 
-        compute: 1e6,
-        computeCapacity: 1e6,
-        algorithmicEfficiency: 1.0,
+        compute: isStrategist ? 1e12 * startEfficiency : 1e6,
+        computeCapacity: isStrategist ? 1e12 : 1e6,
+        algorithmicEfficiency: startEfficiency,
 
         materials: 100,
         materialProduction: 0,
@@ -1020,7 +1026,7 @@ function gameReducer(state: GameState, action: Action): GameState {
         safety: 50,
         defenseLevel: 10,
 
-        unlockedTechs: [],
+        unlockedTechs: startTechs,
         availableTechs: techs.filter(t => t.year <= startYear + 5).map(t => t.id),
         techQueue: null,
         techProgress: 0,
@@ -1051,12 +1057,12 @@ function gameReducer(state: GameState, action: Action): GameState {
         gameOverReason: '',
         victoryYear: 0,
         totalBuildings: 0,
-        totalTechs: 0,
+        totalTechs: startTechs.length,
         data: isStrategist ? 100 : 10,
 
         phase: startPhase,
         phaseUnlocked: isStrategist
-          ? [false, true, true, false, false, false, false]
+          ? [false, true, true, true, false, false, false]
           : [false, true, false, false, false, false, false],
         emergencyLock: 0,
         energyStableTicks: 0,

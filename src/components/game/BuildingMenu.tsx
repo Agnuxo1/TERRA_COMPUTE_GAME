@@ -43,7 +43,7 @@ const buildingReqs: Record<string, { phase?: number; minEducation?: number; minE
   factory: { phase: 2 }, market: { phase: 2 }, seaport: { phase: 2 }, nuclear: { phase: 2 }, lab: { phase: 2 }, mainframe: { phase: 2 },
   uni: { phase: 3, minEducation: 40 }, super: { phase: 3 }, solar: { phase: 3 }, chipfab: { phase: 3 },
   datacenter: { phase: 4, minCompute: 1e12 },
-  gpucluster: { phase: 5, minCompute: 1e15 }, aifactory: { phase: 5, minCompute: 1e15 }, defense: { phase: 5, minCompute: 1e15 },
+  gpucluster: { phase: 5, minCompute: 1e15 }, aifactory: { phase: 5, minCompute: 1e15 }, defense: { phase: 3, minEducation: 40 },
   satellite: { phase: 6, minCompute: 1e18 },
 };
 
