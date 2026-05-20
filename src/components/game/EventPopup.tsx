@@ -45,6 +45,12 @@ const eventCardMap: Record<string, string> = {
 const puzzleEvents = new Set(['turing', 'moore']);
 const TURING_TARGET = [1, 9, 4, 3];
 const TURING_BG = '/assets/puzzles/turing-bombe-background.png';
+const TURING_ROTOR_POSITIONS = [
+  { left: '24.2%', top: '63.4%' },
+  { left: '40.8%', top: '63.4%' },
+  { left: '57.4%', top: '63.4%' },
+  { left: '74%', top: '63.4%' },
+];
 export type TuringDifficultyId = 1 | 2 | 3 | 4;
 
 const TURING_DIFFICULTIES: Record<TuringDifficultyId, {
@@ -219,12 +225,24 @@ export function TuringPuzzle({
             {solved ? 'BOMBE RUNNING' : 'TARGET 1943'}
           </div>
         </div>
-        <div className="absolute inset-x-[8%] bottom-[18%] grid grid-cols-4 gap-[3%]">
+        <div className="absolute inset-0">
           {rotors.map((value, index) => {
             const matched = value === TURING_TARGET[index];
+            const position = TURING_ROTOR_POSITIONS[index];
             return (
-              <div key={index} className="relative flex flex-col items-center">
-                <div className="mb-2 font-mono-data text-[9px]" style={{ color: matched ? '#33FF33' : '#C4A265', textShadow: '0 2px 4px #000' }}>
+              <div
+                key={index}
+                className="absolute flex items-center justify-center"
+                style={{
+                  left: position.left,
+                  top: position.top,
+                  transform: 'translate(-50%, -50%)',
+                }}
+              >
+                <div
+                  className="absolute left-1/2 top-[-24px] -translate-x-1/2 whitespace-nowrap font-mono-data text-[9px]"
+                  style={{ color: matched ? '#33FF33' : '#C4A265', textShadow: '0 2px 4px #000' }}
+                >
                   ROTOR {index + 1}
                 </div>
                 <div
@@ -237,10 +255,10 @@ export function TuringPuzzle({
                   <button
                     type="button"
                     onClick={() => cycle(index, -1)}
-                    className="absolute left-[-24px] top-1/2 z-20 flex -translate-y-1/2 items-center justify-center font-orbitron text-xs font-black"
+                    className="absolute left-[-18px] top-1/2 z-20 flex -translate-y-1/2 items-center justify-center font-orbitron text-xs font-black"
                     style={{
-                      width: 24,
-                      height: 34,
+                      width: 20,
+                      height: 30,
                       color: '#FFF4C2',
                       background: 'rgba(5,5,8,0.86)',
                       border: '1px solid #C4A265',
@@ -291,10 +309,10 @@ export function TuringPuzzle({
                   <button
                     type="button"
                     onClick={() => cycle(index, 1)}
-                    className="absolute right-[-24px] top-1/2 z-20 flex -translate-y-1/2 items-center justify-center font-orbitron text-xs font-black"
+                    className="absolute right-[-18px] top-1/2 z-20 flex -translate-y-1/2 items-center justify-center font-orbitron text-xs font-black"
                     style={{
-                      width: 24,
-                      height: 34,
+                      width: 20,
+                      height: 30,
                       color: '#FFF4C2',
                       background: 'rgba(5,5,8,0.86)',
                       border: '1px solid #C4A265',
@@ -303,7 +321,7 @@ export function TuringPuzzle({
                     +
                   </button>
                 </div>
-                <div className="mt-2 h-1.5 w-16" style={{ background: matched ? '#33FF33' : '#3A3D45', boxShadow: matched ? '0 0 12px #33FF33' : 'none' }} />
+                <div className="absolute left-1/2 top-[calc(100%+7px)] h-1.5 w-16 -translate-x-1/2" style={{ background: matched ? '#33FF33' : '#3A3D45', boxShadow: matched ? '0 0 12px #33FF33' : 'none' }} />
               </div>
             );
           })}
