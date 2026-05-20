@@ -178,11 +178,17 @@ function TuringPuzzle({ onSolved }: { onSolved: () => void }) {
                 <div className="mb-2 font-mono-data text-[9px]" style={{ color: matched ? '#33FF33' : '#C4A265', textShadow: '0 2px 4px #000' }}>
                   ROTOR {index + 1}
                 </div>
-                <div className="relative" style={{ width: 'clamp(78px, 13vw, 124px)', height: 'clamp(78px, 13vw, 124px)' }}>
+                <div
+                  className="relative"
+                  style={{
+                    width: 'clamp(62px, 10.4vw, 99px)',
+                    height: 'clamp(62px, 10.4vw, 99px)',
+                  }}
+                >
                   <button
                     type="button"
                     onClick={() => cycle(index, -1)}
-                    className="absolute left-[-28px] top-1/2 z-20 flex -translate-y-1/2 items-center justify-center font-orbitron text-sm font-black"
+                    className="absolute left-[-24px] top-1/2 z-20 flex -translate-y-1/2 items-center justify-center font-orbitron text-xs font-black"
                     style={{
                       width: 24,
                       height: 34,
@@ -194,7 +200,7 @@ function TuringPuzzle({ onSolved }: { onSolved: () => void }) {
                     -
                   </button>
                   <div
-                    className="absolute inset-0 rounded-full"
+                    className="absolute inset-0 overflow-hidden rounded-full"
                     style={{
                       background:
                         'radial-gradient(circle at 50% 50%, #050508 0 31%, #17110C 32% 42%, #6E5630 43% 48%, #15161A 49% 54%, #C4A265 55% 58%, #1B1A16 59% 100%)',
@@ -206,22 +212,24 @@ function TuringPuzzle({ onSolved }: { onSolved: () => void }) {
                       transition: 'transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease',
                     }}
                   >
-                    {Array.from({ length: 10 }).map((_, tick) => (
-                      <span
-                        key={tick}
-                        className="absolute left-1/2 top-1/2 block"
-                        style={{
-                          width: 2,
-                          height: tick % 5 === 0 ? 16 : 10,
-                          background: tick % 5 === 0 ? '#FFF4C2' : '#C4A265',
-                          transform: `translate(-50%, -50%) rotate(${tick * 36}deg) translateY(calc(clamp(78px, 13vw, 124px) * -0.42))`,
-                          transformOrigin: '50% calc(clamp(78px, 13vw, 124px) * 0.42)',
-                        }}
-                      />
-                    ))}
+                    <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" aria-hidden="true">
+                      {Array.from({ length: 10 }).map((_, tick) => (
+                        <line
+                          key={tick}
+                          x1="50"
+                          y1={tick % 5 === 0 ? 7 : 10}
+                          x2="50"
+                          y2={tick % 5 === 0 ? 21 : 18}
+                          transform={`rotate(${tick * 36} 50 50)`}
+                          stroke={tick % 5 === 0 ? '#FFF4C2' : '#C4A265'}
+                          strokeWidth={tick % 5 === 0 ? 2.1 : 1.4}
+                          strokeLinecap="square"
+                        />
+                      ))}
+                    </svg>
                   </div>
                   <div
-                    className="absolute inset-[28%] z-10 flex items-center justify-center rounded-full font-orbitron text-4xl font-black"
+                    className="absolute inset-[29%] z-10 flex items-center justify-center rounded-full font-orbitron text-3xl font-black"
                     style={{
                       color: matched ? '#33FF33' : '#FFF4C2',
                       background: 'radial-gradient(circle, #07090A, #111318)',
@@ -234,7 +242,7 @@ function TuringPuzzle({ onSolved }: { onSolved: () => void }) {
                   <button
                     type="button"
                     onClick={() => cycle(index, 1)}
-                    className="absolute right-[-28px] top-1/2 z-20 flex -translate-y-1/2 items-center justify-center font-orbitron text-sm font-black"
+                    className="absolute right-[-24px] top-1/2 z-20 flex -translate-y-1/2 items-center justify-center font-orbitron text-xs font-black"
                     style={{
                       width: 24,
                       height: 34,
