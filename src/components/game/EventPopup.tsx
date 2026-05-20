@@ -179,6 +179,120 @@ function mooreRows(variables: Array<'A' | 'B' | 'C'>) {
   });
 }
 
+type MooreRoute = 'block' | 'straight' | 'up' | 'down';
+type MooreDestination = number | 'out' | 'sink';
+type MooreSwitch = {
+  x: number;
+  y: number;
+  routes: Partial<Record<MooreRoute, MooreDestination>>;
+};
+
+const MOORE_ROUTE_ORDER: MooreRoute[] = ['block', 'straight', 'up', 'down'];
+const MOORE_ROUTE_LABELS: Record<MooreRoute, string> = {
+  block: 'STOP',
+  straight: 'FLOW',
+  up: 'UP',
+  down: 'DOWN',
+};
+
+const MOORE_MAZES: Record<MooreDifficultyId, {
+  title: string;
+  subtitle: string;
+  target: string;
+  switches: MooreSwitch[];
+}> = {
+  1: {
+    title: 'MOORE CURRENT MAZE: DRILL 1',
+    subtitle: 'One transistor-valve. Open the path from source to output.',
+    target: 'SOURCE TO OUT',
+    switches: [
+      { x: 230, y: 180, routes: { straight: 'out' } },
+    ],
+  },
+  2: {
+    title: 'MOORE CURRENT MAZE: DRILL 2',
+    subtitle: 'The first valve must choose the live upper branch.',
+    target: 'FIND THE POWERED BRANCH',
+    switches: [
+      { x: 170, y: 180, routes: { up: 1, down: 2 } },
+      { x: 430, y: 112, routes: { straight: 'out' } },
+      { x: 430, y: 248, routes: { straight: 'sink' } },
+    ],
+  },
+  3: {
+    title: 'MOORE CURRENT MAZE: DRILL 3',
+    subtitle: 'Route through a two-stage transistor channel.',
+    target: 'UP THEN DOWN',
+    switches: [
+      { x: 150, y: 210, routes: { up: 1, straight: 2 } },
+      { x: 330, y: 110, routes: { down: 3, straight: 'sink' } },
+      { x: 330, y: 210, routes: { straight: 'sink' } },
+      { x: 540, y: 210, routes: { straight: 'out' } },
+    ],
+  },
+  4: {
+    title: 'MOORE CURRENT MAZE: DRILL 4',
+    subtitle: 'A denser chip adds detours. Avoid the dead buses.',
+    target: 'ZIGZAG TO OUT',
+    switches: [
+      { x: 130, y: 180, routes: { straight: 1, up: 2 } },
+      { x: 270, y: 180, routes: { down: 3, straight: 'sink' } },
+      { x: 270, y: 94, routes: { straight: 'sink' } },
+      { x: 430, y: 260, routes: { up: 4, straight: 'sink' } },
+      { x: 570, y: 150, routes: { straight: 'out' } },
+    ],
+  },
+  5: {
+    title: 'MOORE CURRENT MAZE: DRILL 5',
+    subtitle: 'Moore-style density: many transistor gates, one valid current path.',
+    target: 'COMPLETE THE CHIP BUS',
+    switches: [
+      { x: 115, y: 182, routes: { up: 1, straight: 2, down: 3 } },
+      { x: 250, y: 92, routes: { straight: 'sink', down: 4 } },
+      { x: 250, y: 182, routes: { straight: 'sink', up: 1 } },
+      { x: 250, y: 272, routes: { straight: 4 } },
+      { x: 430, y: 272, routes: { up: 5, straight: 'sink' } },
+      { x: 555, y: 138, routes: { down: 6, straight: 'sink' } },
+      { x: 640, y: 220, routes: { straight: 'out' } },
+    ],
+  },
+};
+
+function traceMooreCurrent(switches: MooreSwitch[], states: MooreRoute[]) {
+  const activeNodes = new Set<number>();
+  const activeRoutes = new Set<string>();
+  let current: MooreDestination = 0;
+  let reachedOut = false;
+  const guard = switches.length + 4;
+
+  for (let step = 0; step < guard; step++) {
+    if (current === 'out') {
+      reachedOut = true;
+      break;
+    }
+    if (current === 'sink' || typeof current !== 'number' || activeNodes.has(current)) break;
+    const route = states[current];
+    activeNodes.add(current);
+    if (route === 'block') break;
+    const next = switches[current].routes[route];
+    if (next === undefined) break;
+    activeRoutes.add(`${current}-${route}`);
+    current = next;
+  }
+
+  return { activeNodes, activeRoutes, reachedOut };
+}
+
+function moorePipePath(from: MooreSwitch, route: MooreRoute, to: MooreSwitch | 'out' | 'sink') {
+  const exit = route === 'up' ? { x: from.x, y: from.y - 58 } : route === 'down' ? { x: from.x, y: from.y + 58 } : { x: from.x + 58, y: from.y };
+  const target = to === 'out'
+    ? { x: 705, y: from.y }
+    : to === 'sink'
+      ? { x: Math.min(from.x + 150, 690), y: from.y + (route === 'up' ? -70 : route === 'down' ? 70 : 0) }
+      : { x: to.x - 58, y: to.y };
+  return `M ${from.x} ${from.y} L ${exit.x} ${exit.y} H ${target.x} V ${target.y}`;
+}
+
 function PuzzleShell({
   title,
   subtitle,
@@ -428,33 +542,27 @@ export function MoorePuzzle({
   onSolved: () => void;
   difficulty?: MooreDifficultyId;
 }) {
-  const config = MOORE_LEVELS[difficulty];
-  const rows = mooreRows(config.variables);
-  const [selectedRow, setSelectedRow] = useState(0);
-  const [assignments, setAssignments] = useState<Array<MooreSignal | null>>(
-    () => Array.from({ length: config.solution.length }, () => null)
+  const config = MOORE_MAZES[difficulty];
+  const [states, setStates] = useState<MooreRoute[]>(
+    () => config.switches.map(() => 'block')
   );
   const [solved, setSolved] = useState(false);
-  const currentInput = rows[selectedRow];
-  const signalOptions = MOORE_SIGNAL_OPTIONS.filter(signal => config.variables.includes(signal.replace('!', '') as 'A' | 'B' | 'C'));
-  const branchActive = (branch: number[], input: MooreInput) => branch.every(slot => evaluateMooreSignal(assignments[slot], input));
-  const outputFor = (input: MooreInput) => config.branches.some(branch => branchActive(branch, input));
-  const isComplete = assignments.every(Boolean) && rows.every(input => outputFor(input) === config.rule(input));
+  const flow = traceMooreCurrent(config.switches, states);
 
   useEffect(() => {
-    if (!isComplete || solved) return;
+    if (!flow.reachedOut || solved) return;
     setSolved(true);
     play('victory');
     window.setTimeout(onSolved, 1100);
-  }, [isComplete, solved, onSolved]);
+  }, [flow.reachedOut, solved, onSolved]);
 
-  const toggle = (index: number) => {
+  const cycleSwitch = (index: number) => {
     if (solved) return;
     play('click', 0.45);
-    setAssignments(prev => prev.map((value, i) => {
-      if (i !== index) return value;
-      const currentIndex = value ? signalOptions.indexOf(value) : -1;
-      return signalOptions[(currentIndex + 1) % signalOptions.length];
+    setStates(prev => prev.map((state, i) => {
+      if (i !== index) return state;
+      const currentIndex = MOORE_ROUTE_ORDER.indexOf(state);
+      return MOORE_ROUTE_ORDER[(currentIndex + 1) % MOORE_ROUTE_ORDER.length];
     }));
   };
 
@@ -470,163 +578,110 @@ export function MoorePuzzle({
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
           draggable={false}
-          style={{ filter: solved ? 'brightness(1.05) saturate(1.08)' : 'brightness(0.62) saturate(0.9)' }}
+          style={{ filter: solved ? 'brightness(1.08) saturate(1.1)' : 'brightness(0.58) saturate(0.88)' }}
         />
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              'radial-gradient(circle at 50% 48%, rgba(0,240,255,0.14), transparent 34%), linear-gradient(180deg, rgba(7,16,21,0.08), rgba(7,16,21,0.42))',
+              'radial-gradient(circle at 50% 48%, rgba(0,240,255,0.16), transparent 34%), linear-gradient(180deg, rgba(7,16,21,0.1), rgba(7,16,21,0.48))',
           }}
         />
         <div className="absolute left-4 top-4 flex items-center gap-2">
-          <div className="h-3 w-3 rounded-full" style={{ background: solved ? '#33FF33' : '#00F0FF', boxShadow: `0 0 16px ${solved ? '#33FF33' : '#00F0FF'}` }} />
-          <div className="font-mono-data text-[9px] px-2 py-1" style={{ color: '#050508', background: solved ? '#33FF33' : '#00F0FF', border: '1px solid #FFF4C2' }}>
-            {solved ? 'CIRCUIT STABLE' : config.target}
+          <div className="h-3 w-3 rounded-full" style={{ background: flow.reachedOut ? '#33FF33' : '#00F0FF', boxShadow: `0 0 16px ${flow.reachedOut ? '#33FF33' : '#00F0FF'}` }} />
+          <div className="font-mono-data text-[9px] px-2 py-1" style={{ color: '#050508', background: flow.reachedOut ? '#33FF33' : '#00F0FF', border: '1px solid #FFF4C2' }}>
+            {flow.reachedOut ? 'CURRENT REACHED OUTPUT' : config.target}
           </div>
         </div>
-        <div
-          className="absolute right-4 top-4 font-mono-data text-[8px] px-2 py-1"
-          style={{ color: '#00F0FF', background: 'rgba(5,9,12,0.74)', border: '1px solid rgba(0,240,255,0.45)' }}
-        >
-          CLICK TRANSISTOR BLOCKS TO CHANGE CONTROL SIGNAL
-        </div>
-        <svg viewBox="0 0 760 360" className="absolute inset-x-[7%] top-[9%] h-[68%] w-[86%]" role="img" aria-label="Moore transistor logic maze">
+
+        <svg viewBox="0 0 760 360" className="absolute inset-[6%] h-[86%] w-[88%]" role="img" aria-label="Moore current routing maze">
           <defs>
-            <filter id="circuit-glow">
+            <filter id="moore-current-glow">
               <feGaussianBlur stdDeviation="3" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
+            <marker id="moore-arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M 0 0 L 7 3 L 0 6 z" fill="#00F0FF" />
+            </marker>
           </defs>
-          <rect x="48" y="36" width="664" height="288" fill="rgba(5,9,12,0.48)" stroke="#C4A265" strokeWidth="2" />
-          <text x="70" y="74" fill="#00F0FF" fontFamily="monospace" fontSize="13" fontWeight="700">VCC</text>
-          <text x="674" y="74" fill={outputFor(currentInput) ? '#33FF33' : '#C4A265'} fontFamily="monospace" fontSize="13" fontWeight="700" textAnchor="end">OUT</text>
-          {config.branches.map((branch, branchIndex) => {
-            const branchY = 122 + branchIndex * (config.branches.length > 2 ? 62 : 92);
-            const isBranchActive = branchActive(branch, currentInput);
-            const xStep = 430 / (branch.length + 1);
-            const slotPoints = branch.map((slot, slotIndex) => ({
-              slot,
-              x: 165 + xStep * (slotIndex + 1),
-              y: branchY,
-            }));
-            const wirePoints = [`M 82 ${branchY}`, ...slotPoints.map(point => `H ${point.x - 42} M ${point.x + 42} ${branchY}`), `H 678`].join(' ');
-            return (
-              <g key={branchIndex}>
+
+          <rect x="46" y="34" width="668" height="292" fill="rgba(5,9,12,0.4)" stroke="#C4A265" strokeWidth="2" />
+          <text x="72" y="70" fill="#00F0FF" fontFamily="monospace" fontSize="13" fontWeight="700">SOURCE</text>
+          <text x="688" y="70" fill={flow.reachedOut ? '#33FF33' : '#C4A265'} fontFamily="monospace" fontSize="13" fontWeight="700" textAnchor="end">OUT</text>
+          <path d={`M 76 180 H ${config.switches[0].x - 58}`} stroke="#00F0FF" strokeWidth="9" strokeLinecap="round" filter="url(#moore-current-glow)" markerEnd="url(#moore-arrow)" />
+
+          {config.switches.map((node, index) => (
+            Object.entries(node.routes).map(([route, destination]) => {
+              const routeKey = `${index}-${route}`;
+              const destNode = typeof destination === 'number' ? config.switches[destination] : destination;
+              const active = flow.activeRoutes.has(routeKey);
+              return (
                 <path
-                  d={wirePoints}
+                  key={routeKey}
+                  d={moorePipePath(node, route as MooreRoute, destNode)}
                   fill="none"
-                  stroke={isBranchActive ? '#00F0FF' : '#49515A'}
-                  strokeWidth="8"
+                  stroke={active ? '#00F0FF' : destination === 'sink' ? '#3A3030' : '#4B535B'}
+                  strokeWidth={active ? 10 : 7}
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  filter={isBranchActive ? 'url(#circuit-glow)' : undefined}
+                  opacity={active ? 1 : 0.62}
+                  filter={active ? 'url(#moore-current-glow)' : undefined}
+                  markerEnd={active ? 'url(#moore-arrow)' : undefined}
                 />
-                <path d={`M 82 ${branchY} H 678`} fill="none" stroke="#C4A26533" strokeWidth="2" strokeDasharray="9 10" />
-                {slotPoints.map(({ slot, x, y }) => {
-                  const signal = assignments[slot];
-                  const open = evaluateMooreSignal(signal, currentInput);
-                  return (
-                    <g key={slot} onClick={() => toggle(slot)} style={{ cursor: 'pointer' }}>
-                      <rect
-                        x={x - 38}
-                        y={y - 26}
-                        width="76"
-                        height="52"
-                        rx="4"
-                        fill={open ? '#0B3540' : '#111318'}
-                        stroke={signal ? (open ? '#00F0FF' : '#C4A265') : '#755F3F'}
-                        strokeWidth="2"
-                        filter={open ? 'url(#circuit-glow)' : undefined}
-                      />
-                      <path d={`M ${x - 31} ${y + 14} H ${x + 31} M ${x} ${y - 21} V ${y + 20}`} stroke={open ? '#00F0FF' : '#C4A265'} strokeWidth="2" opacity="0.8" />
-                      <circle cx={x - 29} cy={y + 14} r="4" fill={open ? '#00F0FF' : '#15161A'} stroke="#FFF4C2" strokeWidth="1" />
-                      <circle cx={x + 29} cy={y + 14} r="4" fill={open ? '#00F0FF' : '#15161A'} stroke="#FFF4C2" strokeWidth="1" />
-                      <circle cx={x} cy={y - 20} r="4" fill={signal ? '#FFF4C2' : '#15161A'} stroke="#C4A265" strokeWidth="1" />
-                      <text x={x} y={y + 5} fill={signal ? '#FFF4C2' : '#C4A265'} fontFamily="Orbitron" fontSize="18" fontWeight="900" textAnchor="middle">
-                        {signal || '?'}
-                      </text>
-                      <text x={x} y={y + 42} fill={open ? '#00F0FF' : '#C4A265'} fontFamily="monospace" fontSize="9" textAnchor="middle">
-                        {open ? 'OPEN' : 'CLOSED'}
-                      </text>
-                      <text x={x} y={y - 36} fill="#C4A265" fontFamily="monospace" fontSize="8" textAnchor="middle">
-                        T{slot + 1}
-                      </text>
-                    </g>
-                  );
-                })}
+              );
+            })
+          ))}
+
+          <path d="M 706 70 V 300" stroke="#33FF3344" strokeWidth="2" strokeDasharray="8 10" />
+          <circle cx="706" cy="180" r="18" fill={flow.reachedOut ? '#33FF33' : '#15161A'} stroke="#FFF4C2" strokeWidth="2" filter={flow.reachedOut ? 'url(#moore-current-glow)' : undefined} />
+
+          {config.switches.map((node, index) => {
+            const state = states[index];
+            const powered = flow.activeNodes.has(index);
+            const arm = state === 'up'
+              ? { x2: 0, y2: -32 }
+              : state === 'down'
+                ? { x2: 0, y2: 32 }
+                : state === 'straight'
+                  ? { x2: 34, y2: 0 }
+                  : { x2: 0, y2: 0 };
+            return (
+              <g key={index} onClick={() => cycleSwitch(index)} style={{ cursor: 'pointer' }}>
+                <circle
+                  cx={node.x}
+                  cy={node.y}
+                  r="34"
+                  fill={powered ? '#0B3540' : '#111318'}
+                  stroke={powered ? '#00F0FF' : '#C4A265'}
+                  strokeWidth="3"
+                  filter={powered ? 'url(#moore-current-glow)' : undefined}
+                />
+                <circle cx={node.x} cy={node.y} r="13" fill="#050508" stroke="#FFF4C2" strokeWidth="2" />
+                {state === 'block' ? (
+                  <path d={`M ${node.x - 15} ${node.y - 15} L ${node.x + 15} ${node.y + 15} M ${node.x + 15} ${node.y - 15} L ${node.x - 15} ${node.y + 15}`} stroke="#FF477E" strokeWidth="4" strokeLinecap="round" />
+                ) : (
+                  <path
+                    d={`M ${node.x} ${node.y} L ${node.x + arm.x2} ${node.y + arm.y2}`}
+                    stroke={powered ? '#00F0FF' : '#FFF4C2'}
+                    strokeWidth="7"
+                    strokeLinecap="round"
+                    markerEnd={powered ? 'url(#moore-arrow)' : undefined}
+                  />
+                )}
+                <text x={node.x} y={node.y + 51} fill={powered ? '#00F0FF' : '#C4A265'} fontFamily="monospace" fontSize="9" textAnchor="middle">
+                  {MOORE_ROUTE_LABELS[state]}
+                </text>
               </g>
             );
           })}
-          <circle cx="82" cy="122" r="12" fill="#00F0FF" stroke="#FFF4C2" strokeWidth="2" filter="url(#circuit-glow)" />
-          <circle cx="678" cy="122" r="12" fill={outputFor(currentInput) ? '#33FF33' : '#242832'} stroke="#FFF4C2" strokeWidth="2" filter={outputFor(currentInput) ? 'url(#circuit-glow)' : undefined} />
         </svg>
-        <div className="absolute bottom-4 left-4 right-4 grid grid-cols-[1.05fr_1.55fr] gap-3">
-          <div
-            className="p-2"
-            style={{ background: 'rgba(5,9,12,0.78)', border: '1px solid rgba(196,162,101,0.48)' }}
-          >
-            <div className="font-mono-data text-[8px] mb-1" style={{ color: '#C4A265' }}>
-              GOAL
-            </div>
-            <div className="font-orbitron text-[12px] font-black" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
-              {config.target}
-            </div>
-            <div className="mt-1 font-rajdhani text-[11px] font-semibold leading-tight" style={{ color: 'var(--text-secondary)' }}>
-              Set each transistor control on the circuit board. A branch conducts only when every transistor on that branch is open.
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                play('click', 0.25);
-                setSelectedRow((selectedRow + 1) % rows.length);
-              }}
-              className="mt-2 w-full py-1 font-mono-data text-[8px]"
-              style={{ color: '#050508', background: '#00F0FF', border: '1px solid #FFF4C2' }}
-            >
-              TEST NEXT INPUT
-            </button>
-          </div>
-
-          <div
-            className="grid gap-1 p-2"
-            style={{ background: 'rgba(5,9,12,0.78)', border: '1px solid rgba(0,240,255,0.36)' }}
-          >
-            <div className="grid grid-cols-[1.1fr_0.7fr_0.7fr] gap-1 font-mono-data text-[8px]" style={{ color: '#C4A265' }}>
-              <div>INPUT</div>
-              <div>WANTED</div>
-              <div>NOW</div>
-            </div>
-            {rows.map((input, index) => {
-              const target = config.rule(input);
-              const actual = outputFor(input);
-              const matches = actual === target;
-              return (
-                <div
-                  key={index}
-                  className="grid grid-cols-[1.1fr_0.7fr_0.7fr] gap-1 font-mono-data text-[8px] py-1 px-1 text-left"
-                  style={{
-                    color: index === selectedRow ? '#050508' : matches ? '#33FF33' : '#FF477E',
-                    background: index === selectedRow ? '#00F0FF' : 'rgba(5,9,12,0.76)',
-                    border: `1px solid ${matches ? '#33FF33' : '#FF477E'}`,
-                  }}
-                >
-                  <span>{config.variables.map(variable => `${variable}=${input[variable] ? 1 : 0}`).join(' ')}</span>
-                  <span>{target ? 'ON' : 'OFF'}</span>
-                  <span>{actual ? 'ON' : 'OFF'}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       </div>
     </PuzzleShell>
   );
 }
-
 export default function EventPopup() {
   const { state, dispatch } = useGame();
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
