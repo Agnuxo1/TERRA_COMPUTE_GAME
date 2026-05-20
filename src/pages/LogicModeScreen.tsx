@@ -253,7 +253,7 @@ export default function LogicModeScreen() {
               </h2>
             </div>
             <div className="font-mono-data text-[9px]" style={{ color: '#C4A265' }}>
-              {Object.keys(classicPuzzleMap).length} EVENTS
+              {Object.keys(classicPuzzleMap).length} EVENT
             </div>
           </div>
           <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
