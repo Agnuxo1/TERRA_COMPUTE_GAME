@@ -1,13 +1,51 @@
 import { useState } from 'react';
 import { useGame } from '../App';
 import { TuringPuzzle } from '../components/game/EventPopup';
+import type { TuringDifficultyId } from '../components/game/EventPopup';
 import { play } from '../hooks/useSound';
 
 const LOGIC_CARD = '/assets/cards/LOGIC.png';
 
+const turingDifficulties: Array<{
+  id: TuringDifficultyId;
+  label: string;
+  name: string;
+  description: string;
+  linkLabel: string;
+}> = [
+  {
+    id: 1,
+    label: 'I',
+    name: 'OPEN ROTORS',
+    description: 'Four independent rotors. Set each digit directly to 1943.',
+    linkLabel: '0 linked rotors',
+  },
+  {
+    id: 2,
+    label: 'II',
+    name: 'PAIR LOCK',
+    description: 'The first two rotors move together, then separate correction is needed.',
+    linkLabel: '2 linked rotors',
+  },
+  {
+    id: 3,
+    label: 'III',
+    name: 'TRIPLE TRAIN',
+    description: 'Three rotors are chained, forcing planned adjustment order.',
+    linkLabel: '3 linked rotors',
+  },
+  {
+    id: 4,
+    label: 'IV',
+    name: 'FULL BOMBE',
+    description: 'The complete coupled machine. This is the historical event puzzle.',
+    linkLabel: 'Full coupling',
+  },
+];
+
 export default function LogicModeScreen() {
   const { dispatch } = useGame();
-  const [activePuzzle, setActivePuzzle] = useState<'turing' | null>('turing');
+  const [activeDifficulty, setActiveDifficulty] = useState<TuringDifficultyId | null>(null);
   const [solved, setSolved] = useState<string[]>([]);
 
   const handleBack = () => {
@@ -15,14 +53,17 @@ export default function LogicModeScreen() {
     dispatch({ type: 'SET_SCREEN', screen: 'mode' });
   };
 
-  const handleReplay = () => {
+  const handlePlay = (difficulty: TuringDifficultyId) => {
     play('click');
-    setActivePuzzle('turing');
+    setActiveDifficulty(difficulty);
   };
 
   const handleSolved = () => {
-    setSolved(prev => prev.includes('turing') ? prev : [...prev, 'turing']);
-    setActivePuzzle(null);
+    if (activeDifficulty) {
+      const solvedId = `turing-${activeDifficulty}`;
+      setSolved(prev => prev.includes(solvedId) ? prev : [...prev, solvedId]);
+    }
+    setActiveDifficulty(null);
   };
 
   return (
@@ -59,58 +100,86 @@ export default function LogicModeScreen() {
           <h1 className="font-orbitron text-4xl font-black tracking-wider" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
             LOGIC
           </h1>
-          <p className="mx-auto mt-2 max-w-xl font-rajdhani text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
-            Puzzle-only mode. Solve the historical technology challenges without economy, rivals, or timers.
+          <p className="mx-auto mt-2 max-w-2xl font-rajdhani text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
+            Puzzle-only mode. Solve the Turing Bombe in four progressive drills. Every cipher resolves to 1943.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleReplay}
-          className="group relative w-full max-w-[360px] overflow-hidden text-left transition-all hover:scale-[1.02] hover:brightness-110"
-          style={{
-            height: 420,
-            border: `2px solid ${solved.includes('turing') ? '#33FF33' : '#FFF4C2'}`,
-            boxShadow: solved.includes('turing')
-              ? '0 0 28px rgba(51,255,51,0.28)'
-              : '0 0 24px rgba(255,244,194,0.22)',
-            background: '#090A0D',
-          }}
+        <div className="grid w-full max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {turingDifficulties.map((difficulty) => {
+            const solvedId = `turing-${difficulty.id}`;
+            const isSolved = solved.includes(solvedId);
+            return (
+              <button
+                key={difficulty.id}
+                type="button"
+                onClick={() => handlePlay(difficulty.id)}
+                className="group relative overflow-hidden text-left transition-all hover:scale-[1.02] hover:brightness-110"
+                style={{
+                  height: 390,
+                  border: `2px solid ${isSolved ? '#33FF33' : '#FFF4C2'}`,
+                  boxShadow: isSolved
+                    ? '0 0 28px rgba(51,255,51,0.28)'
+                    : '0 0 24px rgba(255,244,194,0.22)',
+                  background: '#090A0D',
+                }}
+              >
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    backgroundImage: `url(${LOGIC_CARD})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    filter: `brightness(${0.48 + difficulty.id * 0.06})`,
+                  }}
+                />
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.96), rgba(0,0,0,0.2))' }} />
+                <div className="relative z-10 flex h-full flex-col p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono-data text-[9px] px-2 py-1" style={{ color: '#050508', background: '#FFF4C2' }}>
+                      DRILL {difficulty.label}
+                    </span>
+                    <span className="font-mono-data text-[9px]" style={{ color: isSolved ? '#33FF33' : '#C4A265' }}>
+                      {isSolved ? 'SOLVED' : difficulty.linkLabel}
+                    </span>
+                  </div>
+                  <div className="flex-1" />
+                  <h2 className="font-orbitron text-lg font-black tracking-wider" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
+                    {difficulty.name}
+                  </h2>
+                  <div className="mt-1 font-mono-data text-[9px]" style={{ color: '#33FF33' }}>
+                    TARGET 1943
+                  </div>
+                  <p className="mt-2 font-rajdhani text-sm font-semibold leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                    {difficulty.description}
+                  </p>
+                  <div
+                    className="mt-4 py-2 text-center font-orbitron text-[10px] font-bold tracking-wider"
+                    style={{ color: '#33FF33', border: '1px solid rgba(51,255,51,0.55)', background: 'rgba(51,255,51,0.12)' }}
+                  >
+                    PLAY PUZZLE
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div
+          className="grid w-full max-w-4xl grid-cols-4 gap-2 px-1"
+          aria-label="Turing difficulty progress"
         >
-          <div
-            className="absolute inset-0"
-            style={{
-              backgroundImage: `url(${LOGIC_CARD})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              filter: 'brightness(0.72)',
-            }}
-          />
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.96), rgba(0,0,0,0.18))' }} />
-          <div className="relative z-10 flex h-full flex-col p-5">
-            <div className="flex items-center justify-between">
-              <span className="font-mono-data text-[9px] px-2 py-1" style={{ color: '#050508', background: '#FFF4C2' }}>
-                PUZZLE 01
-              </span>
-              <span className="font-mono-data text-[9px]" style={{ color: solved.includes('turing') ? '#33FF33' : '#C4A265' }}>
-                {solved.includes('turing') ? 'SOLVED' : 'ACTIVE'}
-              </span>
-            </div>
-            <div className="flex-1" />
-            <h2 className="font-orbitron text-xl font-black tracking-wider" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
-              TURING BOMBE
-            </h2>
-            <p className="mt-2 font-rajdhani text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
-              Align coupled rotors to break the 1943 cipher sequence.
-            </p>
+          {turingDifficulties.map((difficulty) => (
             <div
-              className="mt-4 py-2 text-center font-orbitron text-[10px] font-bold tracking-wider"
-              style={{ color: '#33FF33', border: '1px solid rgba(51,255,51,0.55)', background: 'rgba(51,255,51,0.12)' }}
-            >
-              PLAY PUZZLE
-            </div>
-          </div>
-        </button>
+              key={difficulty.id}
+              className="h-1.5"
+              style={{
+                background: solved.includes(`turing-${difficulty.id}`) ? '#33FF33' : 'rgba(196,162,101,0.32)',
+                boxShadow: solved.includes(`turing-${difficulty.id}`) ? '0 0 12px rgba(51,255,51,0.65)' : 'none',
+              }}
+            />
+          ))}
+        </div>
 
         <button
           type="button"
@@ -122,7 +191,12 @@ export default function LogicModeScreen() {
         </button>
       </main>
 
-      {activePuzzle === 'turing' && <TuringPuzzle onSolved={handleSolved} />}
+      {activeDifficulty && (
+        <TuringPuzzle
+          difficulty={activeDifficulty}
+          onSolved={handleSolved}
+        />
+      )}
     </div>
   );
 }

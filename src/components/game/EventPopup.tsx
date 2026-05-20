@@ -45,12 +45,54 @@ const eventCardMap: Record<string, string> = {
 const puzzleEvents = new Set(['turing', 'moore']);
 const TURING_TARGET = [1, 9, 4, 3];
 const TURING_BG = '/assets/puzzles/turing-bombe-background.png';
-const TURING_COUPLINGS = [
-  [1, 0, 2, 0],
-  [3, 1, 1, 2],
-  [1, 2, 1, 2],
-  [3, 3, 2, 1],
-];
+export type TuringDifficultyId = 1 | 2 | 3 | 4;
+
+const TURING_DIFFICULTIES: Record<TuringDifficultyId, {
+  name: string;
+  subtitle: string;
+  couplings: number[][];
+}> = {
+  1: {
+    name: 'DRILL 1',
+    subtitle: 'Independent rotors. Learn the 1943 target.',
+    couplings: [
+      [1, 0, 0, 0],
+      [0, 1, 0, 0],
+      [0, 0, 1, 0],
+      [0, 0, 0, 1],
+    ],
+  },
+  2: {
+    name: 'DRILL 2',
+    subtitle: 'Two rotors are linked. Watch the paired drift.',
+    couplings: [
+      [1, 1, 0, 0],
+      [0, 1, 0, 0],
+      [0, 0, 1, 0],
+      [0, 0, 0, 1],
+    ],
+  },
+  3: {
+    name: 'DRILL 3',
+    subtitle: 'Three rotors are linked into a cipher train.',
+    couplings: [
+      [1, 1, 0, 0],
+      [0, 1, 1, 0],
+      [1, 0, 1, 0],
+      [0, 0, 0, 1],
+    ],
+  },
+  4: {
+    name: 'DRILL 4',
+    subtitle: 'Full coupled Bombe array.',
+    couplings: [
+      [1, 0, 2, 0],
+      [3, 1, 1, 2],
+      [1, 2, 1, 2],
+      [3, 3, 2, 1],
+    ],
+  },
+};
 
 function PuzzleShell({
   title,
@@ -122,9 +164,16 @@ function PuzzleShell({
   );
 }
 
-export function TuringPuzzle({ onSolved }: { onSolved: () => void }) {
+export function TuringPuzzle({
+  onSolved,
+  difficulty = 4,
+}: {
+  onSolved: () => void;
+  difficulty?: TuringDifficultyId;
+}) {
   const [rotors, setRotors] = useState([0, 0, 0, 0]);
   const [solved, setSolved] = useState(false);
+  const config = TURING_DIFFICULTIES[difficulty];
   const isCorrect = rotors.every((value, i) => value === TURING_TARGET[i]);
 
   useEffect(() => {
@@ -138,15 +187,15 @@ export function TuringPuzzle({ onSolved }: { onSolved: () => void }) {
     if (solved) return;
     play('click', 0.45);
     setRotors(prev => prev.map((value, i) => {
-      const delta = TURING_COUPLINGS[index][i] * direction;
+      const delta = config.couplings[index][i] * direction;
       return (value + delta + 10) % 10;
     }));
   };
 
   return (
     <PuzzleShell
-      title="BOMBE CIPHER VAULT"
-      subtitle="Set the coupled rotor bank to 1943"
+      title={`BOMBE CIPHER VAULT: ${config.name}`}
+      subtitle={config.subtitle}
       accent="#33FF33"
     >
       <div className="relative w-full max-w-[840px] overflow-hidden" style={{ aspectRatio: '16 / 9', border: '2px solid #C4A265', background: '#050508' }}>
@@ -260,7 +309,7 @@ export function TuringPuzzle({ onSolved }: { onSolved: () => void }) {
           })}
         </div>
         <div className="absolute bottom-4 left-4 right-4 grid grid-cols-4 gap-2">
-          {TURING_COUPLINGS.map((speeds, i) => (
+          {config.couplings.map((speeds, i) => (
             <div
               key={i}
               className="font-mono-data text-center text-[8px] py-1"
