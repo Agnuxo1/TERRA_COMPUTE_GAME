@@ -44,6 +44,13 @@ const eventCardMap: Record<string, string> = {
 
 const puzzleEvents = new Set(['turing', 'moore']);
 const TURING_TARGET = [1, 9, 4, 3];
+const TURING_BG = '/assets/puzzles/turing-bombe-background.png';
+const TURING_COUPLINGS = [
+  [1, 0, 2, 0],
+  [3, 1, 1, 2],
+  [1, 2, 1, 2],
+  [3, 3, 2, 1],
+];
 
 function PuzzleShell({
   title,
@@ -124,89 +131,134 @@ function TuringPuzzle({ onSolved }: { onSolved: () => void }) {
     if (!isCorrect || solved) return;
     setSolved(true);
     play('victory');
-    window.setTimeout(onSolved, 950);
+    window.setTimeout(onSolved, 1100);
   }, [isCorrect, solved, onSolved]);
 
   const cycle = (index: number, direction: number) => {
     if (solved) return;
     play('click', 0.45);
-    setRotors(prev => prev.map((value, i) => i === index ? (value + direction + 10) % 10 : value));
+    setRotors(prev => prev.map((value, i) => {
+      const delta = TURING_COUPLINGS[index][i] * direction;
+      return (value + delta + 10) % 10;
+    }));
   };
 
   return (
     <PuzzleShell
-      title="BOMBE ROTOR ARRAY"
-      subtitle="Bletchley Park cryptanalytic machine"
+      title="BOMBE CIPHER VAULT"
+      subtitle="Set the coupled rotor bank to 1943"
       accent="#33FF33"
     >
-      <div className="flex w-full max-w-[760px] flex-col items-center gap-7">
+      <div className="relative w-full max-w-[840px] overflow-hidden" style={{ aspectRatio: '16 / 9', border: '2px solid #C4A265', background: '#050508' }}>
+        <img
+          src={TURING_BG}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          draggable={false}
+          style={{ filter: solved ? 'brightness(1.15) saturate(1.1)' : 'brightness(0.78) saturate(0.9)' }}
+        />
         <div
-          className="relative flex w-full items-center justify-center gap-4 p-6"
+          className="absolute inset-0 pointer-events-none"
           style={{
-            border: '2px solid #2B342B',
-            background: 'linear-gradient(180deg, #1B1A16, #090A0D)',
-            boxShadow: solved ? '0 0 42px rgba(51,255,51,0.5)' : 'inset 0 0 30px rgba(0,0,0,0.75)',
+            background:
+              'radial-gradient(circle at 50% 42%, rgba(51,255,51,0.12), transparent 28%), linear-gradient(180deg, rgba(5,5,8,0.05), rgba(5,5,8,0.32))',
           }}
-        >
-          <div className="absolute left-5 top-5 h-3 w-3 rounded-full" style={{ background: solved ? '#33FF33' : '#3A3D45', boxShadow: solved ? '0 0 18px #33FF33' : 'none' }} />
-          <div className="absolute right-5 top-5 h-3 w-16" style={{ border: '1px solid #C4A265', background: solved ? '#33FF3322' : '#111318' }} />
-          {rotors.map((value, index) => (
-            <div key={index} className="flex flex-col items-center gap-2">
-              <button
-                onClick={() => cycle(index, 1)}
-                className="font-orbitron text-xs font-bold"
-                style={{ color: '#33FF33', width: 44, height: 28, border: '1px solid #33FF3366', background: '#10140F' }}
-              >
-                ▲
-              </button>
-              <div
-                className="relative flex items-center justify-center"
-                style={{
-                  width: 92,
-                  height: 150,
-                  borderRadius: 8,
-                  border: '2px solid #C4A265',
-                  background:
-                    'repeating-linear-gradient(90deg, #24221C 0 9px, #121318 9px 14px), linear-gradient(180deg, #454135, #15161A)',
-                  boxShadow: 'inset 0 0 24px rgba(0,0,0,0.8), 0 10px 18px rgba(0,0,0,0.45)',
-                }}
-              >
-                <div
-                  className="flex items-center justify-center font-orbitron text-5xl font-black"
-                  style={{
-                    width: 62,
-                    height: 82,
-                    color: solved ? '#33FF33' : '#FFF4C2',
-                    background: '#050508',
-                    border: `2px solid ${solved ? '#33FF33' : '#62563E'}`,
-                    boxShadow: solved ? '0 0 18px #33FF3377' : 'inset 0 0 10px rgba(0,0,0,0.8)',
-                  }}
-                >
-                  {value}
-                </div>
-              </div>
-              <button
-                onClick={() => cycle(index, -1)}
-                className="font-orbitron text-xs font-bold"
-                style={{ color: '#33FF33', width: 44, height: 28, border: '1px solid #33FF3366', background: '#10140F' }}
-              >
-                ▼
-              </button>
-            </div>
-          ))}
+        />
+        <div className="absolute left-4 top-4 flex items-center gap-2">
+          <div className="h-3 w-3 rounded-full" style={{ background: solved ? '#33FF33' : '#3A3D45', boxShadow: solved ? '0 0 18px #33FF33' : 'none' }} />
+          <div className="font-mono-data text-[9px] px-2 py-1" style={{ color: solved ? '#050508' : '#33FF33', background: solved ? '#33FF33' : 'rgba(5,5,8,0.72)', border: '1px solid #33FF33' }}>
+            {solved ? 'BOMBE RUNNING' : 'TARGET 1943'}
+          </div>
         </div>
-        <div className="grid w-full grid-cols-4 gap-2">
-          {['I', 'IX', 'IV', 'III'].map((label, i) => (
+        <div className="absolute inset-x-[8%] bottom-[18%] grid grid-cols-4 gap-[3%]">
+          {rotors.map((value, index) => {
+            const matched = value === TURING_TARGET[index];
+            return (
+              <div key={index} className="relative flex flex-col items-center">
+                <div className="mb-2 font-mono-data text-[9px]" style={{ color: matched ? '#33FF33' : '#C4A265', textShadow: '0 2px 4px #000' }}>
+                  ROTOR {index + 1}
+                </div>
+                <div className="relative" style={{ width: 'clamp(78px, 13vw, 124px)', height: 'clamp(78px, 13vw, 124px)' }}>
+                  <button
+                    type="button"
+                    onClick={() => cycle(index, -1)}
+                    className="absolute left-[-28px] top-1/2 z-20 flex -translate-y-1/2 items-center justify-center font-orbitron text-sm font-black"
+                    style={{
+                      width: 24,
+                      height: 34,
+                      color: '#FFF4C2',
+                      background: 'rgba(5,5,8,0.86)',
+                      border: '1px solid #C4A265',
+                    }}
+                  >
+                    -
+                  </button>
+                  <div
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                      background:
+                        'radial-gradient(circle at 50% 50%, #050508 0 31%, #17110C 32% 42%, #6E5630 43% 48%, #15161A 49% 54%, #C4A265 55% 58%, #1B1A16 59% 100%)',
+                      border: `2px solid ${matched ? '#33FF33' : '#C4A265'}`,
+                      boxShadow: matched
+                        ? '0 0 26px rgba(51,255,51,0.72), inset 0 0 26px rgba(0,0,0,0.9)'
+                        : '0 10px 20px rgba(0,0,0,0.72), inset 0 0 24px rgba(0,0,0,0.9)',
+                      transform: `rotate(${value * 36}deg)`,
+                      transition: 'transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease',
+                    }}
+                  >
+                    {Array.from({ length: 10 }).map((_, tick) => (
+                      <span
+                        key={tick}
+                        className="absolute left-1/2 top-1/2 block"
+                        style={{
+                          width: 2,
+                          height: tick % 5 === 0 ? 16 : 10,
+                          background: tick % 5 === 0 ? '#FFF4C2' : '#C4A265',
+                          transform: `translate(-50%, -50%) rotate(${tick * 36}deg) translateY(calc(clamp(78px, 13vw, 124px) * -0.42))`,
+                          transformOrigin: '50% calc(clamp(78px, 13vw, 124px) * 0.42)',
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div
+                    className="absolute inset-[28%] z-10 flex items-center justify-center rounded-full font-orbitron text-4xl font-black"
+                    style={{
+                      color: matched ? '#33FF33' : '#FFF4C2',
+                      background: 'radial-gradient(circle, #07090A, #111318)',
+                      border: `2px solid ${matched ? '#33FF33' : '#C4A265'}`,
+                      textShadow: matched ? '0 0 14px #33FF33' : '0 2px 4px #000',
+                    }}
+                  >
+                    {value}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => cycle(index, 1)}
+                    className="absolute right-[-28px] top-1/2 z-20 flex -translate-y-1/2 items-center justify-center font-orbitron text-sm font-black"
+                    style={{
+                      width: 24,
+                      height: 34,
+                      color: '#FFF4C2',
+                      background: 'rgba(5,5,8,0.86)',
+                      border: '1px solid #C4A265',
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+                <div className="mt-2 h-1.5 w-16" style={{ background: matched ? '#33FF33' : '#3A3D45', boxShadow: matched ? '0 0 12px #33FF33' : 'none' }} />
+              </div>
+            );
+          })}
+        </div>
+        <div className="absolute bottom-4 left-4 right-4 grid grid-cols-4 gap-2">
+          {TURING_COUPLINGS.map((speeds, i) => (
             <div
-              key={label}
-              className="font-mono-data text-center text-[10px] py-2"
-              style={{
-                color: rotors[i] === TURING_TARGET[i] ? '#33FF33' : '#C4A265',
-                border: `1px solid ${rotors[i] === TURING_TARGET[i] ? '#33FF33' : '#C4A26555'}`,
-                background: rotors[i] === TURING_TARGET[i] ? '#33FF3314' : 'rgba(196,162,101,0.07)',
-              }}
+              key={i}
+              className="font-mono-data text-center text-[8px] py-1"
+              style={{ color: '#C4A265', background: 'rgba(5,5,8,0.74)', border: '1px solid rgba(196,162,101,0.45)' }}
             >
-              ROTOR {label}
+              DRIVE {i + 1}: {speeds.join('-')}
             </div>
           ))}
         </div>
