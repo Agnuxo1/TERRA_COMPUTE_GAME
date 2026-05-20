@@ -100,6 +100,85 @@ const TURING_DIFFICULTIES: Record<TuringDifficultyId, {
   },
 };
 
+const MOORE_BG = '/assets/puzzles/moore-logic-machine.png';
+export type MooreDifficultyId = 1 | 2 | 3 | 4 | 5;
+type MooreSignal = 'A' | '!A' | 'B' | '!B' | 'C' | '!C';
+type MooreInput = Record<'A' | 'B' | 'C', boolean>;
+
+const MOORE_SIGNAL_OPTIONS: MooreSignal[] = ['A', '!A', 'B', '!B', 'C', '!C'];
+const MOORE_LEVELS: Record<MooreDifficultyId, {
+  title: string;
+  subtitle: string;
+  target: string;
+  variables: Array<'A' | 'B' | 'C'>;
+  branches: number[][];
+  solution: MooreSignal[];
+  rule: (input: MooreInput) => boolean;
+}> = {
+  1: {
+    title: 'MOORE GATE ARRAY: DRILL 1',
+    subtitle: 'Build a NOT gate. A transistor opens when its control condition is powered.',
+    target: 'OUT = NOT A',
+    variables: ['A'],
+    branches: [[0]],
+    solution: ['!A'],
+    rule: input => !input.A,
+  },
+  2: {
+    title: 'MOORE GATE ARRAY: DRILL 2',
+    subtitle: 'Build an AND gate with two transistors in series.',
+    target: 'OUT = A AND B',
+    variables: ['A', 'B'],
+    branches: [[0, 1]],
+    solution: ['A', 'B'],
+    rule: input => input.A && input.B,
+  },
+  3: {
+    title: 'MOORE GATE ARRAY: DRILL 3',
+    subtitle: 'Build an OR gate with two parallel transistor lanes.',
+    target: 'OUT = A OR B',
+    variables: ['A', 'B'],
+    branches: [[0], [1]],
+    solution: ['A', 'B'],
+    rule: input => input.A || input.B,
+  },
+  4: {
+    title: 'MOORE GATE ARRAY: DRILL 4',
+    subtitle: 'Build XOR: two valid paths, but each path must block the matching pair.',
+    target: 'OUT = A XOR B',
+    variables: ['A', 'B'],
+    branches: [[0, 1], [2, 3]],
+    solution: ['A', '!B', '!A', 'B'],
+    rule: input => input.A !== input.B,
+  },
+  5: {
+    title: 'MOORE GATE ARRAY: DRILL 5',
+    subtitle: 'Build a majority gate. Output turns on when at least two inputs are powered.',
+    target: 'OUT = MAJORITY(A,B,C)',
+    variables: ['A', 'B', 'C'],
+    branches: [[0, 1], [2, 3], [4, 5]],
+    solution: ['A', 'B', 'A', 'C', 'B', 'C'],
+    rule: input => [input.A, input.B, input.C].filter(Boolean).length >= 2,
+  },
+};
+
+function evaluateMooreSignal(signal: MooreSignal | null, input: MooreInput) {
+  if (!signal) return false;
+  if (signal.startsWith('!')) return !input[signal.slice(1) as 'A' | 'B' | 'C'];
+  return input[signal];
+}
+
+function mooreRows(variables: Array<'A' | 'B' | 'C'>) {
+  const count = 2 ** variables.length;
+  return Array.from({ length: count }, (_, row) => {
+    const input: MooreInput = { A: false, B: false, C: false };
+    variables.forEach((variable, index) => {
+      input[variable] = Boolean(row & (1 << (variables.length - index - 1)));
+    });
+    return input;
+  });
+}
+
 function PuzzleShell({
   title,
   subtitle,
@@ -342,33 +421,71 @@ export function TuringPuzzle({
   );
 }
 
-function MoorePuzzle({ onSolved }: { onSolved: () => void }) {
-  const slots = [0, 1, 2, 3, 4, 5];
-  const [placed, setPlaced] = useState<boolean[]>([false, false, false, false, false, false]);
+export function MoorePuzzle({
+  onSolved,
+  difficulty = 5,
+}: {
+  onSolved: () => void;
+  difficulty?: MooreDifficultyId;
+}) {
+  const config = MOORE_LEVELS[difficulty];
+  const rows = mooreRows(config.variables);
+  const [selectedRow, setSelectedRow] = useState(0);
+  const [assignments, setAssignments] = useState<Array<MooreSignal | null>>(
+    () => Array.from({ length: config.solution.length }, () => null)
+  );
   const [solved, setSolved] = useState(false);
-  const isComplete = placed.every(Boolean);
+  const currentInput = rows[selectedRow];
+  const signalOptions = MOORE_SIGNAL_OPTIONS.filter(signal => config.variables.includes(signal.replace('!', '') as 'A' | 'B' | 'C'));
+  const branchActive = (branch: number[], input: MooreInput) => branch.every(slot => evaluateMooreSignal(assignments[slot], input));
+  const outputFor = (input: MooreInput) => config.branches.some(branch => branchActive(branch, input));
+  const isComplete = assignments.every(Boolean) && rows.every(input => outputFor(input) === config.rule(input));
 
   useEffect(() => {
     if (!isComplete || solved) return;
     setSolved(true);
     play('victory');
-    window.setTimeout(onSolved, 900);
+    window.setTimeout(onSolved, 1100);
   }, [isComplete, solved, onSolved]);
 
   const toggle = (index: number) => {
     if (solved) return;
     play('click', 0.45);
-    setPlaced(prev => prev.map((value, i) => i === index ? !value : value));
+    setAssignments(prev => prev.map((value, i) => {
+      if (i !== index) return value;
+      const currentIndex = value ? signalOptions.indexOf(value) : -1;
+      return signalOptions[(currentIndex + 1) % signalOptions.length];
+    }));
   };
 
   return (
     <PuzzleShell
-      title="TRANSISTOR DENSITY CIRCUIT"
-      subtitle="Moore's Law scaling board"
+      title={config.title}
+      subtitle={config.subtitle}
       accent="#00F0FF"
     >
-      <div className="relative w-full max-w-[780px] p-7" style={{ border: '2px solid #123B4A', background: '#071015' }}>
-        <svg viewBox="0 0 760 320" className="w-full" role="img" aria-label="Moore circuit">
+      <div className="relative w-full max-w-[840px] overflow-hidden" style={{ aspectRatio: '16 / 9', border: '2px solid #123B4A', background: '#071015' }}>
+        <img
+          src={MOORE_BG}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          draggable={false}
+          style={{ filter: solved ? 'brightness(1.05) saturate(1.08)' : 'brightness(0.62) saturate(0.9)' }}
+        />
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(circle at 50% 48%, rgba(0,240,255,0.14), transparent 34%), linear-gradient(180deg, rgba(7,16,21,0.08), rgba(7,16,21,0.42))',
+          }}
+        />
+        <div className="absolute left-4 top-4 flex items-center gap-2">
+          <div className="h-3 w-3 rounded-full" style={{ background: solved ? '#33FF33' : '#00F0FF', boxShadow: `0 0 16px ${solved ? '#33FF33' : '#00F0FF'}` }} />
+          <div className="font-mono-data text-[9px] px-2 py-1" style={{ color: '#050508', background: solved ? '#33FF33' : '#00F0FF', border: '1px solid #FFF4C2' }}>
+            {solved ? 'CIRCUIT STABLE' : config.target}
+          </div>
+        </div>
+        <svg viewBox="0 0 760 360" className="absolute inset-[7%] h-[78%] w-[86%]" role="img" aria-label="Moore transistor logic maze">
           <defs>
             <filter id="circuit-glow">
               <feGaussianBlur stdDeviation="3" result="blur" />
@@ -378,68 +495,107 @@ function MoorePuzzle({ onSolved }: { onSolved: () => void }) {
               </feMerge>
             </filter>
           </defs>
-          <rect x="20" y="20" width="720" height="280" fill="#0B1118" stroke="#C4A265" strokeWidth="2" />
-          <path
-            d="M 70 160 H 170 V 80 H 285 V 240 H 400 V 80 H 515 V 240 H 635 V 160 H 700"
-            fill="none"
-            stroke={solved ? '#00F0FF' : '#42515C'}
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            filter={solved ? 'url(#circuit-glow)' : undefined}
-          />
-          <path d="M 70 160 H 700" stroke="#C4A26533" strokeWidth="2" strokeDasharray="8 10" />
-          {slots.map((slot, i) => {
-            const positions = [
-              [170, 80],
-              [285, 240],
-              [400, 80],
-              [515, 240],
-              [635, 160],
-              [285, 80],
-            ];
-            const [x, y] = positions[i];
+          <rect x="48" y="36" width="664" height="288" fill="rgba(5,9,12,0.48)" stroke="#C4A265" strokeWidth="2" />
+          <text x="70" y="74" fill="#00F0FF" fontFamily="monospace" fontSize="13" fontWeight="700">VCC</text>
+          <text x="674" y="74" fill={outputFor(currentInput) ? '#33FF33' : '#C4A265'} fontFamily="monospace" fontSize="13" fontWeight="700" textAnchor="end">OUT</text>
+          {config.branches.map((branch, branchIndex) => {
+            const branchY = 122 + branchIndex * (config.branches.length > 2 ? 62 : 92);
+            const isBranchActive = branchActive(branch, currentInput);
+            const xStep = 430 / (branch.length + 1);
+            const slotPoints = branch.map((slot, slotIndex) => ({
+              slot,
+              x: 165 + xStep * (slotIndex + 1),
+              y: branchY,
+            }));
+            const wirePoints = [`M 82 ${branchY}`, ...slotPoints.map(point => `H ${point.x - 42} M ${point.x + 42} ${branchY}`), `H 678`].join(' ');
             return (
-              <g key={slot} onClick={() => toggle(i)} style={{ cursor: 'pointer' }}>
-                <rect
-                  x={x - 31}
-                  y={y - 22}
-                  width="62"
-                  height="44"
-                  fill={placed[i] ? '#102B34' : '#15161A'}
-                  stroke={placed[i] ? '#00F0FF' : '#C4A265'}
-                  strokeWidth="2"
-                  filter={placed[i] ? 'url(#circuit-glow)' : undefined}
+              <g key={branchIndex}>
+                <path
+                  d={wirePoints}
+                  fill="none"
+                  stroke={isBranchActive ? '#00F0FF' : '#49515A'}
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  filter={isBranchActive ? 'url(#circuit-glow)' : undefined}
                 />
-                {placed[i] ? (
-                  <>
-                    <rect x={x - 16} y={y - 10} width="32" height="20" fill="#00F0FF" opacity="0.36" />
-                    <path d={`M ${x - 25} ${y - 15} H ${x + 25} M ${x - 25} ${y} H ${x + 25} M ${x - 25} ${y + 15} H ${x + 25}`} stroke="#FFF4C2" strokeWidth="1.6" />
-                  </>
-                ) : (
-                  <text x={x} y={y + 5} fill="#C4A265" fontFamily="Orbitron" fontSize="20" fontWeight="900" textAnchor="middle">+</text>
-                )}
+                <path d={`M 82 ${branchY} H 678`} fill="none" stroke="#C4A26533" strokeWidth="2" strokeDasharray="9 10" />
+                {slotPoints.map(({ slot, x, y }) => {
+                  const signal = assignments[slot];
+                  const open = evaluateMooreSignal(signal, currentInput);
+                  return (
+                    <g key={slot} onClick={() => toggle(slot)} style={{ cursor: 'pointer' }}>
+                      <rect
+                        x={x - 38}
+                        y={y - 26}
+                        width="76"
+                        height="52"
+                        rx="4"
+                        fill={open ? '#0B3540' : '#111318'}
+                        stroke={signal ? (open ? '#00F0FF' : '#C4A265') : '#755F3F'}
+                        strokeWidth="2"
+                        filter={open ? 'url(#circuit-glow)' : undefined}
+                      />
+                      <path d={`M ${x - 31} ${y + 14} H ${x + 31} M ${x} ${y - 21} V ${y + 20}`} stroke={open ? '#00F0FF' : '#C4A265'} strokeWidth="2" opacity="0.8" />
+                      <circle cx={x - 29} cy={y + 14} r="4" fill={open ? '#00F0FF' : '#15161A'} stroke="#FFF4C2" strokeWidth="1" />
+                      <circle cx={x + 29} cy={y + 14} r="4" fill={open ? '#00F0FF' : '#15161A'} stroke="#FFF4C2" strokeWidth="1" />
+                      <circle cx={x} cy={y - 20} r="4" fill={signal ? '#FFF4C2' : '#15161A'} stroke="#C4A265" strokeWidth="1" />
+                      <text x={x} y={y + 5} fill={signal ? '#FFF4C2' : '#C4A265'} fontFamily="Orbitron" fontSize="18" fontWeight="900" textAnchor="middle">
+                        {signal || '?'}
+                      </text>
+                      <text x={x} y={y + 42} fill={open ? '#00F0FF' : '#C4A265'} fontFamily="monospace" fontSize="9" textAnchor="middle">
+                        {open ? 'OPEN' : 'CLOSED'}
+                      </text>
+                    </g>
+                  );
+                })}
               </g>
             );
           })}
-          <circle cx="70" cy="160" r="14" fill={solved ? '#00F0FF' : '#242832'} stroke="#C4A265" strokeWidth="2" />
-          <circle cx="700" cy="160" r="14" fill={solved ? '#33FF33' : '#242832'} stroke="#C4A265" strokeWidth="2" />
+          <circle cx="82" cy="122" r="12" fill="#00F0FF" stroke="#FFF4C2" strokeWidth="2" filter="url(#circuit-glow)" />
+          <circle cx="678" cy="122" r="12" fill={outputFor(currentInput) ? '#33FF33' : '#242832'} stroke="#FFF4C2" strokeWidth="2" filter={outputFor(currentInput) ? 'url(#circuit-glow)' : undefined} />
         </svg>
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          {slots.map((slot, i) => (
-            <button
-              key={slot}
-              onClick={() => toggle(i)}
-              className="font-mono-data text-[10px] py-2"
-              style={{
-                color: placed[i] ? '#00F0FF' : '#C4A265',
-                border: `1px solid ${placed[i] ? '#00F0FF' : '#C4A26566'}`,
-                background: placed[i] ? '#00F0FF14' : 'rgba(196,162,101,0.07)',
-              }}
-            >
-              {placed[i] ? 'TRANSISTOR SET' : 'PLACE TRANSISTOR'}
-            </button>
-          ))}
+        <div className="absolute bottom-4 left-4 right-4 grid grid-cols-[1fr_1.25fr] gap-3">
+          <div className="grid grid-cols-4 gap-1">
+            {rows.map((input, index) => {
+              const target = config.rule(input);
+              const actual = outputFor(input);
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => {
+                    play('click', 0.25);
+                    setSelectedRow(index);
+                  }}
+                  className="font-mono-data text-[8px] py-1"
+                  style={{
+                    color: index === selectedRow ? '#050508' : actual === target ? '#33FF33' : '#FF477E',
+                    background: index === selectedRow ? '#00F0FF' : 'rgba(5,9,12,0.76)',
+                    border: `1px solid ${actual === target ? '#33FF33' : '#FF477E'}`,
+                  }}
+                >
+                  {config.variables.map(variable => `${variable}${input[variable] ? 1 : 0}`).join(' ')} / {target ? 1 : 0}
+                </button>
+              );
+            })}
+          </div>
+          <div className="grid grid-cols-3 gap-1">
+            {assignments.map((signal, i) => (
+              <button
+                key={i}
+                onClick={() => toggle(i)}
+                className="font-mono-data text-[9px] py-1"
+                style={{
+                  color: signal ? '#00F0FF' : '#C4A265',
+                  border: `1px solid ${signal ? '#00F0FF' : '#C4A26566'}`,
+                  background: signal ? '#00F0FF14' : 'rgba(196,162,101,0.07)',
+                }}
+              >
+                T{i + 1}: {signal || '?'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </PuzzleShell>
