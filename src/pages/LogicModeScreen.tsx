@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGame } from '../App';
-import { AgiNexusPuzzle, AlphaGoPuzzle, ClassicTechPuzzle, DeepBluePuzzle, LispPuzzle, MoorePuzzle, TuringPuzzle, LISP_LEVELS, PERCEPTRON_LEVELS } from '../components/game/EventPopup';
+import { AgiNexusPuzzle, AlphaGoPuzzle, ClassicTechPuzzle, DeepBluePuzzle, LispPuzzle, MoorePuzzle, SamuelPuzzle, TuringPuzzle, LISP_LEVELS, PERCEPTRON_LEVELS } from '../components/game/EventPopup';
 import type { LispDifficultyId, MooreDifficultyId, PerceptronDifficultyId, TuringDifficultyId } from '../components/game/EventPopup';
 import { play } from '../hooks/useSound';
 
@@ -12,11 +12,13 @@ const AGI_NEXUS_CARD = '/assets/AGI_Nexus_Final/card_sprite.png';
 const AGI_NEXUS_DASHBOARD = '/assets/AGI_Nexus_Final/game_dashboard.png';
 const ALPHAGO_CARD = '/assets/puzzles/alphago/bg_alphago.png';
 const DEEPBLUE_CARD = '/assets/puzzles/deepblue/deep_blue.png';
+const SAMUEL_CARD = '/assets/puzzles/samuel/samuel-1959-card.png';
 
 type ActivePuzzle =
   | { kind: 'turing'; difficulty: TuringDifficultyId }
   | { kind: 'lisp'; difficulty: LispDifficultyId }
   | { kind: 'moore'; difficulty: MooreDifficultyId }
+  | { kind: 'samuel' }
   | { kind: 'deepblue' }
   | { kind: 'alphago' }
   | { kind: 'agi-nexus' }
@@ -148,12 +150,19 @@ export default function LogicModeScreen() {
     setActivePuzzle({ kind: 'deepblue' });
   };
 
+  const handleSamuelPlay = () => {
+    play('click');
+    setActivePuzzle({ kind: 'samuel' });
+  };
+
   const handleSolved = () => {
     if (activePuzzle) {
       const solvedId = activePuzzle.kind === 'classic'
         ? `classic-${activePuzzle.eventId}-${activePuzzle.difficulty}`
         : activePuzzle.kind === 'agi-nexus'
           ? 'agi-nexus'
+          : activePuzzle.kind === 'samuel'
+            ? 'samuel'
           : activePuzzle.kind === 'deepblue'
             ? 'deepblue'
           : activePuzzle.kind === 'alphago'
@@ -276,6 +285,67 @@ export default function LogicModeScreen() {
             );
           })}
         </div>
+        </section>
+
+        <section className="w-full max-w-6xl">
+          <div className="mb-2 flex items-end justify-between gap-3">
+            <div>
+              <div className="font-mono-data text-[9px] tracking-[0.28em]" style={{ color: '#33E6FF' }}>
+                MACHINE LEARNING GENESIS
+              </div>
+              <h2 className="font-orbitron text-lg font-black" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
+                PROJECT SAMUEL 1959
+              </h2>
+            </div>
+            <div className="font-mono-data text-[9px]" style={{ color: solved.includes('samuel') ? '#33FF33' : '#C4A265' }}>
+              {solved.includes('samuel') ? 'SOLVED' : '4 SELF-PLAY DRILLS'}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleSamuelPlay}
+            className="group relative min-h-[320px] w-full overflow-hidden text-left transition-all hover:scale-[1.01] hover:brightness-110"
+            style={{
+              border: `2px solid ${solved.includes('samuel') ? '#33FF33' : '#D7B16A'}`,
+              boxShadow: solved.includes('samuel')
+                ? '0 0 30px rgba(51,255,51,0.26)'
+                : '0 0 28px rgba(215,177,106,0.25)',
+              background: '#080808',
+            }}
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `url(${SAMUEL_CARD})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                filter: 'brightness(0.5) contrast(1.14) saturate(0.88)',
+              }}
+            />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(0,0,0,0.94), rgba(64,38,8,0.46), rgba(0,0,0,0.72))' }} />
+            <div className="relative z-10 flex min-h-[320px] max-w-3xl flex-col justify-end p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="font-mono-data text-[9px] px-2 py-1" style={{ color: '#080808', background: '#D7B16A' }}>
+                  IBM 1959
+                </span>
+                <span className="font-mono-data text-[9px]" style={{ color: solved.includes('samuel') ? '#33FF33' : '#33E6FF' }}>
+                  {solved.includes('samuel') ? 'LEARNING PROFILE ACCEPTED' : 'SELF-PLAY PROTOCOL'}
+                </span>
+              </div>
+              <h2 className="font-orbitron text-2xl font-black tracking-wider" style={{ color: '#F4E8D0', textShadow: '3px 3px 0 #000, 0 0 24px rgba(215,177,106,0.45)', letterSpacing: 0 }}>
+                CHECKERS LEARNING MACHINE
+              </h2>
+              <p className="mt-2 max-w-2xl font-rajdhani text-base font-semibold leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                Ajusta una funcion de evaluacion para que el programa de damas de Arthur Samuel aprenda por auto-juego: material, centro, movilidad y tasa de aprendizaje.
+              </p>
+              <div
+                className="mt-5 w-full max-w-xs py-2 text-center font-orbitron text-[10px] font-bold tracking-wider"
+                style={{ color: '#33E6FF', border: '1px solid rgba(51,230,255,0.62)', background: 'rgba(51,230,255,0.12)' }}
+              >
+                ENTER SELF-PLAY LAB
+              </div>
+            </div>
+          </button>
         </section>
 
         <section className="w-full max-w-6xl">
@@ -744,6 +814,11 @@ export default function LogicModeScreen() {
       {activePuzzle?.kind === 'moore' && (
         <MoorePuzzle
           difficulty={activePuzzle.difficulty}
+          onSolved={handleSolved}
+        />
+      )}
+      {activePuzzle?.kind === 'samuel' && (
+        <SamuelPuzzle
           onSolved={handleSolved}
         />
       )}

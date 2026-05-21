@@ -46,7 +46,7 @@ const puzzleBackgroundMap: Record<string, string> = {
   perceptron: '/assets/puzzles/perceptron-weight-board.png',
 };
 
-const techPuzzleIds = ['turing', 'perceptron', 'lisp', 'moore', 'deepblue', 'alphago', 'transformers'];
+const techPuzzleIds = ['turing', 'perceptron', 'lisp', 'ml', 'moore', 'deepblue', 'alphago', 'transformers'];
 const puzzleEvents = new Set(techPuzzleIds);
 
 type ClassicPuzzleConfig =
@@ -288,6 +288,7 @@ const LISP_BG = '/assets/puzzles/lisp-dartmouth-lab.png';
 const AGI_NEXUS_BASE = '/assets/AGI_Nexus_Final';
 const ALPHAGO_BG = '/assets/puzzles/alphago/bg_alphago.png';
 const DEEPBLUE_BASE = '/assets/puzzles/deepblue';
+const SAMUEL_BASE = '/assets/puzzles/samuel';
 export type MooreDifficultyId = 1 | 2 | 3 | 4 | 5;
 type MooreSignal = 'A' | '!A' | 'B' | '!B' | 'C' | '!C';
 type MooreInput = Record<'A' | 'B' | 'C', boolean>;
@@ -1486,6 +1487,320 @@ export function AgiNexusPuzzle({ onSolved }: { onSolved: () => void }) {
   );
 }
 
+type SamuelWeights = {
+  material: number;
+  center: number;
+  mobility: number;
+  learning: number;
+};
+type SamuelLevel = {
+  title: string;
+  subtitle: string;
+  objective: string;
+  target: SamuelWeights;
+  tolerance: number;
+  board: number[][];
+};
+
+const SAMUEL_LEVELS: SamuelLevel[] = [
+  {
+    title: 'DRILL 1: POSITION EVALUATOR',
+    subtitle: 'Teach the machine that not every piece has the same strategic value.',
+    objective: 'Build a basic evaluation function. Material matters, but the center cannot be ignored.',
+    target: { material: 70, center: 45, mobility: 30, learning: 35 },
+    tolerance: 44,
+    board: [
+      [0, -1, 0, -1, 0, -1, 0, -1],
+      [-1, 0, -1, 0, 0, 0, -1, 0],
+      [0, 0, 0, -1, 0, -1, 0, -1],
+      [0, 0, 1, 0, 0, 0, 0, 0],
+      [0, 0, 0, 0, 1, 0, 1, 0],
+      [1, 0, 1, 0, 0, 0, 0, 0],
+      [0, 1, 0, 1, 0, 1, 0, 1],
+      [1, 0, 1, 0, 1, 0, 1, 0],
+    ],
+  },
+  {
+    title: 'DRILL 2: SELF-PLAY MEMORY',
+    subtitle: 'The program improves by playing against itself and preserving useful positions.',
+    objective: 'Increase learning and mobility without overfitting the value table.',
+    target: { material: 55, center: 55, mobility: 62, learning: 68 },
+    tolerance: 38,
+    board: [
+      [0, -1, 0, 0, 0, -1, 0, -1],
+      [-1, 0, 0, 0, -1, 0, -1, 0],
+      [0, -1, 0, 0, 0, -1, 0, 0],
+      [0, 0, 1, 0, -1, 0, 0, 0],
+      [0, 1, 0, 0, 0, 0, 1, 0],
+      [1, 0, 0, 0, 1, 0, 0, 0],
+      [0, 1, 0, 1, 0, 0, 0, 1],
+      [1, 0, 1, 0, 0, 0, 1, 0],
+    ],
+  },
+  {
+    title: 'DRILL 3: MINIMAX SEARCH',
+    subtitle: 'Balance fast calculation against deep lookahead.',
+    objective: 'Give mobility and center control enough weight for the machine to choose forcing moves.',
+    target: { material: 48, center: 72, mobility: 70, learning: 52 },
+    tolerance: 34,
+    board: [
+      [0, 0, 0, -1, 0, 0, 0, -1],
+      [-1, 0, -1, 0, -1, 0, 0, 0],
+      [0, 0, 0, -1, 0, -1, 0, -1],
+      [0, 0, 1, 0, 1, 0, 0, 0],
+      [0, 0, 0, -1, 0, 0, 1, 0],
+      [1, 0, 1, 0, 0, 0, 0, 0],
+      [0, 0, 0, 1, 0, 1, 0, 1],
+      [1, 0, 0, 0, 1, 0, 1, 0],
+    ],
+  },
+  {
+    title: 'DRILL 4: GENERALIZATION',
+    subtitle: 'A real learner must survive positions it has never memorized.',
+    objective: 'Create a stable evaluation profile: enough memory to learn, enough restraint to generalize.',
+    target: { material: 60, center: 66, mobility: 64, learning: 58 },
+    tolerance: 26,
+    board: [
+      [0, -1, 0, -1, 0, 0, 0, -1],
+      [0, 0, -1, 0, 0, 0, -1, 0],
+      [0, -1, 0, 0, 0, -1, 0, 0],
+      [0, 0, 1, 0, -1, 0, 1, 0],
+      [0, -1, 0, 1, 0, 0, 0, 0],
+      [1, 0, 0, 0, 1, 0, 1, 0],
+      [0, 1, 0, 0, 0, 1, 0, 1],
+      [1, 0, 1, 0, 0, 0, 0, 0],
+    ],
+  },
+];
+
+const SAMUEL_WEIGHT_KEYS: Array<keyof SamuelWeights> = ['material', 'center', 'mobility', 'learning'];
+const SAMUEL_WEIGHT_LABELS: Record<keyof SamuelWeights, string> = {
+  material: 'MATERIAL',
+  center: 'CENTER',
+  mobility: 'MOBILITY',
+  learning: 'LEARNING',
+};
+
+function scoreSamuelWeights(weights: SamuelWeights, level: SamuelLevel) {
+  const totalError = SAMUEL_WEIGHT_KEYS.reduce((sum, key) => sum + Math.abs(weights[key] - level.target[key]), 0);
+  return Math.max(0, Math.round(100 - totalError * 0.58));
+}
+
+function samuelMoveVector(weights: SamuelWeights) {
+  const centerBias = weights.center - weights.material * 0.45;
+  const mobilityBias = weights.mobility - weights.learning * 0.35;
+  if (centerBias > 34) return 'CENTER BREAK';
+  if (mobilityBias > 32) return 'FORCED JUMP';
+  if (weights.learning > 74) return 'MEMORY LOOP';
+  if (weights.material > 76) return 'CAPTURE GREED';
+  return 'BALANCED LINE';
+}
+
+export function SamuelPuzzle({ onSolved }: { onSolved: () => void }) {
+  const [levelIndex, setLevelIndex] = useState(0);
+  const [weights, setWeights] = useState<SamuelWeights>({ material: 50, center: 50, mobility: 50, learning: 50 });
+  const [score, setScore] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [message, setMessage] = useState('ADJUST THE EVALUATION WEIGHTS, THEN RUN SELF-PLAY.');
+  const [solvedLevel, setSolvedLevel] = useState(false);
+  const [running, setRunning] = useState(false);
+  const level = SAMUEL_LEVELS[levelIndex];
+  const currentScore = scoreSamuelWeights(weights, level);
+  const required = Math.max(76, 100 - level.tolerance);
+
+  const tune = (key: keyof SamuelWeights, delta: number) => {
+    if (running) return;
+    play('click', 0.32);
+    setWeights(prev => ({ ...prev, [key]: Math.max(0, Math.min(100, prev[key] + delta)) }));
+    setMessage('WEIGHT TABLE MODIFIED. RUN SELF-PLAY TO TEST GENERALIZATION.');
+    setSolvedLevel(false);
+  };
+
+  const resetLevel = (nextLevel = levelIndex) => {
+    play('click', 0.35);
+    setLevelIndex(nextLevel);
+    setWeights({ material: 50, center: 50, mobility: 50, learning: 50 });
+    setScore(0);
+    setProgress(0);
+    setSolvedLevel(false);
+    setRunning(false);
+    setMessage('ADJUST THE EVALUATION WEIGHTS, THEN RUN SELF-PLAY.');
+  };
+
+  const runSelfPlay = () => {
+    if (running) return;
+    play('click', 0.45);
+    setRunning(true);
+    setProgress(0);
+    setMessage('SELF-PLAY ACTIVE: MACHINE GENERATING EXPERIENCE FROM ITS OWN GAMES.');
+    let step = 0;
+    const timer = window.setInterval(() => {
+      step += 10;
+      setProgress(step);
+      if (step >= 100) {
+        window.clearInterval(timer);
+        const finalScore = scoreSamuelWeights(weights, level);
+        setScore(finalScore);
+        setRunning(false);
+        if (finalScore >= required) {
+          play('victory');
+          setSolvedLevel(true);
+          setMessage('LEARNING PROFILE ACCEPTED. THE MACHINE IMPROVES WITHOUT NEW INSTRUCTIONS.');
+          if (levelIndex >= SAMUEL_LEVELS.length - 1) {
+            window.setTimeout(onSolved, 1150);
+          }
+        } else {
+          setMessage(`PROFILE REJECTED: ${samuelMoveVector(weights)} PRODUCED ${finalScore}/${required}. RETUNE THE WEIGHTS.`);
+        }
+      }
+    }, 80);
+  };
+
+  const nextLevel = () => {
+    if (!solvedLevel) return;
+    if (levelIndex >= SAMUEL_LEVELS.length - 1) {
+      onSolved();
+    } else {
+      resetLevel(levelIndex + 1);
+    }
+  };
+
+  return (
+    <PuzzleShell title="PROJECT SAMUEL 1959: SELF-PLAY MACHINE" subtitle="Tune Arthur Samuel's checkers learner until the evaluation function generalizes." accent="#D7B16A">
+      <div
+        className="relative w-full overflow-hidden"
+        style={{
+          width: 'min(calc(100vw - 32px), calc((100dvh - 116px) * 16 / 9))',
+          aspectRatio: '16 / 9',
+          border: '2px solid rgba(215,177,106,0.82)',
+          background: '#070707',
+          boxShadow: '0 0 70px rgba(0,0,0,0.92), inset 0 0 90px rgba(0,0,0,0.78)',
+        }}
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `url(${SAMUEL_BASE}/samuel-1959-lab.png)`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'brightness(0.52) contrast(1.16) saturate(0.92)',
+          }}
+        />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(0,0,0,0.88), rgba(25,12,5,0.46) 50%, rgba(0,0,0,0.82))' }} />
+        <div className="absolute inset-0 opacity-25" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(255,184,77,0.16) 5px)' }} />
+
+        <div className="absolute left-[3%] right-[3%] top-[3%] z-10 flex items-start justify-between border-b-4 pb-3" style={{ borderColor: '#D7B16A' }}>
+          <div>
+            <div className="font-mono-data text-[9px] tracking-[0.34em]" style={{ color: '#33E6FF' }}>IBM RESEARCH - POUGHKEEPSIE - 1959</div>
+            <div className="font-orbitron text-3xl font-black" style={{ color: '#F4E8D0', textShadow: '3px 3px 0 #000, 0 0 24px rgba(215,177,106,0.46)', letterSpacing: 0 }}>PROJECT SAMUEL</div>
+          </div>
+          <div className="flex gap-2">
+            {SAMUEL_LEVELS.map((entry, index) => (
+              <button
+                key={entry.title}
+                type="button"
+                onClick={() => resetLevel(index)}
+                className="h-8 w-8 font-orbitron text-[10px] font-black"
+                style={{
+                  color: levelIndex === index ? '#080808' : '#F4E8D0',
+                  background: levelIndex === index ? '#D7B16A' : 'rgba(0,0,0,0.62)',
+                  border: '1px solid rgba(215,177,106,0.76)',
+                }}
+              >
+                {index + 1}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="absolute left-[4%] top-[18%] z-10 w-[26%] border-2 p-4" style={{ borderColor: '#D7B16A', background: 'rgba(8,8,8,0.82)', boxShadow: '5px 5px 0 #000' }}>
+          <div className="font-mono-data text-[9px] tracking-[0.22em]" style={{ color: '#33E6FF' }}>SELF-PLAY DRILL {levelIndex + 1}/4</div>
+          <h2 className="mt-1 font-orbitron text-lg font-black leading-tight" style={{ color: '#F4E8D0', letterSpacing: 0 }}>{level.title}</h2>
+          <p className="mt-3 font-rajdhani text-sm font-semibold leading-snug" style={{ color: 'rgba(244,232,208,0.8)' }}>{level.objective}</p>
+          <div className="mt-4 grid gap-2">
+            {SAMUEL_WEIGHT_KEYS.map(key => (
+              <div key={key}>
+                <div className="mb-1 flex items-center justify-between font-mono-data text-[8px]" style={{ color: '#C4A265' }}>
+                  <span>{SAMUEL_WEIGHT_LABELS[key]}</span>
+                  <span>{weights[key]}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => tune(key, -5)} className="h-7 w-7 font-orbitron text-xs font-black" style={{ color: '#F4E8D0', border: '1px solid #8A1F1F', background: 'rgba(138,31,31,0.55)' }}>-</button>
+                  <div className="h-3 flex-1 border" style={{ borderColor: 'rgba(215,177,106,0.55)', background: 'rgba(255,255,255,0.08)' }}>
+                    <div className="h-full" style={{ width: `${weights[key]}%`, background: key === 'learning' ? '#33E6FF' : '#D7B16A', boxShadow: `0 0 10px ${key === 'learning' ? '#33E6FF' : '#D7B16A'}` }} />
+                  </div>
+                  <button type="button" onClick={() => tune(key, 5)} className="h-7 w-7 font-orbitron text-xs font-black" style={{ color: '#080808', border: '1px solid #D7B16A', background: '#D7B16A' }}>+</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="absolute left-1/2 top-[18%] z-10 w-[min(58vh,42vw)] -translate-x-1/2">
+          <div className="mb-3 border-2 p-3 text-center" style={{ borderColor: '#D7B16A', background: 'rgba(0,0,0,0.82)' }}>
+            <div className="font-orbitron text-sm font-black" style={{ color: running ? '#33E6FF' : '#F4E8D0', letterSpacing: 0 }}>{message}</div>
+          </div>
+          <div className="grid aspect-square grid-cols-8 border-[6px] p-3" style={{ borderColor: '#1F1710', background: '#1F1710', boxShadow: '10px 10px 0 #000, 0 0 48px rgba(215,177,106,0.3)' }}>
+            {level.board.map((row, rowIndex) => row.map((cell, colIndex) => {
+              const dark = (rowIndex + colIndex) % 2 === 1;
+              const center = rowIndex >= 2 && rowIndex <= 5 && colIndex >= 2 && colIndex <= 5;
+              const active = running && dark && ((rowIndex + colIndex + progress / 10) % 4 === 0);
+              return (
+                <div
+                  key={`${rowIndex}-${colIndex}`}
+                  className="relative flex aspect-square items-center justify-center"
+                  style={{
+                    background: dark ? '#3B2117' : '#C49A5D',
+                    boxShadow: center ? 'inset 0 0 0 2px rgba(51,230,255,0.24)' : undefined,
+                  }}
+                >
+                  {active && <span className="absolute inset-2 border" style={{ borderColor: '#33E6FF', boxShadow: '0 0 12px #33E6FF' }} />}
+                  {cell !== 0 && (
+                    <span
+                      className="relative z-10 h-[68%] w-[68%] rounded-full"
+                      style={{
+                        background: cell > 0
+                          ? 'radial-gradient(circle at 32% 28%, #FFF4C2, #C4A265 52%, #5A351A)'
+                          : 'radial-gradient(circle at 32% 28%, #FF5A4B, #8A1F1F 54%, #260606)',
+                        border: '2px solid rgba(0,0,0,0.72)',
+                        boxShadow: '2px 4px 6px rgba(0,0,0,0.72)',
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            }))}
+          </div>
+        </div>
+
+        <div className="absolute right-[4%] top-[18%] z-10 w-[25%] space-y-3">
+          <div className="border-2 p-4" style={{ borderColor: '#33E6FF', background: 'rgba(0,0,0,0.76)', boxShadow: '5px 5px 0 #000' }}>
+            <div className="font-orbitron text-base font-black" style={{ color: '#33E6FF', letterSpacing: 0 }}>TRAINING REPORT</div>
+            <div className="mt-3 grid gap-2 font-rajdhani text-sm font-semibold leading-tight" style={{ color: 'rgba(244,232,208,0.78)' }}>
+              <p>Arthur Samuel's checkers program improved by playing against itself and updating an evaluation function.</p>
+              <p>Good learning is not memorization: it balances material, central control, mobility and adaptation.</p>
+              <p>Required score: {required}. Current estimate: {currentScore}.</p>
+            </div>
+            <div className="mt-4 h-3 border" style={{ borderColor: 'rgba(51,230,255,0.55)', background: 'rgba(255,255,255,0.08)' }}>
+              <div className="h-full" style={{ width: `${progress}%`, background: score >= required ? '#33FF33' : '#33E6FF', boxShadow: '0 0 12px #33E6FF' }} />
+            </div>
+            <div className="mt-2 flex justify-between font-mono-data text-[8px]" style={{ color: '#C4A265' }}>
+              <span>SELF-PLAY</span>
+              <span>{progress}%</span>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={runSelfPlay} disabled={running} className="py-2 font-orbitron text-[9px] font-bold" style={{ color: '#080808', border: '1px solid #D7B16A', background: '#D7B16A', opacity: running ? 0.55 : 1 }}>RUN</button>
+            <button type="button" onClick={() => resetLevel()} className="py-2 font-orbitron text-[9px] font-bold" style={{ color: '#D7B16A', border: '1px solid #D7B16A', background: 'rgba(0,0,0,0.62)' }}>RESET</button>
+            <button type="button" onClick={nextLevel} disabled={!solvedLevel} className="py-2 font-orbitron text-[9px] font-bold" style={{ color: solvedLevel ? '#080808' : '#777', border: `1px solid ${solvedLevel ? '#33FF33' : '#555'}`, background: solvedLevel ? '#33FF33' : 'rgba(0,0,0,0.42)' }}>NEXT</button>
+            <button type="button" onClick={onSolved} className="py-2 font-orbitron text-[9px] font-bold" style={{ color: '#33FF33', border: '1px solid #33FF33', background: 'rgba(51,255,51,0.1)' }}>EXIT</button>
+          </div>
+        </div>
+      </div>
+    </PuzzleShell>
+  );
+}
+
 type GoStone = 'black' | 'white' | null;
 type AlphaGoDifficulty = 'amateur' | 'professional' | 'world';
 const ALPHAGO_SIZE = 9;
@@ -2523,6 +2838,7 @@ export default function EventPopup() {
     if (evt.id === 'turing') return <TuringPuzzle onSolved={handlePuzzleSolved} />;
     if (evt.id === 'moore') return <MoorePuzzle onSolved={handlePuzzleSolved} />;
     if (evt.id === 'lisp') return <LispPuzzle onSolved={handlePuzzleSolved} difficulty={3} />;
+    if (evt.id === 'ml') return <SamuelPuzzle onSolved={handlePuzzleSolved} />;
     if (evt.id === 'deepblue') return <DeepBluePuzzle onSolved={handlePuzzleSolved} />;
     if (evt.id === 'alphago') return <AlphaGoPuzzle onSolved={handlePuzzleSolved} />;
     if (evt.id === 'transformers') return <AgiNexusPuzzle onSolved={handlePuzzleSolved} />;
