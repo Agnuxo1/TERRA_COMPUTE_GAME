@@ -46,7 +46,7 @@ const puzzleBackgroundMap: Record<string, string> = {
   perceptron: '/assets/puzzles/perceptron-weight-board.png',
 };
 
-const techPuzzleIds = ['turing', 'perceptron', 'lisp', 'moore'];
+const techPuzzleIds = ['turing', 'perceptron', 'lisp', 'moore', 'transformers'];
 const puzzleEvents = new Set(techPuzzleIds);
 
 type ClassicPuzzleConfig =
@@ -285,6 +285,7 @@ const TURING_DIFFICULTIES: Record<TuringDifficultyId, {
 
 const MOORE_BG = '/assets/puzzles/moore-logic-machine.png';
 const LISP_BG = '/assets/puzzles/lisp-dartmouth-lab.png';
+const AGI_NEXUS_BASE = '/assets/AGI_Nexus_Final';
 export type MooreDifficultyId = 1 | 2 | 3 | 4 | 5;
 type MooreSignal = 'A' | '!A' | 'B' | '!B' | 'C' | '!C';
 type MooreInput = Record<'A' | 'B' | 'C', boolean>;
@@ -1213,6 +1214,276 @@ export function LispPuzzle({
     </PuzzleShell>
   );
 }
+
+type AgiNexusCardId = 'attention' | 'data' | 'processing' | 'weights' | 'activation' | 'backprop';
+
+const AGI_NEXUS_CARDS: Record<AgiNexusCardId, {
+  title: string;
+  label: string;
+  image: string;
+  accent: string;
+}> = {
+  attention: {
+    title: 'ATTENTION',
+    label: 'focus weights',
+    image: `${AGI_NEXUS_BASE}/1card_Attention.png`,
+    accent: '#D7B16A',
+  },
+  data: {
+    title: 'DATA',
+    label: 'input tokens',
+    image: `${AGI_NEXUS_BASE}/2card_Data.png`,
+    accent: '#C4A265',
+  },
+  processing: {
+    title: 'PROCESSING',
+    label: 'compute pass',
+    image: `${AGI_NEXUS_BASE}/3card_processing.png`,
+    accent: '#FFB84D',
+  },
+  weights: {
+    title: 'WEIGHTS',
+    label: 'learned links',
+    image: `${AGI_NEXUS_BASE}/4card_weights.png`,
+    accent: '#C4A265',
+  },
+  activation: {
+    title: 'ACTIVATION',
+    label: 'threshold gate',
+    image: `${AGI_NEXUS_BASE}/5card_Activation.png`,
+    accent: '#FF6B35',
+  },
+  backprop: {
+    title: 'BACKPROP',
+    label: 'error return',
+    image: `${AGI_NEXUS_BASE}/6card_Backprop.png`,
+    accent: '#FF477E',
+  },
+};
+
+const AGI_NEXUS_LEVELS: Array<{
+  title: string;
+  hint: string;
+  system: string;
+  slots: AgiNexusCardId[];
+  deck: AgiNexusCardId[];
+}> = [
+  {
+    title: 'SELF-ATTENTION BOOT',
+    hint: 'Initialize the forward signal: tokens become weighted attention, then activation.',
+    system: 'STABLE',
+    slots: ['data', 'weights', 'attention', 'processing', 'activation'],
+    deck: ['attention', 'processing', 'data', 'activation', 'weights'],
+  },
+  {
+    title: 'TRAINING CORRECTION LOOP',
+    hint: 'After activation, error travels backward and updates the learned weights.',
+    system: 'LEARNING',
+    slots: ['data', 'processing', 'activation', 'backprop', 'weights', 'attention'],
+    deck: ['backprop', 'attention', 'data', 'weights', 'activation', 'processing'],
+  },
+  {
+    title: 'TRANSFORMER PROTOCOL',
+    hint: 'Assemble the complete AGI Nexus cycle from information to correction.',
+    system: 'OMEGA',
+    slots: ['data', 'weights', 'attention', 'processing', 'activation', 'backprop'],
+    deck: ['activation', 'data', 'backprop', 'attention', 'processing', 'weights'],
+  },
+];
+
+export function AgiNexusPuzzle({ onSolved }: { onSolved: () => void }) {
+  const [levelIndex, setLevelIndex] = useState(0);
+  const [selected, setSelected] = useState<AgiNexusCardId[]>([]);
+  const [feedback, setFeedback] = useState<'success' | 'failure' | null>(null);
+  const [score, setScore] = useState(0);
+  const level = AGI_NEXUS_LEVELS[levelIndex];
+  const complete = selected.length === level.slots.length;
+  const isCorrect = complete && selected.every((card, index) => card === level.slots[index]);
+
+  const resetLevel = () => {
+    play('click', 0.35);
+    setSelected([]);
+    setFeedback(null);
+  };
+
+  const selectCard = (card: AgiNexusCardId) => {
+    if (selected.includes(card) || selected.length >= level.slots.length || feedback) return;
+    play('click', 0.42);
+    setSelected(prev => [...prev, card]);
+  };
+
+  const removeSlot = (index: number) => {
+    if (feedback) return;
+    play('click', 0.3);
+    setSelected(prev => prev.filter((_, slotIndex) => slotIndex !== index));
+  };
+
+  const execute = () => {
+    if (!complete || feedback) return;
+    if (!isCorrect) {
+      play('click', 0.25);
+      setFeedback('failure');
+      window.setTimeout(() => setFeedback(null), 1100);
+      return;
+    }
+
+    play('victory');
+    setFeedback('success');
+    setScore(prev => prev + 100);
+    window.setTimeout(() => {
+      if (levelIndex < AGI_NEXUS_LEVELS.length - 1) {
+        setLevelIndex(prev => prev + 1);
+        setSelected([]);
+        setFeedback(null);
+      } else {
+        onSolved();
+      }
+    }, 1200);
+  };
+
+  return (
+    <PuzzleShell title="AGI NEXUS: THE TRANSFORMER PROTOCOL" subtitle="Sequence the neural cards to stabilize the machine." accent="#D7B16A">
+      <div
+        className="relative w-full select-none overflow-hidden"
+        style={{
+          width: 'min(calc(100vw - 32px), calc((100dvh - 122px) * 16 / 9))',
+          aspectRatio: '16 / 9',
+          border: '2px solid rgba(215,177,106,0.82)',
+          background: '#050505',
+          boxShadow: '0 0 70px rgba(0,0,0,0.95), inset 0 0 80px rgba(0,0,0,0.82)',
+        }}
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `url(${AGI_NEXUS_BASE}/game_dashboard.png)`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'brightness(0.82) contrast(1.08) saturate(0.92)',
+          }}
+        />
+        <div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 0 110px rgba(0,0,0,0.9)' }} />
+
+        <div className="absolute left-[6%] top-[39%] z-20 flex w-[17.8%] justify-around font-mono-data text-[clamp(18px,2.9vw,46px)]"
+          style={{ color: '#FF6B35', textShadow: '0 0 10px #FF3300, 0 0 22px rgba(255,69,0,0.8)' }}>
+          <span>1</span>
+          <span>{levelIndex + 1}</span>
+          <span>{String(score).padStart(3, '0')[0]}</span>
+          <span>{String(score).padStart(3, '0')[1]}</span>
+          <span>{String(score).padStart(3, '0')[2]}</span>
+        </div>
+
+        <div
+          className="absolute left-[31%] top-[14%] z-10 flex h-[48%] w-[38%] flex-col overflow-hidden p-4"
+          style={{
+            background: 'rgba(6,10,8,0.91)',
+            border: '2px solid rgba(255,69,0,0.36)',
+            boxShadow: 'inset 0 0 28px rgba(255,69,0,0.22), 0 0 34px rgba(0,0,0,0.72)',
+          }}
+        >
+          <div className="pointer-events-none absolute inset-0 opacity-45" style={{
+            background:
+              'linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.28) 50%), linear-gradient(90deg, rgba(255,0,0,0.06), rgba(0,255,0,0.02), rgba(0,0,255,0.06))',
+            backgroundSize: '100% 3px, 4px 100%',
+          }} />
+          <div className="relative border-b pb-2 text-center" style={{ borderColor: 'rgba(255,69,0,0.7)' }}>
+            <div className="font-orbitron text-[clamp(13px,1.25vw,24px)] font-black tracking-[0.14em]" style={{ color: '#FF6B35', letterSpacing: 0 }}>
+              AGI NEXUS v1.0
+            </div>
+            <div className="mt-1 flex justify-between font-mono-data text-[clamp(8px,0.72vw,13px)]" style={{ color: 'rgba(255,244,194,0.72)' }}>
+              <span>LEVEL: {levelIndex + 1}/{AGI_NEXUS_LEVELS.length}</span>
+              <span>SYSTEM: {feedback === 'failure' ? 'FAULT' : level.system}</span>
+            </div>
+          </div>
+
+          <div className="relative mt-3 text-center font-mono-data text-[clamp(8px,0.72vw,13px)] uppercase tracking-[0.08em]" style={{ color: '#C4A265' }}>
+            {level.title}
+          </div>
+          <div className="relative mt-1 text-center font-rajdhani text-[clamp(10px,0.9vw,15px)] font-semibold leading-tight" style={{ color: 'rgba(255,244,194,0.7)' }}>
+            {level.hint}
+          </div>
+
+          <div className="relative mt-3 flex flex-1 items-center justify-center gap-2">
+            {level.slots.map((_, index) => {
+              const card = selected[index];
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => removeSlot(index)}
+                  className="flex h-[clamp(42px,4.5vw,74px)] w-[clamp(34px,3.55vw,58px)] items-center justify-center border-2 font-orbitron text-[clamp(14px,1.5vw,24px)] font-black transition-all hover:brightness-125"
+                  style={{
+                    color: card ? '#050508' : 'rgba(215,177,106,0.52)',
+                    background: card ? AGI_NEXUS_CARDS[card].accent : 'rgba(0,0,0,0.48)',
+                    borderColor: card ? '#FF6B35' : 'rgba(215,177,106,0.42)',
+                    borderStyle: card ? 'solid' : 'dashed',
+                    boxShadow: card ? `0 0 16px ${AGI_NEXUS_CARDS[card].accent}88` : 'inset 0 0 14px rgba(0,0,0,0.82)',
+                  }}
+                >
+                  {card ? AGI_NEXUS_CARDS[card].title.slice(0, 1) : ''}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="relative grid grid-cols-6 gap-2">
+            {level.deck.map(card => {
+              const meta = AGI_NEXUS_CARDS[card];
+              const used = selected.includes(card);
+              return (
+                <button
+                  key={card}
+                  type="button"
+                  onClick={() => selectCard(card)}
+                  className="group relative aspect-[2/3] overflow-visible rounded-sm transition-all hover:z-10 hover:-translate-y-2 hover:scale-110"
+                  style={{
+                    opacity: used ? 0.28 : 1,
+                    filter: used ? 'grayscale(1)' : 'none',
+                    cursor: used ? 'default' : 'pointer',
+                    boxShadow: used ? 'none' : '0 8px 16px rgba(0,0,0,0.55)',
+                  }}
+                >
+                  <img src={meta.image} alt={meta.title} className="h-full w-full object-cover" draggable={false} />
+                  <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap font-mono-data text-[clamp(6px,0.55vw,9px)] uppercase" style={{ color: '#AAA' }}>
+                    {meta.title}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          aria-label="Reset AGI Nexus protocol"
+          onClick={resetLevel}
+          className="absolute left-[37%] top-[84%] z-30 h-[5%] w-[10%] rounded-sm transition-all hover:brightness-125"
+          style={{ background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.16)' }}
+        />
+        <button
+          type="button"
+          aria-label="Execute AGI Nexus protocol"
+          onClick={execute}
+          className="absolute left-[55%] top-[84%] z-30 h-[5%] w-[10%] rounded-sm transition-all hover:brightness-125"
+          style={{ background: complete ? 'rgba(255,69,0,0.24)' : 'rgba(255,69,0,0.08)', border: '1px solid rgba(255,69,0,0.18)' }}
+        />
+
+        {feedback && (
+          <div
+            className="absolute left-0 top-[39%] z-40 w-full text-center font-orbitron text-[clamp(22px,2vw,40px)] font-black tracking-[0.18em]"
+            style={{
+              color: feedback === 'success' ? '#33FF33' : '#FF223A',
+              textShadow: feedback === 'success' ? '0 0 24px #33FF33' : '0 0 24px #FF223A',
+            }}
+          >
+            {feedback === 'success' ? 'PROTOCOL ACCEPTED' : 'CRITICAL FAILURE'}
+          </div>
+        )}
+      </div>
+    </PuzzleShell>
+  );
+}
+
 function SequencePuzzle({
   config,
   solved,
@@ -1583,6 +1854,7 @@ export default function EventPopup() {
     if (evt.id === 'turing') return <TuringPuzzle onSolved={handlePuzzleSolved} />;
     if (evt.id === 'moore') return <MoorePuzzle onSolved={handlePuzzleSolved} />;
     if (evt.id === 'lisp') return <LispPuzzle onSolved={handlePuzzleSolved} difficulty={3} />;
+    if (evt.id === 'transformers') return <AgiNexusPuzzle onSolved={handlePuzzleSolved} />;
     if (classicPuzzleMap[evt.id]) return <ClassicTechPuzzle eventId={evt.id} onSolved={handlePuzzleSolved} />;
   }
 

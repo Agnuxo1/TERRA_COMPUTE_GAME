@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGame } from '../App';
-import { ClassicTechPuzzle, LispPuzzle, MoorePuzzle, TuringPuzzle, LISP_LEVELS, PERCEPTRON_LEVELS } from '../components/game/EventPopup';
+import { AgiNexusPuzzle, ClassicTechPuzzle, LispPuzzle, MoorePuzzle, TuringPuzzle, LISP_LEVELS, PERCEPTRON_LEVELS } from '../components/game/EventPopup';
 import type { LispDifficultyId, MooreDifficultyId, PerceptronDifficultyId, TuringDifficultyId } from '../components/game/EventPopup';
 import { play } from '../hooks/useSound';
 
@@ -8,11 +8,14 @@ const LOGIC_CARD = '/assets/cards/LOGIC.png';
 const LISP_CARD = '/assets/puzzles/lisp-dartmouth-lab.png';
 const MOORE_CARD = '/assets/puzzles/moore-logic-machine.png';
 const PERCEPTRON_CARD = '/assets/puzzles/perceptron-weight-board.png';
+const AGI_NEXUS_CARD = '/assets/AGI_Nexus_Final/card_sprite.png';
+const AGI_NEXUS_DASHBOARD = '/assets/AGI_Nexus_Final/game_dashboard.png';
 
 type ActivePuzzle =
   | { kind: 'turing'; difficulty: TuringDifficultyId }
   | { kind: 'lisp'; difficulty: LispDifficultyId }
   | { kind: 'moore'; difficulty: MooreDifficultyId }
+  | { kind: 'agi-nexus' }
   | { kind: 'classic'; eventId: string; difficulty: PerceptronDifficultyId };
 
 const turingDifficulties: Array<{
@@ -126,10 +129,17 @@ export default function LogicModeScreen() {
     setActivePuzzle({ kind: 'classic', eventId, difficulty });
   };
 
+  const handleAgiNexusPlay = () => {
+    play('click');
+    setActivePuzzle({ kind: 'agi-nexus' });
+  };
+
   const handleSolved = () => {
     if (activePuzzle) {
       const solvedId = activePuzzle.kind === 'classic'
         ? `classic-${activePuzzle.eventId}-${activePuzzle.difficulty}`
+        : activePuzzle.kind === 'agi-nexus'
+          ? 'agi-nexus'
         : `${activePuzzle.kind}-${activePuzzle.difficulty}`;
       setSolved(prev => prev.includes(solvedId) ? prev : [...prev, solvedId]);
     }
@@ -405,6 +415,79 @@ export default function LogicModeScreen() {
           </div>
         </section>
 
+        <section className="w-full max-w-6xl">
+          <div className="mb-2 flex items-end justify-between gap-3">
+            <div>
+              <div className="font-mono-data text-[9px] tracking-[0.28em]" style={{ color: '#D7B16A' }}>
+                TRANSFORMER CONTROL MACHINE
+              </div>
+              <h2 className="font-orbitron text-lg font-black" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
+                AGI NEXUS PROTOCOL
+              </h2>
+            </div>
+            <div className="font-mono-data text-[9px]" style={{ color: solved.includes('agi-nexus') ? '#33FF33' : '#C4A265' }}>
+              {solved.includes('agi-nexus') ? 'SOLVED' : '3 STAGES'}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleAgiNexusPlay}
+            className="group relative grid min-h-[360px] w-full overflow-hidden text-left transition-all hover:scale-[1.01] hover:brightness-110 md:grid-cols-[1.1fr_0.9fr]"
+            style={{
+              border: `2px solid ${solved.includes('agi-nexus') ? '#33FF33' : '#D7B16A'}`,
+              boxShadow: solved.includes('agi-nexus')
+                ? '0 0 30px rgba(51,255,51,0.26)'
+                : '0 0 28px rgba(215,177,106,0.22)',
+              background: '#080808',
+            }}
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `url(${AGI_NEXUS_DASHBOARD})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                filter: 'brightness(0.48) contrast(1.1) saturate(0.88)',
+              }}
+            />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(0,0,0,0.92), rgba(0,0,0,0.38), rgba(0,0,0,0.86))' }} />
+            <div className="relative z-10 flex h-full flex-col justify-end p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="font-mono-data text-[9px] px-2 py-1" style={{ color: '#050508', background: '#D7B16A' }}>
+                  TRANSFORMERS 2017
+                </span>
+                <span className="font-mono-data text-[9px]" style={{ color: solved.includes('agi-nexus') ? '#33FF33' : '#C4A265' }}>
+                  {solved.includes('agi-nexus') ? 'PROTOCOL ACCEPTED' : 'NEXUS SEQUENCE'}
+                </span>
+              </div>
+              <h2 className="font-orbitron text-2xl font-black tracking-wider" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
+                AGI NEXUS: THE TRANSFORMER PROTOCOL
+              </h2>
+              <p className="mt-2 max-w-2xl font-rajdhani text-base font-semibold leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                Ordena cartas de Data, Weights, Attention, Processing, Activation y Backprop para estabilizar una maquina sovietica de control neural.
+              </p>
+              <div
+                className="mt-5 w-full max-w-xs py-2 text-center font-orbitron text-[10px] font-bold tracking-wider"
+                style={{ color: '#D7B16A', border: '1px solid rgba(215,177,106,0.66)', background: 'rgba(215,177,106,0.12)' }}
+              >
+                OPEN NEXUS MACHINE
+              </div>
+            </div>
+            <div className="relative z-10 hidden items-center justify-center p-5 md:flex">
+              <div
+                className="h-[290px] w-[290px]"
+                style={{
+                  backgroundImage: `url(${AGI_NEXUS_CARD})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  border: '1px solid rgba(215,177,106,0.44)',
+                  boxShadow: '0 20px 60px rgba(0,0,0,0.7)',
+                }}
+              />
+            </div>
+          </button>
+        </section>
+
         <div
           className="grid w-full max-w-4xl grid-cols-4 gap-2 px-1"
           aria-label="Turing difficulty progress"
@@ -521,6 +604,11 @@ export default function LogicModeScreen() {
       {activePuzzle?.kind === 'moore' && (
         <MoorePuzzle
           difficulty={activePuzzle.difficulty}
+          onSolved={handleSolved}
+        />
+      )}
+      {activePuzzle?.kind === 'agi-nexus' && (
+        <AgiNexusPuzzle
           onSolved={handleSolved}
         />
       )}
