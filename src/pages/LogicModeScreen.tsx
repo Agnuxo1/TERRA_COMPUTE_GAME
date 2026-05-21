@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useGame } from '../App';
-import { ClassicTechPuzzle, MoorePuzzle, TuringPuzzle, PERCEPTRON_LEVELS } from '../components/game/EventPopup';
-import type { MooreDifficultyId, PerceptronDifficultyId, TuringDifficultyId } from '../components/game/EventPopup';
+import { ClassicTechPuzzle, LispPuzzle, MoorePuzzle, TuringPuzzle, LISP_LEVELS, PERCEPTRON_LEVELS } from '../components/game/EventPopup';
+import type { LispDifficultyId, MooreDifficultyId, PerceptronDifficultyId, TuringDifficultyId } from '../components/game/EventPopup';
 import { play } from '../hooks/useSound';
 
 const LOGIC_CARD = '/assets/cards/LOGIC.png';
+const LISP_CARD = '/assets/cards/event-lisp.png';
 const MOORE_CARD = '/assets/puzzles/moore-logic-machine.png';
 const PERCEPTRON_CARD = '/assets/puzzles/perceptron-weight-board.png';
 
 type ActivePuzzle =
   | { kind: 'turing'; difficulty: TuringDifficultyId }
+  | { kind: 'lisp'; difficulty: LispDifficultyId }
   | { kind: 'moore'; difficulty: MooreDifficultyId }
   | { kind: 'classic'; eventId: string; difficulty: PerceptronDifficultyId };
 
@@ -112,6 +114,11 @@ export default function LogicModeScreen() {
   const handleMoorePlay = (difficulty: MooreDifficultyId) => {
     play('click');
     setActivePuzzle({ kind: 'moore', difficulty });
+  };
+
+  const handleLispPlay = (difficulty: LispDifficultyId) => {
+    play('click');
+    setActivePuzzle({ kind: 'lisp', difficulty });
   };
 
   const handleClassicPlay = (eventId: string, difficulty: PerceptronDifficultyId) => {
@@ -322,6 +329,82 @@ export default function LogicModeScreen() {
           </div>
         </section>
 
+        <section className="w-full max-w-6xl">
+          <div className="mb-2 flex items-end justify-between gap-3">
+            <div>
+              <div className="font-mono-data text-[9px] tracking-[0.28em]" style={{ color: '#C4A265' }}>
+                SYMBOLIC PROCESSING TERMINAL
+              </div>
+              <h2 className="font-orbitron text-lg font-black" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
+                McCARTHY LISP PROTOCOL
+              </h2>
+            </div>
+            <div className="font-mono-data text-[9px]" style={{ color: '#C4A265' }}>
+              5 LEVELS
+            </div>
+          </div>
+          <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {Object.entries(LISP_LEVELS).map(([difficultyId, puzzle]) => {
+              const difficulty = Number(difficultyId) as LispDifficultyId;
+              const solvedId = `lisp-${difficulty}`;
+              const isSolved = solved.includes(solvedId);
+              return (
+                <button
+                  key={difficulty}
+                  type="button"
+                  onClick={() => handleLispPlay(difficulty)}
+                  className="group relative overflow-hidden text-left transition-all hover:scale-[1.02] hover:brightness-110"
+                  style={{
+                    height: 320,
+                    border: `2px solid ${isSolved ? '#33FF33' : '#C4A265'}`,
+                    boxShadow: isSolved
+                      ? '0 0 28px rgba(51,255,51,0.28)'
+                      : '0 0 24px rgba(196,162,101,0.24)',
+                    background: '#090A0D',
+                  }}
+                >
+                  <div
+                    className="absolute inset-0"
+                    style={{
+                      backgroundImage: `url(${LISP_CARD})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      filter: `grayscale(0.35) brightness(${0.38 + difficulty * 0.04}) contrast(1.12) sepia(0.16)`,
+                    }}
+                  />
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.96), rgba(0,0,0,0.22))' }} />
+                  <div className="relative z-10 flex h-full flex-col p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono-data text-[9px] px-2 py-1" style={{ color: '#050508', background: '#C4A265' }}>
+                        LEVEL {difficulty}
+                      </span>
+                      <span className="font-mono-data text-[9px]" style={{ color: isSolved ? '#33FF33' : '#C4A265' }}>
+                        {isSolved ? 'SOLVED' : puzzle.output}
+                      </span>
+                    </div>
+                    <div className="flex-1" />
+                    <h2 className="font-orbitron text-sm font-black tracking-wider" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
+                      {puzzle.mission}
+                    </h2>
+                    <div className="mt-1 font-mono-data text-[9px]" style={{ color: '#33FF33' }}>
+                      TARGET {puzzle.target}
+                    </div>
+                    <p className="mt-2 line-clamp-3 font-rajdhani text-sm font-semibold leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                      {puzzle.subtitle}
+                    </p>
+                    <div
+                      className="mt-4 py-2 text-center font-orbitron text-[10px] font-bold tracking-wider"
+                      style={{ color: '#C4A265', border: '1px solid rgba(196,162,101,0.66)', background: 'rgba(196,162,101,0.13)' }}
+                    >
+                      OPEN TERMINAL
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
         <div
           className="grid w-full max-w-4xl grid-cols-4 gap-2 px-1"
           aria-label="Turing difficulty progress"
@@ -425,6 +508,12 @@ export default function LogicModeScreen() {
 
       {activePuzzle?.kind === 'turing' && (
         <TuringPuzzle
+          difficulty={activePuzzle.difficulty}
+          onSolved={handleSolved}
+        />
+      )}
+      {activePuzzle?.kind === 'lisp' && (
+        <LispPuzzle
           difficulty={activePuzzle.difficulty}
           onSolved={handleSolved}
         />

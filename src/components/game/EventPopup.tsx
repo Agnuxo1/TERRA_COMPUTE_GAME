@@ -46,7 +46,7 @@ const puzzleBackgroundMap: Record<string, string> = {
   perceptron: '/assets/puzzles/perceptron-weight-board.png',
 };
 
-const techPuzzleIds = ['turing', 'perceptron', 'moore'];
+const techPuzzleIds = ['turing', 'perceptron', 'lisp', 'moore'];
 const puzzleEvents = new Set(techPuzzleIds);
 
 type ClassicPuzzleConfig =
@@ -94,6 +94,7 @@ export const classicPuzzleMap: Record<string, ClassicPuzzleConfig> = {
 };
 
 export type PerceptronDifficultyId = 1 | 2 | 3 | 4 | 5;
+export type LispDifficultyId = 1 | 2 | 3 | 4 | 5;
 
 export const PERCEPTRON_LEVELS: Record<PerceptronDifficultyId, Extract<ClassicPuzzleConfig, { kind: 'switchboard' }>> = {
   1: {
@@ -150,6 +151,79 @@ export const PERCEPTRON_LEVELS: Record<PerceptronDifficultyId, Extract<ClassicPu
     initial: [false, true, false, false, true, false],
     target: [false, false, false, true, false, true],
     masks: [[0, 1], [0, 2, 3], [1, 2, 4], [2, 3, 5], [0, 4, 5], [1, 3, 5]],
+  },
+};
+
+type LispBlockId = 'CAR' | 'CDR' | 'CONS' | 'COND' | 'RECURSION';
+type LispValue = string | string[];
+
+const LISP_BLOCKS: Record<LispBlockId, { label: string; description: string; color: string }> = {
+  CAR: { label: 'CAR', description: 'FIRST', color: '#00F0FF' },
+  CDR: { label: 'CDR', description: 'REST', color: '#33FF33' },
+  CONS: { label: 'CONS', description: 'JOIN', color: '#C4A265' },
+  COND: { label: 'COND', description: 'BRANCH', color: '#FFB84D' },
+  RECURSION: { label: 'RECURSION', description: 'LOOP', color: '#FF477E' },
+};
+
+export const LISP_LEVELS: Record<LispDifficultyId, {
+  title: string;
+  subtitle: string;
+  mission: string;
+  output: string;
+  input: string[];
+  target: string;
+  slots: number;
+  solution: LispBlockId[];
+}> = {
+  1: {
+    title: 'PROTOCOLO McCARTHY: LISP LEVEL 1',
+    subtitle: 'Extract the first symbol from an intelligence list.',
+    mission: 'GENESIS OF SYMBOLIC PROCESSING',
+    output: 'HYPOTHESIS GENERATION',
+    input: ['LOGIC', 'LIST', 'ATOM'],
+    target: 'LOGIC',
+    slots: 1,
+    solution: ['CAR'],
+  },
+  2: {
+    title: 'PROTOCOLO McCARTHY: LISP LEVEL 2',
+    subtitle: 'Discard the decoy header and isolate the next symbol.',
+    mission: 'LIST DECOMPOSITION',
+    output: 'SIGNAL EXTRACTION',
+    input: ['DECOY', 'RADAR', 'NOISE'],
+    target: 'RADAR',
+    slots: 2,
+    solution: ['CDR', 'CAR'],
+  },
+  3: {
+    title: 'PROTOCOLO McCARTHY: LISP LEVEL 3',
+    subtitle: 'Pattern classifier: isolate SATELLITE from the intercepted Soviet stream.',
+    mission: 'PATTERN CLASSIFIER',
+    output: 'PATTERN RECOGNITION',
+    input: ['AMENAZA', 'SPUTNIK', 'SATELLITE', 'RADAR'],
+    target: 'SATELLITE',
+    slots: 3,
+    solution: ['CDR', 'CDR', 'CAR'],
+  },
+  4: {
+    title: 'PROTOCOLO McCARTHY: LISP LEVEL 4',
+    subtitle: 'Traverse deeper into the symbolic list before reading the cognitive atom.',
+    mission: 'DEEP SYMBOL SEARCH',
+    output: 'COGNITIVE ROUTING',
+    input: ['NOISE', 'TELEMETRY', 'RADAR', 'AGI'],
+    target: 'AGI',
+    slots: 4,
+    solution: ['CDR', 'CDR', 'CDR', 'CAR'],
+  },
+  5: {
+    title: 'PROTOCOLO McCARTHY: LISP LEVEL 5',
+    subtitle: 'Use conditional routing before extraction to recover the AGI architecture symbol.',
+    mission: 'ARCHITECTURE AGI',
+    output: 'AGI ARCHITECTURE',
+    input: ['DECOY', 'NOISE', 'SPUTNIK', 'AGI', 'NIL'],
+    target: 'AGI',
+    slots: 3,
+    solution: ['CDR', 'COND', 'CAR'],
   },
 };
 const TURING_TARGET = [1, 9, 4, 3];
@@ -859,6 +933,258 @@ export function ClassicTechPuzzle({
   );
 }
 
+function formatLispValue(value: LispValue) {
+  return Array.isArray(value) ? `(${value.join(' ') || 'NIL'})` : value;
+}
+
+function applyLispBlock(block: LispBlockId, value: LispValue): LispValue {
+  const list = Array.isArray(value) ? value : [value];
+  if (block === 'CAR') return list[0] || 'NIL';
+  if (block === 'CDR') return list.slice(1);
+  if (block === 'CONS') return ['AGI', ...list.filter(item => item !== 'NIL')];
+  if (block === 'COND') {
+    const agiIndex = list.indexOf('AGI');
+    const satelliteIndex = list.indexOf('SATELLITE');
+    const targetIndex = agiIndex >= 0 ? agiIndex : satelliteIndex;
+    return targetIndex >= 0 ? list.slice(targetIndex) : list;
+  }
+  if (block === 'RECURSION') return list.length > 1 ? [list[list.length - 1]] : list;
+  return value;
+}
+
+function evaluateLispPipeline(input: string[], pipeline: Array<LispBlockId | null>) {
+  const trace: LispValue[] = [input];
+  let value: LispValue = input;
+  for (const block of pipeline) {
+    if (!block) break;
+    value = applyLispBlock(block, value);
+    trace.push(value);
+  }
+  return { value, trace };
+}
+
+export function LispPuzzle({
+  onSolved,
+  difficulty = 3,
+}: {
+  onSolved: () => void;
+  difficulty?: LispDifficultyId;
+}) {
+  const config = LISP_LEVELS[difficulty];
+  const [slots, setSlots] = useState<Array<LispBlockId | null>>(() => Array.from({ length: config.slots }, () => null));
+  const [selectedBlock, setSelectedBlock] = useState<LispBlockId | null>(null);
+  const [solved, setSolved] = useState(false);
+  const [threat, setThreat] = useState(12);
+  const { value, trace } = evaluateLispPipeline(config.input, slots);
+  const isCorrect = value === config.target && slots.every(Boolean);
+  const agiPotential = Math.round((slots.filter(Boolean).length / config.slots) * 82 + (isCorrect ? 18 : 0));
+
+  useEffect(() => {
+    setSlots(Array.from({ length: config.slots }, () => null));
+    setSelectedBlock(null);
+    setSolved(false);
+    setThreat(12);
+  }, [config.slots, difficulty]);
+
+  useEffect(() => {
+    if (solved) return;
+    const timer = window.setInterval(() => {
+      setThreat(prev => Math.min(100, prev + 1));
+    }, 900);
+    return () => window.clearInterval(timer);
+  }, [solved]);
+
+  useEffect(() => {
+    if (!isCorrect || solved) return;
+    setSolved(true);
+    play('victory');
+    window.setTimeout(onSolved, 950);
+  }, [isCorrect, solved, onSolved]);
+
+  const placeBlock = (index: number, block: LispBlockId | null = selectedBlock) => {
+    if (!block || solved) return;
+    play('click', 0.45);
+    setSlots(prev => prev.map((slot, i) => i === index ? block : slot));
+    setSelectedBlock(null);
+  };
+
+  const clearSlot = (index: number) => {
+    if (solved) return;
+    play('click', 0.35);
+    setSlots(prev => prev.map((slot, i) => i === index ? null : slot));
+  };
+
+  return (
+    <PuzzleShell title={config.title} subtitle={config.subtitle} accent="#C4A265">
+      <div
+        className="relative w-full overflow-hidden"
+        style={{
+          width: 'min(calc(100vw - 32px), calc((100dvh - 122px) * 16 / 9))',
+          aspectRatio: '16 / 9',
+          border: '2px solid #C4A265',
+          background: '#080808',
+        }}
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `url(${eventCardMap.lisp})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'grayscale(0.7) brightness(0.34) contrast(1.25) sepia(0.22)',
+          }}
+        />
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(circle at 52% 45%, rgba(0,240,255,0.16), transparent 32%), repeating-linear-gradient(0deg, transparent, transparent 25px, rgba(196,162,101,0.14) 26px), repeating-linear-gradient(90deg, transparent, transparent 25px, rgba(51,255,51,0.08) 26px), linear-gradient(90deg, rgba(5,5,8,0.88), rgba(5,5,8,0.36) 45%, rgba(5,5,8,0.88))',
+          }}
+        />
+
+        <div className="absolute left-[4%] top-[9%] w-[20%]">
+          <div className="font-mono-data text-[9px] tracking-[0.22em]" style={{ color: '#C4A265' }}>CODE BLOCK BANK</div>
+          <div className="mt-3 flex flex-col gap-2">
+            {(Object.keys(LISP_BLOCKS) as LispBlockId[]).map(block => {
+              const meta = LISP_BLOCKS[block];
+              const selected = selectedBlock === block;
+              return (
+                <button
+                  key={block}
+                  type="button"
+                  draggable
+                  onDragStart={event => event.dataTransfer.setData('text/plain', block)}
+                  onClick={() => {
+                    play('click', 0.4);
+                    setSelectedBlock(block);
+                  }}
+                  className="group relative overflow-hidden px-3 py-2 text-left transition-all hover:brightness-125"
+                  style={{
+                    color: selected ? '#050508' : '#FFF4C2',
+                    background: selected ? meta.color : 'rgba(5,5,8,0.78)',
+                    border: `1px solid ${meta.color}`,
+                    boxShadow: selected ? `0 0 18px ${meta.color}77` : '0 8px 18px rgba(0,0,0,0.45)',
+                  }}
+                >
+                  <div className="font-orbitron text-sm font-black" style={{ letterSpacing: 0 }}>{meta.label}</div>
+                  <div className="font-mono-data text-[8px]" style={{ color: selected ? '#050508' : meta.color }}>{meta.description}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="absolute left-[27%] top-[11%] h-[74%] w-[47%]">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-mono-data text-[9px] tracking-[0.22em]" style={{ color: '#00F0FF' }}>LISP EVOLUTION BOARD</div>
+              <div className="font-orbitron text-base font-black" style={{ color: '#FFF4C2', letterSpacing: 0 }}>{config.mission}</div>
+            </div>
+            <div className="font-mono-data text-[9px] px-2 py-1" style={{ color: '#050508', background: isCorrect ? '#33FF33' : '#C4A265' }}>
+              TARGET {config.target}
+            </div>
+          </div>
+
+          <div className="absolute left-0 right-0 top-[28%] h-[42%]">
+            <svg className="absolute inset-0 h-full w-full" viewBox="0 0 620 230" aria-hidden="true">
+              <defs>
+                <filter id="lisp-glow">
+                  <feGaussianBlur stdDeviation="4" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+              <path d="M 18 115 H 110" stroke="#00F0FF" strokeWidth="8" strokeLinecap="round" filter="url(#lisp-glow)" />
+              {slots.map((slot, index) => {
+                const x = 140 + index * 120;
+                return (
+                  <g key={index}>
+                    <rect x={x} y="58" width="88" height="114" fill="rgba(5,5,8,0.72)" stroke={slot ? LISP_BLOCKS[slot].color : '#C4A265'} strokeWidth="3" />
+                    <path d={`M ${x - 30} 115 H ${x}`} stroke={slot ? LISP_BLOCKS[slot].color : '#4B535B'} strokeWidth="7" strokeLinecap="round" />
+                    <path d={`M ${x + 88} 115 H ${x + 118}`} stroke={slot ? LISP_BLOCKS[slot].color : '#4B535B'} strokeWidth="7" strokeLinecap="round" />
+                  </g>
+                );
+              })}
+              <path d={`M ${140 + slots.length * 120 - 2} 115 H 592`} stroke={isCorrect ? '#33FF33' : '#C4A265'} strokeWidth="8" strokeLinecap="round" filter={isCorrect ? 'url(#lisp-glow)' : undefined} />
+            </svg>
+            {slots.map((slot, index) => {
+              const left = `${(140 + index * 120 + 44) / 620 * 100}%`;
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => slot ? clearSlot(index) : placeBlock(index)}
+                  onDragOver={event => event.preventDefault()}
+                  onDrop={event => {
+                    event.preventDefault();
+                    const block = event.dataTransfer.getData('text/plain') as LispBlockId;
+                    if (LISP_BLOCKS[block]) placeBlock(index, block);
+                  }}
+                  className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center font-orbitron text-sm font-black"
+                  style={{
+                    left,
+                    top: '50%',
+                    width: 'clamp(70px, 7.8vw, 98px)',
+                    height: 'clamp(86px, 10vw, 124px)',
+                    color: slot ? '#050508' : '#C4A265',
+                    background: slot ? LISP_BLOCKS[slot].color : 'rgba(5,5,8,0.84)',
+                    border: `2px solid ${slot ? LISP_BLOCKS[slot].color : '#C4A265'}`,
+                    boxShadow: slot ? `0 0 24px ${LISP_BLOCKS[slot].color}77` : 'inset 0 0 18px rgba(196,162,101,0.18)',
+                  }}
+                >
+                  {slot || `S${index + 1}`}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="absolute bottom-0 left-0 right-0 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div className="p-2" style={{ background: 'rgba(5,5,8,0.78)', border: '1px solid #00F0FF' }}>
+              <div className="font-mono-data text-[8px]" style={{ color: '#00F0FF' }}>RAW DATA STREAM</div>
+              <div className="mt-1 font-mono-data text-[11px]" style={{ color: '#FFF4C2' }}>{formatLispValue(config.input)}</div>
+            </div>
+            <div className="font-orbitron text-lg font-black" style={{ color: '#C4A265' }}>→</div>
+            <div className="p-2" style={{ background: 'rgba(5,5,8,0.78)', border: `1px solid ${isCorrect ? '#33FF33' : '#C4A265'}` }}>
+              <div className="font-mono-data text-[8px]" style={{ color: isCorrect ? '#33FF33' : '#C4A265' }}>{config.output}</div>
+              <div className="mt-1 font-mono-data text-[11px]" style={{ color: isCorrect ? '#33FF33' : '#FFF4C2' }}>{formatLispValue(value)}</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="absolute right-[4%] top-[10%] w-[18%]">
+          <div className="font-mono-data text-[9px] tracking-[0.22em]" style={{ color: '#C4A265' }}>STATUS INDICATORS</div>
+          <div className="mt-4 space-y-4">
+            <div>
+              <div className="mb-1 flex justify-between font-mono-data text-[8px]" style={{ color: '#00F0FF' }}><span>AGI POTENTIAL</span><span>{agiPotential}%</span></div>
+              <div className="h-3" style={{ background: 'rgba(0,240,255,0.15)', border: '1px solid #00F0FF' }}>
+                <div className="h-full" style={{ width: `${agiPotential}%`, background: '#00F0FF', boxShadow: '0 0 16px #00F0FF' }} />
+              </div>
+            </div>
+            <div>
+              <div className="mb-1 flex justify-between font-mono-data text-[8px]" style={{ color: '#FF477E' }}><span>SOVIET COUNTER-AI</span><span>{threat}%</span></div>
+              <div className="h-3" style={{ background: 'rgba(255,71,126,0.15)', border: '1px solid #FF477E' }}>
+                <div className="h-full" style={{ width: `${threat}%`, background: '#FF477E', boxShadow: '0 0 16px #FF477E' }} />
+              </div>
+            </div>
+          </div>
+          <div className="mt-5 p-3" style={{ background: 'rgba(5,5,8,0.76)', border: '1px solid rgba(196,162,101,0.55)' }}>
+            <div className="font-mono-data text-[8px] tracking-[0.18em]" style={{ color: '#C4A265' }}>TRACE</div>
+            <div className="mt-2 space-y-1">
+              {trace.map((step, index) => (
+                <div key={index} className="font-mono-data text-[8px]" style={{ color: index === trace.length - 1 ? '#FFF4C2' : 'var(--text-secondary)' }}>
+                  {index}: {formatLispValue(step)}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </PuzzleShell>
+  );
+}
+
 function SequencePuzzle({
   config,
   solved,
@@ -1228,6 +1554,7 @@ export default function EventPopup() {
   if (phase === 'puzzle') {
     if (evt.id === 'turing') return <TuringPuzzle onSolved={handlePuzzleSolved} />;
     if (evt.id === 'moore') return <MoorePuzzle onSolved={handlePuzzleSolved} />;
+    if (evt.id === 'lisp') return <LispPuzzle onSolved={handlePuzzleSolved} difficulty={3} />;
     if (classicPuzzleMap[evt.id]) return <ClassicTechPuzzle eventId={evt.id} onSolved={handlePuzzleSolved} />;
   }
 
