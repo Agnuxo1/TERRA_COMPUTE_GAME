@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGame } from '../App';
-import { AgiNexusPuzzle, ClassicTechPuzzle, LispPuzzle, MoorePuzzle, TuringPuzzle, LISP_LEVELS, PERCEPTRON_LEVELS } from '../components/game/EventPopup';
+import { AgiNexusPuzzle, AlphaGoPuzzle, ClassicTechPuzzle, DeepBluePuzzle, LispPuzzle, MoorePuzzle, TuringPuzzle, LISP_LEVELS, PERCEPTRON_LEVELS } from '../components/game/EventPopup';
 import type { LispDifficultyId, MooreDifficultyId, PerceptronDifficultyId, TuringDifficultyId } from '../components/game/EventPopup';
 import { play } from '../hooks/useSound';
 
@@ -10,11 +10,15 @@ const MOORE_CARD = '/assets/puzzles/moore-logic-machine.png';
 const PERCEPTRON_CARD = '/assets/puzzles/perceptron-weight-board.png';
 const AGI_NEXUS_CARD = '/assets/AGI_Nexus_Final/card_sprite.png';
 const AGI_NEXUS_DASHBOARD = '/assets/AGI_Nexus_Final/game_dashboard.png';
+const ALPHAGO_CARD = '/assets/puzzles/alphago/bg_alphago.png';
+const DEEPBLUE_CARD = '/assets/puzzles/deepblue/deep_blue.png';
 
 type ActivePuzzle =
   | { kind: 'turing'; difficulty: TuringDifficultyId }
   | { kind: 'lisp'; difficulty: LispDifficultyId }
   | { kind: 'moore'; difficulty: MooreDifficultyId }
+  | { kind: 'deepblue' }
+  | { kind: 'alphago' }
   | { kind: 'agi-nexus' }
   | { kind: 'classic'; eventId: string; difficulty: PerceptronDifficultyId };
 
@@ -134,12 +138,26 @@ export default function LogicModeScreen() {
     setActivePuzzle({ kind: 'agi-nexus' });
   };
 
+  const handleAlphaGoPlay = () => {
+    play('click');
+    setActivePuzzle({ kind: 'alphago' });
+  };
+
+  const handleDeepBluePlay = () => {
+    play('click');
+    setActivePuzzle({ kind: 'deepblue' });
+  };
+
   const handleSolved = () => {
     if (activePuzzle) {
       const solvedId = activePuzzle.kind === 'classic'
         ? `classic-${activePuzzle.eventId}-${activePuzzle.difficulty}`
         : activePuzzle.kind === 'agi-nexus'
           ? 'agi-nexus'
+          : activePuzzle.kind === 'deepblue'
+            ? 'deepblue'
+          : activePuzzle.kind === 'alphago'
+            ? 'alphago'
         : `${activePuzzle.kind}-${activePuzzle.difficulty}`;
       setSolved(prev => prev.includes(solvedId) ? prev : [...prev, solvedId]);
     }
@@ -258,6 +276,128 @@ export default function LogicModeScreen() {
             );
           })}
         </div>
+        </section>
+
+        <section className="w-full max-w-6xl">
+          <div className="mb-2 flex items-end justify-between gap-3">
+            <div>
+              <div className="font-mono-data text-[9px] tracking-[0.28em]" style={{ color: '#D4AF37' }}>
+                MACHINE CHESS SEARCH
+              </div>
+              <h2 className="font-orbitron text-lg font-black" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
+                DEEP BLUE vs KASPAROV
+              </h2>
+            </div>
+            <div className="font-mono-data text-[9px]" style={{ color: solved.includes('deepblue') ? '#33FF33' : '#C4A265' }}>
+              {solved.includes('deepblue') ? 'SOLVED' : '4 ENGINE LINES'}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleDeepBluePlay}
+            className="group relative min-h-[320px] w-full overflow-hidden text-left transition-all hover:scale-[1.01] hover:brightness-110"
+            style={{
+              border: `2px solid ${solved.includes('deepblue') ? '#33FF33' : '#E63946'}`,
+              boxShadow: solved.includes('deepblue')
+                ? '0 0 30px rgba(51,255,51,0.26)'
+                : '0 0 28px rgba(230,57,70,0.28)',
+              background: '#080808',
+            }}
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `url(${DEEPBLUE_CARD})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                filter: 'brightness(0.48) contrast(1.15) saturate(0.9)',
+              }}
+            />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(0,0,0,0.94), rgba(80,8,8,0.42), rgba(0,0,0,0.7))' }} />
+            <div className="relative z-10 flex min-h-[320px] max-w-3xl flex-col justify-end p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="font-mono-data text-[9px] px-2 py-1" style={{ color: '#09090d', background: '#D4AF37' }}>
+                  NEW YORK 1997
+                </span>
+                <span className="font-mono-data text-[9px]" style={{ color: solved.includes('deepblue') ? '#33FF33' : '#FFB84D' }}>
+                  {solved.includes('deepblue') ? 'CHECKMATE LINE ACCEPTED' : 'SEARCH TREE PROTOCOL'}
+                </span>
+              </div>
+              <h2 className="font-orbitron text-2xl font-black tracking-wider" style={{ color: '#E63946', textShadow: '3px 3px 0 #000, 0 0 24px rgba(230,57,70,0.5)', letterSpacing: 0 }}>
+                BRUTE FORCE CHECKMATE
+              </h2>
+              <p className="mt-2 max-w-2xl font-rajdhani text-base font-semibold leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                Resuelve cuatro lineas tacticas de ajedrez: apertura, control central, sacrificio calculado y red de mate. Cada movimiento incorrecto representa una rama falsa del arbol de busqueda.
+              </p>
+              <div
+                className="mt-5 w-full max-w-xs py-2 text-center font-orbitron text-[10px] font-bold tracking-wider"
+                style={{ color: '#FFB84D', border: '1px solid rgba(255,184,77,0.66)', background: 'rgba(230,57,70,0.16)' }}
+              >
+                ENTER CHESS ENGINE
+              </div>
+            </div>
+          </button>
+        </section>
+
+        <section className="w-full max-w-6xl">
+          <div className="mb-2 flex items-end justify-between gap-3">
+            <div>
+              <div className="font-mono-data text-[9px] tracking-[0.28em]" style={{ color: '#FF3333' }}>
+                REINFORCEMENT LEARNING ARENA
+              </div>
+              <h2 className="font-orbitron text-lg font-black" style={{ color: '#FFF4C2', letterSpacing: 0 }}>
+                ALPHAGO vs LEE SEDOL
+              </h2>
+            </div>
+            <div className="font-mono-data text-[9px]" style={{ color: solved.includes('alphago') ? '#33FF33' : '#C4A265' }}>
+              {solved.includes('alphago') ? 'SOLVED' : '9x9 GO'}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleAlphaGoPlay}
+            className="group relative min-h-[320px] w-full overflow-hidden text-left transition-all hover:scale-[1.01] hover:brightness-110"
+            style={{
+              border: `2px solid ${solved.includes('alphago') ? '#33FF33' : '#CC0000'}`,
+              boxShadow: solved.includes('alphago')
+                ? '0 0 30px rgba(51,255,51,0.26)'
+                : '0 0 28px rgba(204,0,0,0.26)',
+              background: '#080808',
+            }}
+          >
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: `url(${ALPHAGO_CARD})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                filter: 'brightness(0.45) contrast(1.16) saturate(0.9)',
+              }}
+            />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(0,0,0,0.94), rgba(42,0,0,0.44), rgba(0,0,0,0.72))' }} />
+            <div className="relative z-10 flex min-h-[320px] max-w-3xl flex-col justify-end p-5">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="font-mono-data text-[9px] px-2 py-1" style={{ color: '#FFF', background: '#CC0000' }}>
+                  SEOUL 2016
+                </span>
+                <span className="font-mono-data text-[9px]" style={{ color: solved.includes('alphago') ? '#33FF33' : '#FFB84D' }}>
+                  {solved.includes('alphago') ? 'HUMAN LINE ACCEPTED' : 'MOVE 37 PROTOCOL'}
+                </span>
+              </div>
+              <h2 className="font-orbitron text-2xl font-black tracking-wider" style={{ color: '#FF3333', textShadow: '3px 3px 0 #000, 0 0 24px rgba(255,0,0,0.45)', letterSpacing: 0 }}>
+                OPERATION MIND GAME
+              </h2>
+              <p className="mt-2 max-w-2xl font-rajdhani text-base font-semibold leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                Juega negras en un tablero Go 9x9 contra una IA heuristica inspirada en AlphaGo. Reclama el centro, conecta grupos y supera la linea de la maquina.
+              </p>
+              <div
+                className="mt-5 w-full max-w-xs py-2 text-center font-orbitron text-[10px] font-bold tracking-wider"
+                style={{ color: '#FFB84D', border: '1px solid rgba(255,184,77,0.66)', background: 'rgba(204,0,0,0.16)' }}
+              >
+                ENTER GO ARENA
+              </div>
+            </div>
+          </button>
         </section>
 
         <section className="w-full max-w-6xl">
@@ -604,6 +744,16 @@ export default function LogicModeScreen() {
       {activePuzzle?.kind === 'moore' && (
         <MoorePuzzle
           difficulty={activePuzzle.difficulty}
+          onSolved={handleSolved}
+        />
+      )}
+      {activePuzzle?.kind === 'deepblue' && (
+        <DeepBluePuzzle
+          onSolved={handleSolved}
+        />
+      )}
+      {activePuzzle?.kind === 'alphago' && (
+        <AlphaGoPuzzle
           onSolved={handleSolved}
         />
       )}

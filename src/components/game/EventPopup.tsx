@@ -46,7 +46,7 @@ const puzzleBackgroundMap: Record<string, string> = {
   perceptron: '/assets/puzzles/perceptron-weight-board.png',
 };
 
-const techPuzzleIds = ['turing', 'perceptron', 'lisp', 'moore', 'transformers'];
+const techPuzzleIds = ['turing', 'perceptron', 'lisp', 'moore', 'deepblue', 'alphago', 'transformers'];
 const puzzleEvents = new Set(techPuzzleIds);
 
 type ClassicPuzzleConfig =
@@ -286,6 +286,8 @@ const TURING_DIFFICULTIES: Record<TuringDifficultyId, {
 const MOORE_BG = '/assets/puzzles/moore-logic-machine.png';
 const LISP_BG = '/assets/puzzles/lisp-dartmouth-lab.png';
 const AGI_NEXUS_BASE = '/assets/AGI_Nexus_Final';
+const ALPHAGO_BG = '/assets/puzzles/alphago/bg_alphago.png';
+const DEEPBLUE_BASE = '/assets/puzzles/deepblue';
 export type MooreDifficultyId = 1 | 2 | 3 | 4 | 5;
 type MooreSignal = 'A' | '!A' | 'B' | '!B' | 'C' | '!C';
 type MooreInput = Record<'A' | 'B' | 'C', boolean>;
@@ -1484,6 +1486,673 @@ export function AgiNexusPuzzle({ onSolved }: { onSolved: () => void }) {
   );
 }
 
+type GoStone = 'black' | 'white' | null;
+type AlphaGoDifficulty = 'amateur' | 'professional' | 'world';
+const ALPHAGO_SIZE = 9;
+
+function makeGoBoard(): GoStone[][] {
+  return Array.from({ length: ALPHAGO_SIZE }, () => Array.from({ length: ALPHAGO_SIZE }, () => null));
+}
+
+function cloneGoBoard(board: GoStone[][]) {
+  return board.map(row => [...row]);
+}
+
+function getGoGroup(board: GoStone[][], row: number, col: number) {
+  const color = board[row]?.[col];
+  if (!color) return { stones: [] as Array<[number, number]>, liberties: 0 };
+  const seen = new Set<string>();
+  const liberties = new Set<string>();
+  const stones: Array<[number, number]> = [];
+  const queue: Array<[number, number]> = [[row, col]];
+
+  while (queue.length) {
+    const [r, c] = queue.shift()!;
+    const key = `${r},${c}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    stones.push([r, c]);
+    [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]].forEach(([nr, nc]) => {
+      if (nr < 0 || nr >= ALPHAGO_SIZE || nc < 0 || nc >= ALPHAGO_SIZE) return;
+      const next = board[nr][nc];
+      if (!next) liberties.add(`${nr},${nc}`);
+      else if (next === color && !seen.has(`${nr},${nc}`)) queue.push([nr, nc]);
+    });
+  }
+
+  return { stones, liberties: liberties.size };
+}
+
+function playGoStone(board: GoStone[][], row: number, col: number, color: Exclude<GoStone, null>) {
+  if (board[row][col]) return { board, legal: false, captured: 0 };
+  const next = cloneGoBoard(board);
+  next[row][col] = color;
+  const opponent = color === 'black' ? 'white' : 'black';
+  let captured = 0;
+
+  [[row - 1, col], [row + 1, col], [row, col - 1], [row, col + 1]].forEach(([nr, nc]) => {
+    if (nr < 0 || nr >= ALPHAGO_SIZE || nc < 0 || nc >= ALPHAGO_SIZE) return;
+    if (next[nr][nc] !== opponent) return;
+    const group = getGoGroup(next, nr, nc);
+    if (group.liberties === 0) {
+      group.stones.forEach(([gr, gc]) => {
+        next[gr][gc] = null;
+        captured += 1;
+      });
+    }
+  });
+
+  if (getGoGroup(next, row, col).liberties === 0) return { board, legal: false, captured: 0 };
+  return { board: next, legal: true, captured };
+}
+
+function scoreGoBoard(board: GoStone[][]) {
+  let black = 0;
+  let white = 0;
+  let blackInfluence = 0;
+  let whiteInfluence = 0;
+  const center = (ALPHAGO_SIZE - 1) / 2;
+  for (let row = 0; row < ALPHAGO_SIZE; row++) {
+    for (let col = 0; col < ALPHAGO_SIZE; col++) {
+      const stone = board[row][col];
+      if (!stone) continue;
+      const influence = 1 + Math.max(0, 4 - (Math.abs(row - center) + Math.abs(col - center))) * 0.18;
+      if (stone === 'black') {
+        black += 1;
+        blackInfluence += influence;
+      } else {
+        white += 1;
+        whiteInfluence += influence;
+      }
+    }
+  }
+  return { black, white, blackInfluence, whiteInfluence };
+}
+
+type DeepBluePieceType = 'pawn' | 'rook' | 'knight' | 'bishop' | 'queen' | 'king';
+type DeepBlueSide = 'machine' | 'human';
+type DeepBluePiece = {
+  id: string;
+  type: DeepBluePieceType;
+  side: DeepBlueSide;
+  row: number;
+  col: number;
+};
+type DeepBlueMove = {
+  pieceId: string;
+  to: [number, number];
+  note: string;
+  reply?: { pieceId: string; to: [number, number] };
+};
+type DeepBlueLevel = {
+  title: string;
+  subtitle: string;
+  objective: string;
+  pieces: DeepBluePiece[];
+  solution: DeepBlueMove[];
+};
+
+const DEEPBLUE_FILES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+const DEEPBLUE_SYMBOLS: Record<DeepBluePieceType, string> = {
+  pawn: '♟',
+  rook: '♜',
+  knight: '♞',
+  bishop: '♝',
+  queen: '♛',
+  king: '♚',
+};
+
+const DEEPBLUE_LEVELS: DeepBlueLevel[] = [
+  {
+    title: 'LEVEL 1: OPENING BOOK',
+    subtitle: 'Deep Blue leaves the book and claims the center.',
+    objective: 'Move the e-pawn two squares. Engines begin by buying space for calculation.',
+    pieces: [
+      { id: 'wk', type: 'king', side: 'machine', row: 7, col: 4 },
+      { id: 'wp', type: 'pawn', side: 'machine', row: 6, col: 4 },
+      { id: 'bk', type: 'king', side: 'human', row: 0, col: 4 },
+      { id: 'bp', type: 'pawn', side: 'human', row: 1, col: 4 },
+    ],
+    solution: [
+      { pieceId: 'wp', to: [4, 4], note: '1. e4. The machine opens the search tree from the center.', reply: { pieceId: 'bp', to: [3, 4] } },
+    ],
+  },
+  {
+    title: 'LEVEL 2: CENTER PRESSURE',
+    subtitle: 'A search engine improves each piece before it attacks.',
+    objective: 'Develop the knight, then push the queen pawn to occupy the center.',
+    pieces: [
+      { id: 'wk', type: 'king', side: 'machine', row: 7, col: 4 },
+      { id: 'wn', type: 'knight', side: 'machine', row: 7, col: 6 },
+      { id: 'wpd', type: 'pawn', side: 'machine', row: 6, col: 3 },
+      { id: 'bk', type: 'king', side: 'human', row: 0, col: 4 },
+      { id: 'bn', type: 'knight', side: 'human', row: 0, col: 1 },
+      { id: 'bpd', type: 'pawn', side: 'human', row: 1, col: 3 },
+    ],
+    solution: [
+      { pieceId: 'wn', to: [5, 5], note: 'Nf3. The knight attacks the center without blocking the queen.', reply: { pieceId: 'bn', to: [2, 2] } },
+      { pieceId: 'wpd', to: [4, 3], note: 'd4. Two central files are now under machine control.', reply: { pieceId: 'bpd', to: [3, 3] } },
+    ],
+  },
+  {
+    title: 'LEVEL 3: MATERIAL SACRIFICE',
+    subtitle: 'The human sees material. The machine sees forced activity.',
+    objective: 'Sacrifice the bishop on h7, then bring the queen to the attack.',
+    pieces: [
+      { id: 'wk', type: 'king', side: 'machine', row: 7, col: 6 },
+      { id: 'wq', type: 'queen', side: 'machine', row: 7, col: 3 },
+      { id: 'wb', type: 'bishop', side: 'machine', row: 3, col: 2 },
+      { id: 'bk', type: 'king', side: 'human', row: 0, col: 6 },
+      { id: 'br', type: 'rook', side: 'human', row: 0, col: 7 },
+      { id: 'bhp', type: 'pawn', side: 'human', row: 1, col: 7 },
+      { id: 'bgp', type: 'pawn', side: 'human', row: 1, col: 6 },
+    ],
+    solution: [
+      { pieceId: 'wb', to: [1, 7], note: 'Bxh7+. A calculated sacrifice pulls the king line apart.', reply: { pieceId: 'bk', to: [1, 7] } },
+      { pieceId: 'wq', to: [3, 7], note: 'Qh5+. The queen enters through the opened file.' },
+    ],
+  },
+  {
+    title: 'LEVEL 4: CHECKMATE NET',
+    subtitle: '1997. Brute force and evaluation become a tactical weapon.',
+    objective: 'Force mate by cutting the seventh rank, then deliver the queen.',
+    pieces: [
+      { id: 'wk', type: 'king', side: 'machine', row: 7, col: 6 },
+      { id: 'wq', type: 'queen', side: 'machine', row: 4, col: 7 },
+      { id: 'wr', type: 'rook', side: 'machine', row: 7, col: 0 },
+      { id: 'bk', type: 'king', side: 'human', row: 0, col: 6 },
+      { id: 'br', type: 'rook', side: 'human', row: 0, col: 5 },
+      { id: 'bgp', type: 'pawn', side: 'human', row: 1, col: 6 },
+      { id: 'bhp', type: 'pawn', side: 'human', row: 1, col: 7 },
+    ],
+    solution: [
+      { pieceId: 'wr', to: [1, 0], note: 'Ra7. The rook locks the escape rank.', reply: { pieceId: 'br', to: [0, 4] } },
+      { pieceId: 'wq', to: [1, 7], note: 'Qxh7#. The final node is selected.' },
+    ],
+  },
+];
+
+function deepBlueCoord(row: number, col: number) {
+  return `${DEEPBLUE_FILES[col]}${8 - row}`;
+}
+
+function deepBluePieceAt(pieces: DeepBluePiece[], row: number, col: number) {
+  return pieces.find(piece => piece.row === row && piece.col === col);
+}
+
+function deepBluePathClear(pieces: DeepBluePiece[], piece: DeepBluePiece, row: number, col: number) {
+  const rowStep = Math.sign(row - piece.row);
+  const colStep = Math.sign(col - piece.col);
+  let r = piece.row + rowStep;
+  let c = piece.col + colStep;
+  while (r !== row || c !== col) {
+    if (deepBluePieceAt(pieces, r, c)) return false;
+    r += rowStep;
+    c += colStep;
+  }
+  return true;
+}
+
+function deepBlueIsLegalMove(pieces: DeepBluePiece[], piece: DeepBluePiece, row: number, col: number) {
+  if (row < 0 || row > 7 || col < 0 || col > 7) return false;
+  if (piece.row === row && piece.col === col) return false;
+  const target = deepBluePieceAt(pieces, row, col);
+  if (target?.side === piece.side) return false;
+  const dr = row - piece.row;
+  const dc = col - piece.col;
+  const absR = Math.abs(dr);
+  const absC = Math.abs(dc);
+  const forward = piece.side === 'machine' ? -1 : 1;
+
+  if (piece.type === 'pawn') {
+    if (!target && dc === 0 && dr === forward) return true;
+    const startRow = piece.side === 'machine' ? 6 : 1;
+    if (!target && piece.row === startRow && dc === 0 && dr === forward * 2 && !deepBluePieceAt(pieces, piece.row + forward, col)) return true;
+    return !!target && absC === 1 && dr === forward;
+  }
+  if (piece.type === 'knight') return (absR === 2 && absC === 1) || (absR === 1 && absC === 2);
+  if (piece.type === 'king') return absR <= 1 && absC <= 1;
+  if (piece.type === 'bishop') return absR === absC && deepBluePathClear(pieces, piece, row, col);
+  if (piece.type === 'rook') return (absR === 0 || absC === 0) && deepBluePathClear(pieces, piece, row, col);
+  return (absR === absC || absR === 0 || absC === 0) && deepBluePathClear(pieces, piece, row, col);
+}
+
+function moveDeepBluePiece(pieces: DeepBluePiece[], pieceId: string, row: number, col: number) {
+  const moving = pieces.find(piece => piece.id === pieceId);
+  if (!moving) return pieces;
+  return pieces
+    .filter(piece => piece.id === pieceId || piece.row !== row || piece.col !== col)
+    .map(piece => piece.id === pieceId ? { ...piece, row, col } : piece);
+}
+
+export function DeepBluePuzzle({ onSolved }: { onSolved: () => void }) {
+  const [levelIndex, setLevelIndex] = useState(0);
+  const [pieces, setPieces] = useState<DeepBluePiece[]>(() => DEEPBLUE_LEVELS[0].pieces);
+  const [step, setStep] = useState(0);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [message, setMessage] = useState('SELECT THE ENGINE MOVE. EVERY WRONG BRANCH WASTES SEARCH TIME.');
+  const [errors, setErrors] = useState(0);
+  const [locked, setLocked] = useState(false);
+  const level = DEEPBLUE_LEVELS[levelIndex];
+  const currentMove = level.solution[step];
+  const selectedPiece = selected ? pieces.find(piece => piece.id === selected) : null;
+
+  const resetLevel = (nextLevel = levelIndex) => {
+    play('click', 0.35);
+    setLevelIndex(nextLevel);
+    setPieces(DEEPBLUE_LEVELS[nextLevel].pieces);
+    setStep(0);
+    setSelected(null);
+    setLocked(false);
+    setMessage('SELECT THE ENGINE MOVE. EVERY WRONG BRANCH WASTES SEARCH TIME.');
+  };
+
+  const selectPiece = (piece: DeepBluePiece) => {
+    if (locked || piece.side !== 'machine') return;
+    setSelected(piece.id === selected ? null : piece.id);
+    play('click', 0.28);
+  };
+
+  const finishMove = (move: DeepBlueMove) => {
+    const [row, col] = move.to;
+    setPieces(prev => moveDeepBluePiece(prev, move.pieceId, row, col));
+    setSelected(null);
+    setMessage(move.note);
+    play('click', 0.55);
+    setLocked(true);
+
+    window.setTimeout(() => {
+      setPieces(prev => move.reply ? moveDeepBluePiece(prev, move.reply.pieceId, move.reply.to[0], move.reply.to[1]) : prev);
+      const nextStep = step + 1;
+      if (nextStep >= level.solution.length) {
+        play('victory');
+        setMessage(levelIndex >= DEEPBLUE_LEVELS.length - 1 ? 'CHECKMATE. DEEP BLUE PROTOCOL COMPLETE.' : 'LINE CONFIRMED. NEXT SEARCH DEPTH UNLOCKED.');
+        if (levelIndex >= DEEPBLUE_LEVELS.length - 1) {
+          window.setTimeout(onSolved, 1100);
+        } else {
+          window.setTimeout(() => resetLevel(levelIndex + 1), 1050);
+        }
+      } else {
+        setStep(nextStep);
+        setLocked(false);
+      }
+    }, move.reply ? 620 : 360);
+  };
+
+  const clickSquare = (row: number, col: number) => {
+    if (locked || !selectedPiece) return;
+    if (!deepBlueIsLegalMove(pieces, selectedPiece, row, col)) {
+      setMessage('ILLEGAL CHESS MOVE. SEARCH BRANCH REJECTED.');
+      setErrors(prev => prev + 1);
+      play('click', 0.22);
+      return;
+    }
+    if (selectedPiece.id === currentMove.pieceId && currentMove.to[0] === row && currentMove.to[1] === col) {
+      finishMove(currentMove);
+      return;
+    }
+    setMessage(`WRONG BRANCH: ${selectedPiece.type.toUpperCase()} TO ${deepBlueCoord(row, col)} DOES NOT FORCE THE LINE.`);
+    setSelected(null);
+    setErrors(prev => prev + 1);
+    play('click', 0.22);
+  };
+
+  const legalTargets = selectedPiece
+    ? new Set(Array.from({ length: 64 }, (_, index) => {
+        const row = Math.floor(index / 8);
+        const col = index % 8;
+        return deepBlueIsLegalMove(pieces, selectedPiece, row, col) ? `${row},${col}` : '';
+      }).filter(Boolean))
+    : new Set<string>();
+
+  return (
+    <PuzzleShell title="DEEP BLUE vs KASPAROV: BRUTE FORCE CHECKMATE" subtitle="Solve engine lines from the 1997 machine chess rupture." accent="#E63946">
+      <div
+        className="relative w-full overflow-hidden"
+        style={{
+          width: 'min(calc(100vw - 32px), calc((100dvh - 116px) * 16 / 9))',
+          aspectRatio: '16 / 9',
+          border: '2px solid rgba(230,57,70,0.9)',
+          background: '#09090d',
+          boxShadow: '0 0 70px rgba(0,0,0,0.92), inset 0 0 80px rgba(0,0,0,0.82)',
+        }}
+      >
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at center, rgba(230,57,70,0.18), transparent 42%), linear-gradient(135deg, #060609 0%, #171112 45%, #050505 100%)' }} />
+        <div className="absolute inset-0 opacity-25" style={{ backgroundImage: 'linear-gradient(rgba(244,232,208,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(244,232,208,0.12) 1px, transparent 1px)', backgroundSize: '34px 34px' }} />
+        <img src={`${DEEPBLUE_BASE}/kasparov.png`} alt="" className="absolute bottom-0 left-0 h-[78%] opacity-35 mix-blend-luminosity" />
+        <img src={`${DEEPBLUE_BASE}/deep_blue.png`} alt="" className="absolute bottom-0 right-0 h-[82%] opacity-38 mix-blend-luminosity" />
+
+        <div className="absolute left-[3%] right-[3%] top-[3%] z-10 flex items-start justify-between border-b-4 pb-3" style={{ borderColor: '#E63946' }}>
+          <div>
+            <div className="font-mono-data text-[9px] tracking-[0.34em]" style={{ color: '#D4AF37' }}>NEW YORK 1997 - IBM RS/6000 SP</div>
+            <div className="font-orbitron text-3xl font-black" style={{ color: '#E63946', textShadow: '3px 3px 0 #000, 0 0 24px rgba(230,57,70,0.46)', letterSpacing: 0 }}>DEEP BLUE</div>
+          </div>
+          <div className="flex gap-2">
+            {DEEPBLUE_LEVELS.map((entry, index) => (
+              <button
+                key={entry.title}
+                type="button"
+                onClick={() => resetLevel(index)}
+                className="h-8 w-8 font-orbitron text-[10px] font-black"
+                style={{
+                  color: levelIndex === index ? '#09090d' : '#F4E8D0',
+                  background: levelIndex === index ? '#D4AF37' : 'rgba(0,0,0,0.62)',
+                  border: '1px solid rgba(212,175,55,0.76)',
+                }}
+              >
+                {index + 1}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="absolute left-[4%] top-[19%] z-10 w-[24%] border-2 p-4" style={{ borderColor: '#E63946', background: 'rgba(8,8,10,0.84)', boxShadow: '5px 5px 0 #000' }}>
+          <div className="font-mono-data text-[9px] tracking-[0.22em]" style={{ color: '#FF6B35' }}>SEARCH DEPTH {levelIndex + 1}/4</div>
+          <h2 className="mt-1 font-orbitron text-xl font-black leading-tight" style={{ color: '#F4E8D0', letterSpacing: 0 }}>{level.title}</h2>
+          <p className="mt-3 font-rajdhani text-sm font-semibold leading-snug" style={{ color: 'rgba(244,232,208,0.78)' }}>{level.objective}</p>
+          <div className="mt-4 grid gap-2 font-mono-data text-[8px]" style={{ color: '#D4AF37' }}>
+            <div>NEXT PIECE: {pieces.find(piece => piece.id === currentMove?.pieceId)?.type.toUpperCase()}</div>
+            <div>TARGET NODE: {currentMove ? deepBlueCoord(currentMove.to[0], currentMove.to[1]) : 'COMPLETE'}</div>
+            <div>BAD BRANCHES: {errors}</div>
+          </div>
+        </div>
+
+        <div className="absolute left-1/2 top-[17%] z-10 w-[min(58vh,43vw)] -translate-x-1/2">
+          <div className="mb-3 border-2 p-3 text-center" style={{ borderColor: '#E63946', background: 'rgba(0,0,0,0.82)' }}>
+            <div className="font-orbitron text-sm font-black" style={{ color: locked ? '#D4AF37' : '#F4E8D0', letterSpacing: 0 }}>{message}</div>
+          </div>
+          <div className="grid aspect-square grid-cols-8 border-[6px] p-3" style={{ borderColor: '#24120e', background: '#24120e', boxShadow: '10px 10px 0 #000, 0 0 48px rgba(230,57,70,0.36)' }}>
+            {Array.from({ length: 64 }, (_, index) => {
+              const row = Math.floor(index / 8);
+              const col = index % 8;
+              const piece = deepBluePieceAt(pieces, row, col);
+              const light = (row + col) % 2 === 0;
+              const target = currentMove?.to[0] === row && currentMove.to[1] === col;
+              const legal = legalTargets.has(`${row},${col}`);
+              const selectedHere = piece?.id === selected;
+              return (
+                <button
+                  key={`${row}-${col}`}
+                  type="button"
+                  aria-label={`Chess ${deepBlueCoord(row, col)}`}
+                  onClick={() => piece && piece.side === 'machine' ? selectPiece(piece) : clickSquare(row, col)}
+                  className="relative flex aspect-square items-center justify-center transition-all hover:brightness-110"
+                  style={{
+                    background: light ? '#F4E8D0' : '#A9792F',
+                    boxShadow: selectedHere ? 'inset 0 0 0 4px #E63946' : legal ? 'inset 0 0 0 3px rgba(255,107,53,0.75)' : undefined,
+                  }}
+                >
+                  {(legal || target) && !piece && <span className="absolute h-3 w-3 rounded-full" style={{ background: target ? '#E63946' : 'rgba(10,14,39,0.42)' }} />}
+                  {piece && (
+                    <span
+                      className="relative z-10 font-serif text-[clamp(24px,4.6vh,46px)] leading-none"
+                      style={{
+                        color: piece.side === 'machine' ? '#F4E8D0' : '#E63946',
+                        WebkitTextStroke: piece.side === 'machine' ? '1px #0A0E27' : '1px #220405',
+                        filter: selectedHere ? 'drop-shadow(0 0 14px #FF6B35)' : 'drop-shadow(2px 4px 4px rgba(0,0,0,0.7))',
+                      }}
+                    >
+                      {DEEPBLUE_SYMBOLS[piece.type]}
+                    </span>
+                  )}
+                  <span className="absolute bottom-1 right-1 font-mono-data text-[7px]" style={{ color: light ? 'rgba(10,14,39,0.35)' : 'rgba(244,232,208,0.42)' }}>
+                    {deepBlueCoord(row, col)}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="absolute right-[4%] top-[19%] z-10 w-[24%] space-y-3">
+          <div className="border-2 p-4" style={{ borderColor: '#D4AF37', background: 'rgba(0,0,0,0.76)', boxShadow: '5px 5px 0 #000' }}>
+            <div className="font-orbitron text-base font-black" style={{ color: '#D4AF37', letterSpacing: 0 }}>ENGINE RECORD</div>
+            <div className="mt-3 grid gap-2 font-rajdhani text-sm font-semibold leading-tight" style={{ color: 'rgba(244,232,208,0.78)' }}>
+              <p>Deep Blue evaluated roughly 200 million chess positions per second.</p>
+              <p>Kasparov's defeat in 1997 became the public symbol of machine search surpassing elite human intuition.</p>
+              <p>This puzzle teaches candidate moves, forcing lines, sacrifices and mate nets.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => resetLevel()} className="py-2 font-orbitron text-[9px] font-bold" style={{ color: '#D4AF37', border: '1px solid #D4AF37', background: 'rgba(0,0,0,0.62)' }}>RESET</button>
+            <button type="button" onClick={onSolved} className="py-2 font-orbitron text-[9px] font-bold" style={{ color: '#33FF33', border: '1px solid #33FF33', background: 'rgba(51,255,51,0.1)' }}>EXIT</button>
+          </div>
+        </div>
+      </div>
+    </PuzzleShell>
+  );
+}
+
+export function AlphaGoPuzzle({ onSolved }: { onSolved: () => void }) {
+  const [board, setBoard] = useState<GoStone[][]>(() => makeGoBoard());
+  const [difficulty, setDifficulty] = useState<AlphaGoDifficulty>('world');
+  const [thinking, setThinking] = useState(false);
+  const [message, setMessage] = useState('YOU PLAY BLACK. CLAIM THE CENTER BEFORE THE MACHINE CONSOLIDATES.');
+  const [lastMove, setLastMove] = useState<{ row: number; col: number } | null>(null);
+  const [blackCaptures, setBlackCaptures] = useState(0);
+  const [whiteCaptures, setWhiteCaptures] = useState(0);
+  const [humanMoves, setHumanMoves] = useState(0);
+  const [solved, setSolved] = useState(false);
+  const score = scoreGoBoard(board);
+  const protocolReady = humanMoves >= 8 && (score.blackInfluence + blackCaptures * 1.8) >= (score.whiteInfluence + whiteCaptures * 1.8 - 0.5);
+
+  const reset = (nextDifficulty = difficulty) => {
+    play('click', 0.35);
+    setDifficulty(nextDifficulty);
+    setBoard(makeGoBoard());
+    setThinking(false);
+    setLastMove(null);
+    setBlackCaptures(0);
+    setWhiteCaptures(0);
+    setHumanMoves(0);
+    setSolved(false);
+    setMessage('YOU PLAY BLACK. CLAIM THE CENTER BEFORE THE MACHINE CONSOLIDATES.');
+  };
+
+  const chooseAiMove = (currentBoard: GoStone[][]) => {
+    let best: { row: number; col: number; score: number } | null = null;
+    const noise = difficulty === 'amateur' ? 1.15 : difficulty === 'professional' ? 0.55 : 0.22;
+    const center = (ALPHAGO_SIZE - 1) / 2;
+    for (let row = 0; row < ALPHAGO_SIZE; row++) {
+      for (let col = 0; col < ALPHAGO_SIZE; col++) {
+        if (currentBoard[row][col]) continue;
+        const attempt = playGoStone(currentBoard, row, col, 'white');
+        if (!attempt.legal) continue;
+        const after = scoreGoBoard(attempt.board);
+        const centerDist = Math.abs(row - center) + Math.abs(col - center);
+        const neighborBonus = [[row - 1, col], [row + 1, col], [row, col - 1], [row, col + 1]]
+          .filter(([nr, nc]) => nr >= 0 && nr < ALPHAGO_SIZE && nc >= 0 && nc < ALPHAGO_SIZE && currentBoard[nr][nc]).length;
+        const moveScore = after.whiteInfluence - after.blackInfluence + attempt.captured * 2.2 + (ALPHAGO_SIZE - centerDist) * 0.18 + neighborBonus * 0.28 + Math.random() * noise;
+        if (!best || moveScore > best.score) best = { row, col, score: moveScore };
+      }
+    }
+    return best;
+  };
+
+  const handleHumanMove = (row: number, col: number) => {
+    if (thinking || solved) return;
+    const attempt = playGoStone(board, row, col, 'black');
+    if (!attempt.legal) {
+      setMessage('ILLEGAL MOVE. THE GROUP HAS NO LIBERTIES.');
+      play('click', 0.22);
+      return;
+    }
+
+    play('click', 0.5);
+    setBoard(attempt.board);
+    setLastMove({ row, col });
+    setBlackCaptures(prev => prev + attempt.captured);
+    setHumanMoves(prev => prev + 1);
+    setThinking(true);
+    setMessage('ALPHAGO THINKING... POLICY NET SEARCHING VARIATIONS.');
+
+    window.setTimeout(() => {
+      const ai = chooseAiMove(attempt.board);
+      if (!ai) {
+        setThinking(false);
+        setSolved(true);
+        play('victory');
+        setMessage('NO LEGAL MACHINE MOVE. HUMAN VARIATION ACCEPTED.');
+        window.setTimeout(onSolved, 900);
+        return;
+      }
+      const aiAttempt = playGoStone(attempt.board, ai.row, ai.col, 'white');
+      setBoard(aiAttempt.board);
+      setLastMove({ row: ai.row, col: ai.col });
+      setWhiteCaptures(prev => prev + aiAttempt.captured);
+      setThinking(false);
+      const after = scoreGoBoard(aiAttempt.board);
+      const ready = humanMoves + 1 >= 8 && (after.blackInfluence + (blackCaptures + attempt.captured) * 1.8) >= (after.whiteInfluence + (whiteCaptures + aiAttempt.captured) * 1.8 - 0.5);
+      if (ready) {
+        setSolved(true);
+        play('victory');
+        setMessage('MOVE 37 VARIATION ACCEPTED. HUMAN STRATEGY BREAKS THE MACHINE LINE.');
+        window.setTimeout(onSolved, 1200);
+      } else {
+        setMessage('YOUR TURN. BUILD INFLUENCE, CONNECT GROUPS, PRESS THE CENTER.');
+      }
+    }, difficulty === 'world' ? 640 : 420);
+  };
+
+  return (
+    <PuzzleShell title="ALPHAGO vs LEE SEDOL: OPERATION MIND GAME" subtitle="Play black on a 9x9 board and outmaneuver the machine." accent="#CC0000">
+      <div
+        className="relative w-full overflow-hidden"
+        style={{
+          width: 'min(calc(100vw - 32px), calc((100dvh - 116px) * 16 / 9))',
+          aspectRatio: '16 / 9',
+          border: '2px solid rgba(204,0,0,0.82)',
+          background: '#050505',
+          boxShadow: '0 0 60px rgba(0,0,0,0.9), inset 0 0 90px rgba(0,0,0,0.78)',
+        }}
+      >
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `url(${ALPHAGO_BG})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'brightness(0.52) contrast(1.14) saturate(0.86)',
+          }}
+        />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.66), rgba(35,0,0,0.28) 44%, rgba(0,0,0,0.88))' }} />
+        <div className="absolute inset-0 opacity-25" style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 4px, rgba(255,0,0,0.16) 5px)' }} />
+
+        <div className="absolute left-[3%] right-[3%] top-[3%] z-10 flex items-center justify-between border-b-4 pb-3" style={{ borderColor: '#CC0000' }}>
+          <div>
+            <div className="font-mono-data text-[9px] tracking-[0.32em]" style={{ color: '#FFB84D' }}>15 MAR 2016 - SEOUL</div>
+            <div className="font-orbitron text-3xl font-black tracking-[0.12em]" style={{ color: '#FF3333', textShadow: '3px 3px 0 #000, 0 0 28px rgba(255,0,0,0.42)', letterSpacing: 0 }}>
+              ALPHAGO
+            </div>
+          </div>
+          <div className="flex gap-2">
+            {(['amateur', 'professional', 'world'] as AlphaGoDifficulty[]).map(option => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => reset(option)}
+                className="px-3 py-2 font-orbitron text-[9px] font-bold uppercase tracking-wider transition-all hover:brightness-125"
+                style={{
+                  color: difficulty === option ? '#050508' : '#FFB84D',
+                  background: difficulty === option ? '#FFB84D' : 'rgba(0,0,0,0.58)',
+                  border: '1px solid rgba(255,184,77,0.68)',
+                }}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="absolute left-[4%] top-[20%] z-10 w-[23%] border-2 p-4" style={{ borderColor: '#CC0000', background: 'linear-gradient(135deg, rgba(12,12,12,0.92), rgba(46,8,8,0.86))', boxShadow: '5px 5px 0 #000' }}>
+          <div className="font-mono-data text-[9px] tracking-[0.2em]" style={{ color: '#FF6666' }}>HUMAN - LEE SEDOL</div>
+          <div className="mt-1 font-orbitron text-4xl font-black" style={{ color: '#FFF', textShadow: '2px 2px 0 #CC0000', letterSpacing: 0 }}>{score.black}</div>
+          <div className="font-mono-data text-[9px]" style={{ color: '#888' }}>CAPTURES {blackCaptures}</div>
+          <div className="my-4 text-center font-orbitron text-xl font-black" style={{ color: '#FFF', background: '#CC0000', transform: 'rotate(-4deg)', boxShadow: '3px 3px 0 #000' }}>VS</div>
+          <div className="font-mono-data text-[9px] tracking-[0.2em]" style={{ color: '#FF6666' }}>MACHINE - ALPHAGO</div>
+          <div className="mt-1 font-orbitron text-4xl font-black" style={{ color: '#FFF', textShadow: '2px 2px 0 #CC0000', letterSpacing: 0 }}>{score.white}</div>
+          <div className="font-mono-data text-[9px]" style={{ color: '#888' }}>CAPTURES {whiteCaptures}</div>
+          <div className="mt-4 h-2" style={{ background: 'rgba(255,255,255,0.12)' }}>
+            <div className="h-full" style={{ width: `${Math.min(100, humanMoves / 8 * 100)}%`, background: protocolReady ? '#33FF33' : '#FFB84D', boxShadow: protocolReady ? '0 0 12px #33FF33' : 'none' }} />
+          </div>
+          <div className="mt-1 font-mono-data text-[8px]" style={{ color: protocolReady ? '#33FF33' : '#C4A265' }}>PROTOCOL {protocolReady ? 'READY' : `${Math.min(8, humanMoves)}/8`}</div>
+        </div>
+
+        <div className="absolute left-1/2 top-[18%] z-10 w-[min(52vh,40vw)] -translate-x-1/2">
+          <div className="mb-3 border-2 p-3 text-center" style={{ borderColor: '#CC0000', background: 'rgba(0,0,0,0.78)' }}>
+            <div className="font-orbitron text-sm font-black tracking-[0.18em]" style={{ color: thinking ? '#FF3333' : '#FFB84D', letterSpacing: 0 }}>
+              {message}
+            </div>
+          </div>
+          <div
+            className="relative grid aspect-square grid-cols-9 p-[7%]"
+            style={{
+              backgroundColor: '#D7AA6D',
+              backgroundImage: `
+                linear-gradient(#2A1C11 1.4px, transparent 1.4px),
+                linear-gradient(90deg, #2A1C11 1.4px, transparent 1.4px),
+                radial-gradient(circle at 25% 25%, rgba(42,28,17,0.36), transparent 5%),
+                radial-gradient(circle at 75% 25%, rgba(42,28,17,0.36), transparent 5%),
+                radial-gradient(circle at 50% 50%, rgba(42,28,17,0.42), transparent 5%),
+                radial-gradient(circle at 25% 75%, rgba(42,28,17,0.36), transparent 5%),
+                radial-gradient(circle at 75% 75%, rgba(42,28,17,0.36), transparent 5%)
+              `,
+              backgroundSize: '12.5% 12.5%, 12.5% 12.5%, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%',
+              backgroundPosition: '6.25% 6.25%, 6.25% 6.25%, center, center, center, center, center',
+              border: '5px solid #8B4513',
+              boxShadow: 'inset 0 0 42px rgba(0,0,0,0.8), 10px 10px 0 #000, 0 0 46px rgba(204,0,0,0.34)',
+            }}
+          >
+            {board.map((row, rowIndex) => row.map((stone, colIndex) => {
+              const isLast = lastMove?.row === rowIndex && lastMove.col === colIndex;
+              return (
+                <button
+                  key={`${rowIndex}-${colIndex}`}
+                  type="button"
+                  aria-label={`Go ${rowIndex + 1}-${colIndex + 1}`}
+                  onClick={() => handleHumanMove(rowIndex, colIndex)}
+                  className="relative flex aspect-square items-center justify-center transition-all hover:bg-black/10"
+                  style={{ background: 'transparent' }}
+                >
+                  {stone && (
+                    <span
+                      className="relative z-10 h-[72%] w-[72%] rounded-full"
+                      style={{
+                        background: stone === 'black'
+                          ? 'radial-gradient(circle at 30% 30%, #4a4a4a, #000)'
+                          : 'radial-gradient(circle at 30% 30%, #fff, #cfcfcf)',
+                        boxShadow: isLast
+                          ? `0 0 0 3px #CC0000, 0 0 18px ${stone === 'black' ? '#000' : '#fff'}`
+                          : '2px 2px 5px rgba(0,0,0,0.7)',
+                      }}
+                    />
+                  )}
+                </button>
+              );
+            }))}
+          </div>
+        </div>
+
+        <div className="absolute right-[4%] top-[20%] z-10 w-[24%] space-y-3">
+          <div className="border-2 p-4" style={{ borderColor: '#CC0000', background: 'rgba(0,0,0,0.76)', boxShadow: '5px 5px 0 #000' }}>
+            <div className="font-orbitron text-base font-black" style={{ color: '#FF3333', letterSpacing: 0 }}>HISTORICAL RECORD</div>
+            <div className="mt-3 grid gap-2 font-rajdhani text-sm font-semibold leading-tight" style={{ color: 'rgba(255,255,255,0.74)' }}>
+              <p>AlphaGo vencio 4-1 a Lee Sedol. La partida 4 fue la unica victoria humana.</p>
+              <p>Go tiene mas posiciones legales que atomos en el universo observable.</p>
+              <p>La maquina combino redes neuronales, aprendizaje por refuerzo y busqueda Monte Carlo.</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button type="button" onClick={() => reset()} className="py-2 font-orbitron text-[9px] font-bold" style={{ color: '#FFB84D', border: '1px solid #FFB84D', background: 'rgba(0,0,0,0.62)' }}>RESET</button>
+            <button type="button" onClick={() => handleHumanMove(4, 4)} className="py-2 font-orbitron text-[9px] font-bold" style={{ color: '#FFF', border: '1px solid #CC0000', background: 'rgba(204,0,0,0.24)' }}>CENTER</button>
+            <button type="button" onClick={onSolved} className="py-2 font-orbitron text-[9px] font-bold" style={{ color: '#33FF33', border: '1px solid #33FF33', background: 'rgba(51,255,51,0.1)' }}>EXIT</button>
+          </div>
+        </div>
+      </div>
+    </PuzzleShell>
+  );
+}
+
 function SequencePuzzle({
   config,
   solved,
@@ -1854,6 +2523,8 @@ export default function EventPopup() {
     if (evt.id === 'turing') return <TuringPuzzle onSolved={handlePuzzleSolved} />;
     if (evt.id === 'moore') return <MoorePuzzle onSolved={handlePuzzleSolved} />;
     if (evt.id === 'lisp') return <LispPuzzle onSolved={handlePuzzleSolved} difficulty={3} />;
+    if (evt.id === 'deepblue') return <DeepBluePuzzle onSolved={handlePuzzleSolved} />;
+    if (evt.id === 'alphago') return <AlphaGoPuzzle onSolved={handlePuzzleSolved} />;
     if (evt.id === 'transformers') return <AgiNexusPuzzle onSolved={handlePuzzleSolved} />;
     if (classicPuzzleMap[evt.id]) return <ClassicTechPuzzle eventId={evt.id} onSolved={handlePuzzleSolved} />;
   }
