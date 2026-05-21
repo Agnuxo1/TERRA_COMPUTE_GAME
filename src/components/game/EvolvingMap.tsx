@@ -1,6 +1,7 @@
 import { continents, useGame } from '../../App';
 import { useEffect, useState, useRef, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { playSfx } from '../../hooks/useSound';
+import { getFactionSprite } from './factionSprites';
 
 // ─── SOUND PATHS ───
 function getPlaneSound(year: number): string {
@@ -169,30 +170,6 @@ const continentHitZones: Record<string, { left: string; top: string; width: stri
   in: { left: '60%', top: '44%', width: '13%', height: '22%' },
   af: { left: '42%', top: '35%', width: '22%', height: '36%' },
   oc: { left: '73%', top: '66%', width: '23%', height: '24%' },
-};
-
-const buildingSpriteMap: Record<string, string> = {
-  factory: '/assets/sprites/terra-factory.png',
-  chipfab: '/assets/sprites/terra-factory.png',
-  coal: '/assets/sprites/terra-power-plant.png',
-  nuclear: '/assets/sprites/terra-power-plant.png',
-  solar: '/assets/sprites/terra-power-plant.png',
-  housing: '/assets/sprites/terra-city.png',
-  hospital: '/assets/sprites/terra-city.png',
-  farm: '/assets/sprites/terra-farm.png',
-  datacenter: '/assets/sprites/terra-datacenter.png',
-  gpucluster: '/assets/sprites/terra-datacenter.png',
-  mainframe: '/assets/sprites/terra-datacenter.png',
-  super: '/assets/sprites/terra-datacenter.png',
-  aifactory: '/assets/sprites/terra-ai-factory.png',
-  robot: '/assets/sprites/terra-ai-factory.png',
-  lab: '/assets/sprites/terra-lab.png',
-  uni: '/assets/sprites/terra-university.png',
-  school: '/assets/sprites/terra-university.png',
-  market: '/assets/sprites/terra-market.png',
-  seaport: '/assets/sprites/terra-seaport.png',
-  satellite: '/assets/sprites/terra-seaport.png',
-  defense: '/assets/sprites/terra-defense-bunker.png',
 };
 
 export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
@@ -649,7 +626,7 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
       {state.buildingIcons.map((icon, i) => {
         const isCompute = ['lab', 'uni', 'mainframe', 'super', 'datacenter', 'gpucluster', 'aifactory'].includes(icon.type);
         const isSatellite = icon.type === 'satellite';
-        const spriteImg = buildingSpriteMap[icon.type];
+        const spriteImg = getFactionSprite(icon.type, state.playerContinent);
         const size = isCompute || icon.type === 'aifactory' ? 46 : isSatellite ? 40 : 42;
         return (
           <div

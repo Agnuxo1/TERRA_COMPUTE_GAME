@@ -2,6 +2,7 @@ import { useRef, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactP
 import { buildings, continents, territoryContinents, useGame } from '../../App';
 import { contColor, getCentroid, territories } from './RiskMap';
 import { play } from '../../hooks/useSound';
+import { getFactionSprite } from './factionSprites';
 
 interface ContinentCommandMapProps {
   onExit: () => void;
@@ -28,30 +29,6 @@ const factionCardMap: Record<string, string> = {
   sa: '/assets/cards/continent-southamerica.png',
   in: '/assets/cards/continent-india.png',
   oc: '/assets/cards/continent-oceania.png',
-};
-
-const spriteMap: Record<string, string> = {
-  factory: '/assets/sprites/terra-factory.png',
-  chipfab: '/assets/sprites/terra-factory.png',
-  coal: '/assets/sprites/terra-power-plant.png',
-  nuclear: '/assets/sprites/terra-power-plant.png',
-  solar: '/assets/sprites/terra-power-plant.png',
-  housing: '/assets/sprites/terra-city.png',
-  hospital: '/assets/sprites/terra-city.png',
-  farm: '/assets/sprites/terra-farm.png',
-  datacenter: '/assets/sprites/terra-datacenter.png',
-  gpucluster: '/assets/sprites/terra-datacenter.png',
-  mainframe: '/assets/sprites/terra-datacenter.png',
-  super: '/assets/sprites/terra-datacenter.png',
-  aifactory: '/assets/sprites/terra-ai-factory.png',
-  robot: '/assets/sprites/terra-ai-factory.png',
-  lab: '/assets/sprites/terra-lab.png',
-  uni: '/assets/sprites/terra-university.png',
-  school: '/assets/sprites/terra-university.png',
-  market: '/assets/sprites/terra-market.png',
-  seaport: '/assets/sprites/terra-seaport.png',
-  satellite: '/assets/sprites/terra-seaport.png',
-  defense: '/assets/sprites/terra-defense-bunker.png',
 };
 
 function getBounds(continentId: string) {
@@ -93,8 +70,8 @@ function makeRoadPath(from: [number, number], to: [number, number], i: number): 
   return `M ${from[0]} ${from[1]} Q ${mx} ${my + bend} ${to[0]} ${to[1] + 4}`;
 }
 
-function StructureIcon({ type, tone, category }: { type: string; tone: string; category: string }) {
-  const sprite = spriteMap[type];
+function StructureIcon({ type, tone, category, factionId }: { type: string; tone: string; category: string; factionId: string }) {
+  const sprite = getFactionSprite(type, factionId);
   if (sprite) {
     const width = type === 'truck' ? 12 : category === 'compute' || type === 'aifactory' ? 42 : 38;
     const height = type === 'truck' ? 8 : category === 'compute' || type === 'aifactory' ? 38 : 34;
@@ -469,7 +446,7 @@ export default function ContinentCommandMap({ onExit }: ContinentCommandMapProps
                 filter={isPower ? 'url(#living-map-glow)' : undefined}
               />
               <image
-                href="/assets/sprites/terra-truck.png"
+                href={getFactionSprite('truck', continentId)}
                 x="-3"
                 y="-2.5"
                 width="6"
@@ -498,7 +475,7 @@ export default function ContinentCommandMap({ onExit }: ContinentCommandMapProps
               style={{ cursor: 'grab', touchAction: 'none' }}
             >
               <ellipse cx="0" cy="10" rx="12" ry="3.2" fill="#050508" opacity="0.5" />
-              <StructureIcon type={icon.type} tone={tone} category={category} />
+              <StructureIcon type={icon.type} tone={tone} category={category} factionId={continentId} />
             </g>
           );
         })}
