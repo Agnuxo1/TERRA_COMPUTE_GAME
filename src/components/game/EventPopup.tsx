@@ -1641,7 +1641,7 @@ const DEEPBLUE_LEVELS: DeepBlueLevel[] = [
     pieces: [
       { id: 'wk', type: 'king', side: 'machine', row: 7, col: 6 },
       { id: 'wq', type: 'queen', side: 'machine', row: 7, col: 3 },
-      { id: 'wb', type: 'bishop', side: 'machine', row: 3, col: 2 },
+      { id: 'wb', type: 'bishop', side: 'machine', row: 5, col: 3 },
       { id: 'bk', type: 'king', side: 'human', row: 0, col: 6 },
       { id: 'br', type: 'rook', side: 'human', row: 0, col: 7 },
       { id: 'bhp', type: 'pawn', side: 'human', row: 1, col: 7 },
