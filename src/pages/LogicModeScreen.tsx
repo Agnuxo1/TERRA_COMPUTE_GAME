@@ -336,7 +336,7 @@ export default function LogicModeScreen() {
                 CHECKERS LEARNING MACHINE
               </h2>
               <p className="mt-2 max-w-2xl font-rajdhani text-base font-semibold leading-snug" style={{ color: 'var(--text-secondary)' }}>
-                Ajusta una funcion de evaluacion para que el programa de damas de Arthur Samuel aprenda por auto-juego: material, centro, movilidad y tasa de aprendizaje.
+                Tune an evaluation function so Arthur Samuel's checkers program can learn through self-play: material, center control, mobility, and learning rate.
               </p>
               <div
                 className="mt-5 w-full max-w-xs py-2 text-center font-orbitron text-[10px] font-bold tracking-wider"
@@ -397,7 +397,7 @@ export default function LogicModeScreen() {
                 BRUTE FORCE CHECKMATE
               </h2>
               <p className="mt-2 max-w-2xl font-rajdhani text-base font-semibold leading-snug" style={{ color: 'var(--text-secondary)' }}>
-                Resuelve cuatro lineas tacticas de ajedrez: apertura, control central, sacrificio calculado y red de mate. Cada movimiento incorrecto representa una rama falsa del arbol de busqueda.
+                Solve four tactical chess lines: opening book, center control, calculated sacrifice, and mate net. Every wrong move represents a false branch in the search tree.
               </p>
               <div
                 className="mt-5 w-full max-w-xs py-2 text-center font-orbitron text-[10px] font-bold tracking-wider"
@@ -458,7 +458,7 @@ export default function LogicModeScreen() {
                 OPERATION MIND GAME
               </h2>
               <p className="mt-2 max-w-2xl font-rajdhani text-base font-semibold leading-snug" style={{ color: 'var(--text-secondary)' }}>
-                Juega negras en un tablero Go 9x9 contra una IA heuristica inspirada en AlphaGo. Reclama el centro, conecta grupos y supera la linea de la maquina.
+                Play black on a 9x9 Go board against an AlphaGo-inspired heuristic AI. Claim the center, connect groups, and break the machine line.
               </p>
               <div
                 className="mt-5 w-full max-w-xs py-2 text-center font-orbitron text-[10px] font-bold tracking-wider"
@@ -674,7 +674,7 @@ export default function LogicModeScreen() {
                 AGI NEXUS: THE TRANSFORMER PROTOCOL
               </h2>
               <p className="mt-2 max-w-2xl font-rajdhani text-base font-semibold leading-snug" style={{ color: 'var(--text-secondary)' }}>
-                Ordena cartas de Data, Weights, Attention, Processing, Activation y Backprop para estabilizar una maquina sovietica de control neural.
+                Sequence Data, Weights, Attention, Processing, Activation, and Backprop cards to stabilize a Soviet neural-control machine.
               </p>
               <div
                 className="mt-5 w-full max-w-xs py-2 text-center font-orbitron text-[10px] font-bold tracking-wider"
