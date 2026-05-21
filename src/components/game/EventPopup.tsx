@@ -284,6 +284,7 @@ const TURING_DIFFICULTIES: Record<TuringDifficultyId, {
 };
 
 const MOORE_BG = '/assets/puzzles/moore-logic-machine.png';
+const LISP_BG = '/assets/puzzles/lisp-dartmouth-lab.png';
 export type MooreDifficultyId = 1 | 2 | 3 | 4 | 5;
 type MooreSignal = 'A' | '!A' | 'B' | '!B' | 'C' | '!C';
 type MooreInput = Record<'A' | 'B' | 'C', boolean>;
@@ -978,6 +979,14 @@ export function LispPuzzle({
   const { value, trace } = evaluateLispPipeline(config.input, slots);
   const isCorrect = value === config.target && slots.every(Boolean);
   const agiPotential = Math.round((slots.filter(Boolean).length / config.slots) * 82 + (isCorrect ? 18 : 0));
+  const slotPositions = config.slots === 1
+    ? ['50.2%']
+    : config.slots === 2
+      ? ['44.6%', '55.8%']
+      : config.slots === 3
+        ? ['41.0%', '51.4%', '62.0%']
+        : ['36.8%', '46.4%', '56.0%', '65.6%'];
+  const dataPipeWidth = config.slots === 3 ? '34%' : config.slots === 4 ? '39%' : '28%';
 
   useEffect(() => {
     setSlots(Array.from({ length: config.slots }, () => null));
@@ -1017,34 +1026,53 @@ export function LispPuzzle({
   return (
     <PuzzleShell title={config.title} subtitle={config.subtitle} accent="#C4A265">
       <div
-        className="relative w-full overflow-hidden"
+        className="relative w-full select-none overflow-hidden"
         style={{
           width: 'min(calc(100vw - 32px), calc((100dvh - 122px) * 16 / 9))',
           aspectRatio: '16 / 9',
-          border: '2px solid #C4A265',
-          background: '#080808',
+          border: '2px solid rgba(196,162,101,0.88)',
+          background: '#050506',
+          boxShadow: '0 0 46px rgba(0,0,0,0.78), inset 0 0 44px rgba(196,162,101,0.16)',
         }}
       >
         <div
           className="absolute inset-0"
           style={{
-            backgroundImage: `url(${eventCardMap.lisp})`,
+            backgroundImage: `url(${LISP_BG})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            filter: 'grayscale(0.7) brightness(0.34) contrast(1.25) sepia(0.22)',
+            filter: 'brightness(0.72) contrast(1.16) saturate(0.92)',
           }}
         />
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
             background:
-              'radial-gradient(circle at 52% 45%, rgba(0,240,255,0.16), transparent 32%), repeating-linear-gradient(0deg, transparent, transparent 25px, rgba(196,162,101,0.14) 26px), repeating-linear-gradient(90deg, transparent, transparent 25px, rgba(51,255,51,0.08) 26px), linear-gradient(90deg, rgba(5,5,8,0.88), rgba(5,5,8,0.36) 45%, rgba(5,5,8,0.88))',
+              'radial-gradient(circle at 51% 42%, rgba(0,240,255,0.14), transparent 24%), radial-gradient(circle at 50% 58%, rgba(51,255,51,0.12), transparent 16%), linear-gradient(90deg, rgba(5,5,8,0.44), rgba(5,5,8,0.08) 48%, rgba(5,5,8,0.36)), repeating-linear-gradient(0deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 4px)',
           }}
         />
+        <div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 0 90px rgba(0,0,0,0.86)' }} />
 
-        <div className="absolute left-[4%] top-[9%] w-[20%]">
-          <div className="font-mono-data text-[9px] tracking-[0.22em]" style={{ color: '#C4A265' }}>CODE BLOCK BANK</div>
-          <div className="mt-3 flex flex-col gap-2">
+        <div className="absolute left-[2.3%] right-[2.3%] top-[2.2%] z-20 flex items-center justify-between border px-4 py-2"
+          style={{ borderColor: 'rgba(196,162,101,0.62)', background: 'linear-gradient(90deg, rgba(6,7,8,0.86), rgba(20,18,14,0.72), rgba(6,7,8,0.86))' }}>
+          <div>
+            <div className="font-mono-data text-[8px] tracking-[0.36em]" style={{ color: '#FFB84D' }}>DARTMOUTH SYMBOLIC PROCESSING TERMINAL</div>
+            <div className="font-orbitron text-lg font-black" style={{ color: '#FFF4C2', letterSpacing: 0 }}>PROJECT LISP 1958</div>
+          </div>
+          <div className="hidden items-center gap-3 md:flex">
+            <span className="h-2 w-2 rounded-full" style={{ background: '#33FF33', boxShadow: '0 0 12px #33FF33' }} />
+            <span className="font-mono-data text-[9px] tracking-[0.22em]" style={{ color: '#C4A265' }}>SECURITY OMEGA</span>
+          </div>
+        </div>
+
+        <div className="absolute left-[8.1%] top-[10.7%] z-10 w-[21.4%]">
+          <div className="border px-3 py-2" style={{ borderColor: 'rgba(196,162,101,0.46)', background: 'rgba(5,5,8,0.58)', boxShadow: 'inset 0 0 22px rgba(196,162,101,0.10)' }}>
+            <div className="font-mono-data text-[8px] tracking-[0.24em]" style={{ color: '#C4A265' }}>CODE BLOCK BANK</div>
+            <div className="mt-1 font-rajdhani text-xs font-semibold leading-tight" style={{ color: 'rgba(255,244,194,0.72)' }}>
+              Drag cartridges into the machine sockets.
+            </div>
+          </div>
+          <div className="mt-2 grid grid-cols-1 gap-1.5">
             {(Object.keys(LISP_BLOCKS) as LispBlockId[]).map(block => {
               const meta = LISP_BLOCKS[block];
               const selected = selectedBlock === block;
@@ -1058,104 +1086,105 @@ export function LispPuzzle({
                     play('click', 0.4);
                     setSelectedBlock(block);
                   }}
-                  className="group relative overflow-hidden px-3 py-2 text-left transition-all hover:brightness-125"
+                  className="group relative overflow-hidden px-3 py-2 text-left transition-all hover:-translate-y-0.5 hover:brightness-125"
                   style={{
                     color: selected ? '#050508' : '#FFF4C2',
-                    background: selected ? meta.color : 'rgba(5,5,8,0.78)',
-                    border: `1px solid ${meta.color}`,
-                    boxShadow: selected ? `0 0 18px ${meta.color}77` : '0 8px 18px rgba(0,0,0,0.45)',
+                    background: selected
+                      ? `linear-gradient(90deg, ${meta.color}, #FFF4C2)`
+                      : 'linear-gradient(90deg, rgba(5,5,8,0.84), rgba(38,31,21,0.72))',
+                    border: `1px solid ${selected ? '#FFF4C2' : meta.color}`,
+                    boxShadow: selected ? `0 0 22px ${meta.color}AA` : '0 8px 18px rgba(0,0,0,0.48), inset 4px 0 0 rgba(196,162,101,0.35)',
                   }}
                 >
+                  <div className="absolute right-2 top-1 h-2 w-8" style={{ borderTop: `2px solid ${selected ? '#050508' : meta.color}`, borderBottom: `2px solid ${selected ? '#050508' : meta.color}` }} />
                   <div className="font-orbitron text-sm font-black" style={{ letterSpacing: 0 }}>{meta.label}</div>
-                  <div className="font-mono-data text-[8px]" style={{ color: selected ? '#050508' : meta.color }}>{meta.description}</div>
+                  <div className="font-mono-data text-[8px] tracking-[0.18em]" style={{ color: selected ? '#050508' : meta.color }}>{meta.description}</div>
                 </button>
               );
             })}
           </div>
         </div>
 
-        <div className="absolute left-[27%] top-[11%] h-[74%] w-[47%]">
-          <div className="flex items-center justify-between">
+        <div className="absolute left-[33.9%] top-[23.6%] z-10 w-[34.8%]">
+          <div className="flex items-start justify-between gap-3 rounded-sm border px-3 py-2"
+            style={{ borderColor: 'rgba(196,162,101,0.56)', background: 'rgba(5,5,8,0.66)', boxShadow: '0 14px 24px rgba(0,0,0,0.32)' }}>
             <div>
-              <div className="font-mono-data text-[9px] tracking-[0.22em]" style={{ color: '#00F0FF' }}>LISP EVOLUTION BOARD</div>
-              <div className="font-orbitron text-base font-black" style={{ color: '#FFF4C2', letterSpacing: 0 }}>{config.mission}</div>
+              <div className="font-mono-data text-[8px] tracking-[0.22em]" style={{ color: '#00F0FF' }}>SYMBOLIC CIRCUIT</div>
+              <div className="font-orbitron text-sm font-black" style={{ color: '#FFF4C2', letterSpacing: 0 }}>{config.mission}</div>
             </div>
-            <div className="font-mono-data text-[9px] px-2 py-1" style={{ color: '#050508', background: isCorrect ? '#33FF33' : '#C4A265' }}>
+            <div className="shrink-0 px-2 py-1 font-mono-data text-[8px]" style={{ color: '#050508', background: isCorrect ? '#33FF33' : '#C4A265' }}>
               TARGET {config.target}
             </div>
           </div>
+        </div>
 
-          <div className="absolute left-0 right-0 top-[28%] h-[42%]">
-            <svg className="absolute inset-0 h-full w-full" viewBox="0 0 620 230" aria-hidden="true">
-              <defs>
-                <filter id="lisp-glow">
-                  <feGaussianBlur stdDeviation="4" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-              <path d="M 18 115 H 110" stroke="#00F0FF" strokeWidth="8" strokeLinecap="round" filter="url(#lisp-glow)" />
-              {slots.map((slot, index) => {
-                const x = 140 + index * 120;
-                return (
-                  <g key={index}>
-                    <rect x={x} y="58" width="88" height="114" fill="rgba(5,5,8,0.72)" stroke={slot ? LISP_BLOCKS[slot].color : '#C4A265'} strokeWidth="3" />
-                    <path d={`M ${x - 30} 115 H ${x}`} stroke={slot ? LISP_BLOCKS[slot].color : '#4B535B'} strokeWidth="7" strokeLinecap="round" />
-                    <path d={`M ${x + 88} 115 H ${x + 118}`} stroke={slot ? LISP_BLOCKS[slot].color : '#4B535B'} strokeWidth="7" strokeLinecap="round" />
-                  </g>
-                );
-              })}
-              <path d={`M ${140 + slots.length * 120 - 2} 115 H 592`} stroke={isCorrect ? '#33FF33' : '#C4A265'} strokeWidth="8" strokeLinecap="round" filter={isCorrect ? 'url(#lisp-glow)' : undefined} />
-            </svg>
-            {slots.map((slot, index) => {
-              const left = `${(140 + index * 120 + 44) / 620 * 100}%`;
-              return (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => slot ? clearSlot(index) : placeBlock(index)}
-                  onDragOver={event => event.preventDefault()}
-                  onDrop={event => {
-                    event.preventDefault();
-                    const block = event.dataTransfer.getData('text/plain') as LispBlockId;
-                    if (LISP_BLOCKS[block]) placeBlock(index, block);
-                  }}
-                  className="absolute flex -translate-x-1/2 -translate-y-1/2 items-center justify-center font-orbitron text-sm font-black"
-                  style={{
-                    left,
-                    top: '50%',
-                    width: 'clamp(70px, 7.8vw, 98px)',
-                    height: 'clamp(86px, 10vw, 124px)',
-                    color: slot ? '#050508' : '#C4A265',
-                    background: slot ? LISP_BLOCKS[slot].color : 'rgba(5,5,8,0.84)',
-                    border: `2px solid ${slot ? LISP_BLOCKS[slot].color : '#C4A265'}`,
-                    boxShadow: slot ? `0 0 24px ${LISP_BLOCKS[slot].color}77` : 'inset 0 0 18px rgba(196,162,101,0.18)',
-                  }}
-                >
-                  {slot || `S${index + 1}`}
-                </button>
-              );
-            })}
+        <svg className="absolute left-[31.6%] top-[48.7%] z-[8] h-[22%] w-[39%] overflow-visible" viewBox="0 0 640 180" aria-hidden="true">
+          <defs>
+            <filter id="lisp-flow-glow">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          <path d="M 0 92 H 68" stroke="#00F0FF" strokeWidth="8" strokeLinecap="round" filter="url(#lisp-flow-glow)" opacity="0.86" />
+          <path d="M 570 92 H 640" stroke={isCorrect ? '#33FF33' : '#C4A265'} strokeWidth="8" strokeLinecap="round" filter="url(#lisp-flow-glow)" opacity="0.9" />
+          <path d="M 70 92 C 155 20, 258 20, 320 92 C 395 170, 480 164, 570 92" fill="none" stroke={isCorrect ? '#33FF33' : '#C4A265'} strokeWidth="3" strokeDasharray="7 10" opacity="0.72" />
+        </svg>
+
+        <div className="absolute left-[31%] top-[63.8%] z-[9] h-[2px]" style={{ width: dataPipeWidth, background: isCorrect ? '#33FF33' : '#00F0FF', boxShadow: `0 0 18px ${isCorrect ? '#33FF33' : '#00F0FF'}` }} />
+
+        {slots.map((slot, index) => (
+          <button
+            key={index}
+            type="button"
+            onClick={() => slot ? clearSlot(index) : placeBlock(index)}
+            onDragOver={event => event.preventDefault()}
+            onDrop={event => {
+              event.preventDefault();
+              const block = event.dataTransfer.getData('text/plain') as LispBlockId;
+              if (LISP_BLOCKS[block]) placeBlock(index, block);
+            }}
+            className="absolute z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center transition-all hover:brightness-125"
+            style={{
+              left: slotPositions[index],
+              top: config.slots <= 3 ? '52.7%' : '54.5%',
+              width: config.slots <= 3 ? 'clamp(64px, 6.2vw, 94px)' : 'clamp(56px, 5.35vw, 82px)',
+              height: config.slots <= 3 ? 'clamp(86px, 8.1vw, 122px)' : 'clamp(76px, 7.1vw, 108px)',
+              color: slot ? '#050508' : '#C4A265',
+              background: slot
+                ? `linear-gradient(180deg, #FFF4C2 0%, ${LISP_BLOCKS[slot].color} 34%, ${LISP_BLOCKS[slot].color} 100%)`
+                : 'linear-gradient(180deg, rgba(12,12,10,0.30), rgba(5,5,8,0.72))',
+              border: `2px solid ${slot ? LISP_BLOCKS[slot].color : 'rgba(196,162,101,0.76)'}`,
+              boxShadow: slot
+                ? `0 0 28px ${LISP_BLOCKS[slot].color}99, inset 0 0 14px rgba(255,244,194,0.30)`
+                : 'inset 0 0 24px rgba(0,0,0,0.78), 0 0 16px rgba(196,162,101,0.18)',
+            }}
+          >
+            <span className="font-orbitron text-sm font-black" style={{ letterSpacing: 0 }}>{slot || `S${index + 1}`}</span>
+            <span className="mt-1 h-1 w-9" style={{ background: slot ? '#050508' : '#C4A265', opacity: 0.8 }} />
+          </button>
+        ))}
+
+        <div className="absolute bottom-[8.8%] left-[31.7%] z-20 grid w-[37%] grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <div className="p-2" style={{ background: 'rgba(5,5,8,0.74)', border: '1px solid rgba(0,240,255,0.72)', boxShadow: '0 0 18px rgba(0,240,255,0.16)' }}>
+            <div className="font-mono-data text-[8px] tracking-[0.18em]" style={{ color: '#00F0FF' }}>RAW DATA REEL</div>
+            <div className="mt-1 font-mono-data text-[10px]" style={{ color: '#FFF4C2' }}>{formatLispValue(config.input)}</div>
           </div>
-
-          <div className="absolute bottom-0 left-0 right-0 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-            <div className="p-2" style={{ background: 'rgba(5,5,8,0.78)', border: '1px solid #00F0FF' }}>
-              <div className="font-mono-data text-[8px]" style={{ color: '#00F0FF' }}>RAW DATA STREAM</div>
-              <div className="mt-1 font-mono-data text-[11px]" style={{ color: '#FFF4C2' }}>{formatLispValue(config.input)}</div>
-            </div>
-            <div className="font-orbitron text-lg font-black" style={{ color: '#C4A265' }}>→</div>
-            <div className="p-2" style={{ background: 'rgba(5,5,8,0.78)', border: `1px solid ${isCorrect ? '#33FF33' : '#C4A265'}` }}>
-              <div className="font-mono-data text-[8px]" style={{ color: isCorrect ? '#33FF33' : '#C4A265' }}>{config.output}</div>
-              <div className="mt-1 font-mono-data text-[11px]" style={{ color: isCorrect ? '#33FF33' : '#FFF4C2' }}>{formatLispValue(value)}</div>
-            </div>
+          <div className="font-orbitron text-lg font-black" style={{ color: '#C4A265' }}>{'>'}</div>
+          <div className="p-2" style={{ background: 'rgba(5,5,8,0.74)', border: `1px solid ${isCorrect ? '#33FF33' : 'rgba(196,162,101,0.72)'}`, boxShadow: isCorrect ? '0 0 18px rgba(51,255,51,0.22)' : 'none' }}>
+            <div className="font-mono-data text-[8px] tracking-[0.18em]" style={{ color: isCorrect ? '#33FF33' : '#C4A265' }}>{config.output}</div>
+            <div className="mt-1 font-mono-data text-[10px]" style={{ color: isCorrect ? '#33FF33' : '#FFF4C2' }}>{formatLispValue(value)}</div>
           </div>
         </div>
 
-        <div className="absolute right-[4%] top-[10%] w-[18%]">
-          <div className="font-mono-data text-[9px] tracking-[0.22em]" style={{ color: '#C4A265' }}>STATUS INDICATORS</div>
-          <div className="mt-4 space-y-4">
+        <div className="absolute right-[6.4%] top-[14.2%] z-10 w-[21%]">
+          <div className="border px-3 py-2" style={{ borderColor: 'rgba(196,162,101,0.52)', background: 'rgba(5,5,8,0.58)', boxShadow: 'inset 0 0 24px rgba(0,240,255,0.10)' }}>
+            <div className="font-mono-data text-[8px] tracking-[0.22em]" style={{ color: '#C4A265' }}>STATUS INDICATORS</div>
+            <div className="mt-1 font-orbitron text-xs font-black" style={{ color: '#FFF4C2', letterSpacing: 0 }}>COUNTER-AI WATCH</div>
+          </div>
+          <div className="mt-3 space-y-3">
             <div>
               <div className="mb-1 flex justify-between font-mono-data text-[8px]" style={{ color: '#00F0FF' }}><span>AGI POTENTIAL</span><span>{agiPotential}%</span></div>
               <div className="h-3" style={{ background: 'rgba(0,240,255,0.15)', border: '1px solid #00F0FF' }}>
@@ -1169,8 +1198,8 @@ export function LispPuzzle({
               </div>
             </div>
           </div>
-          <div className="mt-5 p-3" style={{ background: 'rgba(5,5,8,0.76)', border: '1px solid rgba(196,162,101,0.55)' }}>
-            <div className="font-mono-data text-[8px] tracking-[0.18em]" style={{ color: '#C4A265' }}>TRACE</div>
+          <div className="mt-4 p-3" style={{ background: 'rgba(5,5,8,0.70)', border: '1px solid rgba(196,162,101,0.55)', boxShadow: '0 12px 24px rgba(0,0,0,0.34)' }}>
+            <div className="font-mono-data text-[8px] tracking-[0.18em]" style={{ color: '#C4A265' }}>SYMBOL TRACE</div>
             <div className="mt-2 space-y-1">
               {trace.map((step, index) => (
                 <div key={index} className="font-mono-data text-[8px]" style={{ color: index === trace.length - 1 ? '#FFF4C2' : 'var(--text-secondary)' }}>
@@ -1184,7 +1213,6 @@ export function LispPuzzle({
     </PuzzleShell>
   );
 }
-
 function SequencePuzzle({
   config,
   solved,

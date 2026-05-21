@@ -5,7 +5,7 @@ import type { LispDifficultyId, MooreDifficultyId, PerceptronDifficultyId, Turin
 import { play } from '../hooks/useSound';
 
 const LOGIC_CARD = '/assets/cards/LOGIC.png';
-const LISP_CARD = '/assets/cards/event-lisp.png';
+const LISP_CARD = '/assets/puzzles/lisp-dartmouth-lab.png';
 const MOORE_CARD = '/assets/puzzles/moore-logic-machine.png';
 const PERCEPTRON_CARD = '/assets/puzzles/perceptron-weight-board.png';
 
