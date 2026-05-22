@@ -1,5 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 
+type GoogleTranslateWindow = Window & {
+  google?: {
+    translate?: {
+      TranslateElement: new (
+        options: { pageLanguage: string; includedLanguages: string; layout: number },
+        elementId: string
+      ) => unknown;
+    };
+  };
+  googleTranslateElementInit?: () => void;
+};
+
 const languages: Record<string, string> = {
   en: 'English',
   es: 'Espanol',
@@ -64,21 +76,23 @@ export default function Translator() {
       return;
     }
 
-    if (!(window as any).google?.translate?.TranslateElement) {
+    const translateWindow = window as GoogleTranslateWindow;
+
+    if (!translateWindow.google?.translate?.TranslateElement) {
       const existing = document.getElementById('google-translate-script');
       if (existing) {
         setTimeout(() => applyLanguage(code), 1000);
         return;
       }
 
-      (window as any).googleTranslateElementInit = () => {
+      translateWindow.googleTranslateElementInit = () => {
         try {
-          new (window as any).google.translate.TranslateElement(
+          new translateWindow.google!.translate!.TranslateElement(
             { pageLanguage: 'en', includedLanguages: Object.keys(languages).join(','), layout: 0 },
             'google-translate-container'
           );
           setTimeout(() => applyLanguage(code), 800);
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
       };
 
       const script = document.createElement('script');

@@ -229,7 +229,7 @@ export function isAudioEnabled() {
   return enabled;
 }
 
-export function play(name: SoundName, _vol = 1) {
+export function play(name: SoundName) {
   if (!enabled) return;
   const c = getCtx();
   if (!c || c.state === 'suspended') return;

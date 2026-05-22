@@ -1,4 +1,4 @@
-import { useGame, continents, strategies } from '../../App';
+import { useGame, continents } from '../../App';
 import { play } from '../../hooks/useSound';
 
 function fmtNumber(n: number): string {

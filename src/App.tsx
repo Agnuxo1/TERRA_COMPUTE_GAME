@@ -702,8 +702,6 @@ function getDifficulty(year: number): number {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function aiChooseBuildings(opp: AIOpponent, year: number): string[] {
-  const weights: Record<string, number> = {};
-
   // Base weights by strategy
   const baseWeights: Record<AIStrategy, Record<string, number>> = {
     aggressive: {
@@ -1099,7 +1097,7 @@ function gameReducer(state: GameState, action: Action): GameState {
       } else {
         dt = 0.4 * speedScale; // 2035+: zips by
       }
-      let s: GameState = { ...state, tickCount: state.tickCount + 1 };
+      const s: GameState = { ...state, tickCount: state.tickCount + 1 };
       s.year += dt;
       const yearInt = Math.floor(s.year);
 
@@ -1501,7 +1499,6 @@ function gameReducer(state: GameState, action: Action): GameState {
       // COMPLETO: Standard death warning.
       const deathGracePeriod = s.tickCount < 600;
       const isPioneerMode = s.gameMode === 'pioneer';
-      const isStrategistMode = s.gameMode === 'strategist';
 
       if (!isPioneerMode && !deathGracePeriod && s.deathWarning) {
         s.deathWarning = { ...s.deathWarning, ticksLeft: s.deathWarning.ticksLeft - 1 };
@@ -1694,7 +1691,7 @@ Other powers consolidated their lead. Your bloc enters the post-AGI era as a tec
       const randomTerr = getBuildTerritory(state);
 
       // Immediate effects
-      let newState = { ...state };
+      const newState = { ...state };
       newState.gdp -= scaledCost;
       newState.buildings = newBuildings;
       newState.totalBuildings += 1;
@@ -1757,7 +1754,7 @@ Other powers consolidated their lead. Your bloc enters the post-AGI era as a tec
       const cost = 50 + targetOpp.defenseLevel * 2;
       if (state.gdp < cost) return state;
 
-      let s = { ...state, gdp: state.gdp - cost };
+      const s = { ...state, gdp: state.gdp - cost };
       const defenseFactor = targetOpp.defenseLevel / 100;
 
       switch (action.attackType) {

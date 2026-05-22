@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, useScroll, useMotionValueEvent, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback } from 'react';
+import { motion, useScroll, useMotionValueEvent } from 'framer-motion';
 import Layout from '@/components/Layout';
 import { Link } from 'react-router-dom';
 import {
@@ -17,30 +17,18 @@ import {
   AlertTriangle,
   BookOpen,
   BarChart3,
-  FileText,
   ArrowLeft,
   ExternalLink,
   CheckCircle2,
-  XCircle,
   AlertCircle,
   FlaskConical,
   TrendingUp,
-  Cpu,
   Layers,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
 /*  Animation helpers                                                  */
 /* ------------------------------------------------------------------ */
-
-const fadeInUp = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: 'easeOut' as const, delay: i * 0.08 },
-  }),
-};
 
 const staggerContainer = {
   hidden: {},
@@ -136,7 +124,7 @@ function SidebarNav() {
   const [active, setActive] = useState('overview');
   const { scrollY } = useScroll();
 
-  useMotionValueEvent(scrollY, 'change', (latest) => {
+  useMotionValueEvent(scrollY, 'change', () => {
     const sections = navItems.map((n) => {
       const el = document.getElementById(n.id);
       if (!el) return { id: n.id, top: Infinity };

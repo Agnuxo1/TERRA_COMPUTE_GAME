@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface VideoPlayerProps {
   src: string;
@@ -15,12 +15,12 @@ export default function VideoPlayer({ src, onComplete }: VideoPlayerProps) {
   const [progress, setProgress] = useState(0);
   const doneRef = useRef(false);
 
-  const finish = () => {
+  const finish = useCallback(() => {
     if (!doneRef.current) {
       doneRef.current = true;
       onComplete();
     }
-  };
+  }, [onComplete]);
 
   useEffect(() => {
     const v = videoRef.current;
@@ -77,7 +77,7 @@ export default function VideoPlayer({ src, onComplete }: VideoPlayerProps) {
       v.removeEventListener('error', onErr);
       v.removeEventListener('timeupdate', onTime);
     };
-  }, [src]);
+  }, [src, finish]);
 
   return (
     <div

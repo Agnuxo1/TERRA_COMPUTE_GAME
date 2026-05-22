@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useGame } from '../App';
-import { play, enableAudio, isAudioEnabled } from '../hooks/useSound';
+import { play, enableAudio } from '../hooks/useSound';
 import Translator from '../components/game/Translator';
 
 export default function TitleScreen() {

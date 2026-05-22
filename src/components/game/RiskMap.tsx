@@ -1,5 +1,4 @@
 import { useGame, continents } from '../../App';
-import { useMemo } from 'react';
 import { play } from '../../hooks/useSound';
 
 export interface Territory {
@@ -76,11 +75,6 @@ const buildingColors: Record<string, string> = {
 
 export default function RiskMap() {
   const { state, dispatch } = useGame();
-
-  const playerContinentData = useMemo(
-    () => continents.find(c => c.id === state.playerContinent),
-    [state.playerContinent]
-  );
 
   const handleTerritoryClick = (territory: Territory) => {
     play('click', 0.8);

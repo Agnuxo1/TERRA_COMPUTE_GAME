@@ -11,7 +11,7 @@ export default function NotificationFeed() {
       }, 6000)
     );
     return () => timers.forEach(t => clearTimeout(t));
-  }, [state.notifications.length]);
+  }, [state.notifications, dispatch]);
 
   const typeColors: Record<string, string> = {
     info: '#00F0FF',
