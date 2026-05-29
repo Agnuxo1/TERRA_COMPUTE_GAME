@@ -474,7 +474,7 @@ function PuzzleShell({
 
 export function TuringPuzzle({
   onSolved,
-  difficulty = 4,
+  difficulty = 1,
 }: {
   onSolved: () => void;
   difficulty?: TuringDifficultyId;
@@ -2759,7 +2759,7 @@ export default function EventPopup() {
   }
 
   if (phase === 'puzzle') {
-    if (evt.id === 'turing') return <TuringPuzzle onSolved={handlePuzzleSolved} />;
+    if (evt.id === 'turing') return <TuringPuzzle onSolved={handlePuzzleSolved} difficulty={1} />;
     if (evt.id === 'moore') return <MoorePuzzle onSolved={handlePuzzleSolved} />;
     if (evt.id === 'lisp') return <LispPuzzle onSolved={handlePuzzleSolved} difficulty={3} />;
     if (evt.id === 'ml') return <SamuelPuzzle onSolved={handlePuzzleSolved} />;

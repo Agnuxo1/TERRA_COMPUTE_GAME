@@ -56,7 +56,7 @@ const turingDifficulties: Array<{
     id: 4,
     label: 'IV',
     name: 'FULL BOMBE',
-    description: 'The complete coupled machine. This is the historical event puzzle.',
+    description: 'The complete coupled machine. Optional mastery challenge after the guided event version.',
     linkLabel: 'Full coupling',
   },
 ];
