@@ -1,0 +1,15 @@
+"appbuild"
+{
+  "appid" "__STEAM_APP_ID__"
+  "desc" "Terra Compute Windows build"
+  "buildoutput" "..\\steamworks\\output"
+  "contentroot" "..\\release\\win-unpacked"
+  "setlive" ""
+  "preview" "0"
+  "local" ""
+
+  "depots"
+  {
+    "__STEAM_DEPOT_ID__" "__STEAM_DEPOT_BUILD_FILE__"
+  }
+}
