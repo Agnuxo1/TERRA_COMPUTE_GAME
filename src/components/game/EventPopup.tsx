@@ -1250,7 +1250,10 @@ export function AgiNexusPuzzle({ onSolved }: { onSolved: () => void }) {
     if (!isCorrect) {
       play('click', 0.25);
       setFeedback('failure');
-      window.setTimeout(() => setFeedback(null), 1100);
+      window.setTimeout(() => {
+        setFeedback(null);
+        setSelected([]);
+      }, 1100);
       return;
     }
 
@@ -1329,6 +1332,9 @@ export function AgiNexusPuzzle({ onSolved }: { onSolved: () => void }) {
           <div className="relative mt-1 text-center font-rajdhani text-[clamp(10px,0.9vw,15px)] font-semibold leading-tight" style={{ color: 'rgba(255,244,194,0.7)' }}>
             {level.hint}
           </div>
+          <div className="relative mt-2 text-center font-mono-data text-[clamp(7px,0.62vw,11px)] uppercase tracking-[0.08em]" style={{ color: 'rgba(255,244,194,0.48)' }}>
+            Select cards in order, then press execute.
+          </div>
 
           <div className="relative mt-3 flex flex-1 items-center justify-center gap-2">
             {level.slots.map((_, index) => {
@@ -1380,20 +1386,37 @@ export function AgiNexusPuzzle({ onSolved }: { onSolved: () => void }) {
           </div>
         </div>
 
-        <button
-          type="button"
-          aria-label="Reset AGI Nexus protocol"
-          onClick={resetLevel}
-          className="absolute left-[37%] top-[84%] z-30 h-[5%] w-[10%] rounded-sm transition-all hover:brightness-125"
-          style={{ background: 'rgba(255,215,0,0.08)', border: '1px solid rgba(255,215,0,0.16)' }}
-        />
-        <button
-          type="button"
-          aria-label="Execute AGI Nexus protocol"
-          onClick={execute}
-          className="absolute left-[55%] top-[84%] z-30 h-[5%] w-[10%] rounded-sm transition-all hover:brightness-125"
-          style={{ background: complete ? 'rgba(255,69,0,0.24)' : 'rgba(255,69,0,0.08)', border: '1px solid rgba(255,69,0,0.18)' }}
-        />
+        <div className="absolute left-1/2 top-[82.5%] z-30 flex -translate-x-1/2 gap-3">
+          <button
+            type="button"
+            aria-label="Reset AGI Nexus protocol"
+            onClick={resetLevel}
+            className="px-4 py-2 font-orbitron text-[clamp(9px,0.8vw,13px)] font-black tracking-[0.12em] transition-all hover:brightness-125"
+            style={{
+              color: '#050508',
+              background: '#C4A265',
+              border: '2px solid rgba(255,244,194,0.72)',
+              boxShadow: '0 0 18px rgba(196,162,101,0.28)',
+            }}
+          >
+            RESET
+          </button>
+          <button
+            type="button"
+            aria-label="Execute AGI Nexus protocol"
+            onClick={execute}
+            disabled={!complete || !!feedback}
+            className="px-4 py-2 font-orbitron text-[clamp(9px,0.8vw,13px)] font-black tracking-[0.12em] transition-all hover:brightness-125 disabled:cursor-not-allowed disabled:opacity-45"
+            style={{
+              color: complete ? '#050508' : '#FF6B35',
+              background: complete ? '#FF6B35' : 'rgba(5,5,8,0.82)',
+              border: '2px solid #FF6B35',
+              boxShadow: complete ? '0 0 22px rgba(255,107,53,0.55)' : 'inset 0 0 14px rgba(0,0,0,0.8)',
+            }}
+          >
+            EXECUTE
+          </button>
+        </div>
 
         {feedback && (
           <div
