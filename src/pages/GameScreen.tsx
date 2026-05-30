@@ -125,7 +125,7 @@ export default function GameScreen() {
   const blackoutActive = energyRatio < 0.2;
 
   return (
-    <div className="relative w-full flex flex-col h-screen md:h-screen" style={{ background: 'var(--void)' }}>
+    <div className="game-screen-shell relative w-full flex flex-col h-screen md:h-screen" style={{ background: 'var(--void)' }}>
       {/* Keyframes for blackout overlay pulse */}
       <style>{`
         @keyframes blackout-pulse {
@@ -138,9 +138,9 @@ export default function GameScreen() {
       <ResourceBar />
 
       {/* 2. Middle: Map Area + Right Panel */}
-      <div className="flex flex-col flex-1 md:flex-row overflow-hidden" style={{ minHeight: 0 }}>
+      <div className="game-main-layout flex flex-col flex-1 md:flex-row overflow-hidden" style={{ minHeight: 0 }}>
         {/* Map - ALWAYS VISIBLE */}
-        <div className="relative flex-1 h-[35vh] md:h-auto" style={{ minWidth: 0, minHeight: '200px' }}>
+        <div className="game-map-stage relative flex-1 h-[35vh] md:h-auto" style={{ minWidth: 0, minHeight: '200px' }}>
           {mapView === 'continent' ? (
             <ContinentCommandMap onExit={() => setMapView('globe')} />
           ) : (
@@ -150,7 +150,7 @@ export default function GameScreen() {
         </div>
 
         {/* Right Panel: 240px wide */}
-        <div className="shrink-0 flex flex-col" style={{
+        <div className="game-side-panel shrink-0 flex flex-col" style={{
           width: '240px',
           background: 'var(--surface)',
           borderLeft: '1px solid var(--border)',

@@ -358,40 +358,60 @@ export default function ResourceBar() {
         }
         @media (max-width: 768px) {
           .hud-gauge-panel {
-            left: 6px;
-            top: 6px;
-            bottom: 74px;
-            width: 104px;
-            gap: 5px;
+            left: 0;
+            right: 0;
+            top: 0;
+            bottom: auto;
+            width: auto;
+            height: 76px;
+            flex-direction: row;
+            gap: 6px;
+            padding: 6px 8px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            background: linear-gradient(180deg, rgba(5, 9, 13, 0.92), rgba(5, 9, 13, 0.46));
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            backdrop-filter: blur(5px);
+            scroll-snap-type: x proximity;
           }
           .hud-gauge {
-            width: 94px;
-            height: 94px;
-            flex-basis: 94px;
+            width: 64px;
+            height: 64px;
+            flex: 0 0 64px;
+            scroll-snap-align: start;
           }
+          .hud-gauge::before { inset: 3px; }
           .hud-gauge-svg {
-            inset: 5px;
-            width: 84px;
-            height: 84px;
+            inset: 2px;
+            width: 60px;
+            height: 60px;
           }
           .hud-gauge-readout {
-            width: 62px;
-            min-height: 48px;
+            width: 48px;
+            min-height: 40px;
           }
           .hud-gauge-value {
-            max-width: 62px;
-            font-size: 12px;
+            max-width: 48px;
+            font-size: 10px;
           }
-          .hud-gauge-label { font-size: 7px; }
+          .hud-gauge-label { font-size: 6px; }
           .hud-gauge-sub,
           .hud-gauge-unit {
-            max-width: 62px;
-            font-size: 6px;
+            display: none;
           }
           .hud-speed-dock {
-            width: 94px;
-            grid-template-columns: repeat(2, 1fr);
-            border-radius: 14px;
+            width: 116px;
+            height: 64px;
+            flex: 0 0 116px;
+            grid-template-columns: repeat(4, 1fr);
+            align-content: center;
+            border-radius: 18px;
+            padding: 8px 7px;
+            scroll-snap-align: start;
+          }
+          .hud-speed-button {
+            height: 34px;
+            min-width: 0;
           }
         }
       `}</style>

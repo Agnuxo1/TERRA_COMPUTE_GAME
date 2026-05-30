@@ -71,7 +71,7 @@ export default function CommandCard() {
   };
 
   return (
-    <div className="flex items-center justify-center gap-1.5 px-2 py-2" style={{
+    <div className="command-card-dock flex items-center justify-center gap-1.5 px-2 py-2" style={{
       background: 'var(--surface)',
       borderTop: '1px solid var(--border)',
       minHeight: '64px',
@@ -82,7 +82,7 @@ export default function CommandCard() {
           <button
             key={action.key}
             onClick={() => handleAction(action)}
-            className="relative flex flex-col items-center justify-center rounded overflow-hidden transition-all hover:brightness-125 hover:scale-105"
+            className="command-card-button relative flex flex-col items-center justify-center rounded overflow-hidden transition-all hover:brightness-125 hover:scale-105"
             style={{
               width: '72px',
               height: '52px',

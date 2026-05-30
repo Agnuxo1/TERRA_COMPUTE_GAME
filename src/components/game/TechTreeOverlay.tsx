@@ -18,7 +18,7 @@ export default function TechTreeOverlay() {
   };
 
   return (
-    <div className="shrink-0" style={{
+    <div className="tech-tree-dock shrink-0" style={{
       background: 'var(--surface)',
       borderTop: '1px solid var(--border)',
       maxHeight: '200px',
