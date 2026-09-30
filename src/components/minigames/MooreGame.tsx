@@ -13,7 +13,7 @@ export const meta: MinigameMeta = {
   title: 'INTEGRATED CIRCUIT ROUTER',
   subtitle: 'Moore\'s law fab - route power to every chip on the die',
   accent: '#00E5A0',
-  background: '/assets/puzzles/moore-logic-machine.png',
+  background: './assets/puzzles/moore-logic-machine.png',
   rewardLabel: 'Compute + Materials',
   howTo: [
     'Every tile is a piece of circuit trace. Rotate tiles until power reaches every tile and no trace is left dangling.',

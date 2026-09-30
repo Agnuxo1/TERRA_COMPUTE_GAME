@@ -249,7 +249,7 @@ export const END_YEAR = 2040;
 //  HISTORICAL EVENTS — every event is a decision or a breakthrough exercise
 // ═══════════════════════════════════════════════════════════════════════════
 
-const card = (name: string) => `/assets/cards/event-${name}.png`;
+const card = (name: string) => `./assets/cards/event-${name}.png`;
 
 export const historicalEvents: GameEvent[] = [
   { id: 'turing', name: 'The Turing Legacy', year: 1961, type: 'info', card: card('turing'), minigame: 'turing',

@@ -25,7 +25,7 @@ const modes = [
     gradient: 'from-green-900 to-green-700',
     accent: '#33FF33',
     unlocked: true,
-    cardImage: '/assets/cards/PIONEER.jpg',
+    cardImage: './assets/cards/PIONEER.jpg',
   },
   {
     id: 'strategist' as const,
@@ -37,7 +37,7 @@ const modes = [
     gradient: 'from-cyan-900 to-cyan-700',
     accent: '#00F0FF',
     unlocked: true,
-    cardImage: '/assets/cards/ESTRATEGA.jpg',
+    cardImage: './assets/cards/ESTRATEGA.jpg',
   },
   {
     id: 'complete' as const,
@@ -49,7 +49,7 @@ const modes = [
     gradient: 'from-purple-900 to-purple-700',
     accent: '#7B61FF',
     get unlocked() { return isCompleteUnlocked(); },
-    cardImage: '/assets/cards/COMPLETE.jpg',
+    cardImage: './assets/cards/COMPLETE.jpg',
   },
   {
     id: 'logic' as const,
@@ -62,7 +62,7 @@ const modes = [
     gradient: 'from-amber-950 to-green-950',
     accent: '#FFF4C2',
     unlocked: true,
-    cardImage: '/assets/cards/LOGIC.png',
+    cardImage: './assets/cards/LOGIC.png',
   },
 ];
 

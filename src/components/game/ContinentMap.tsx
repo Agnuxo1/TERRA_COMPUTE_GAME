@@ -25,7 +25,7 @@ function diamond(cx: number, cy: number, inset = 0): string {
 
 function spriteUrl(type: BuildingId, faction: string | null): string {
   const file = SPRITE_FOR[type];
-  return faction ? `/assets/sprites/factions/${faction}/${file}?v=sheet-v1` : `/assets/sprites/${file}?v=sheet-v1`;
+  return faction ? `./assets/sprites/factions/${faction}/${file}?v=sheet-v1` : `./assets/sprites/${file}?v=sheet-v1`;
 }
 
 function hash(n: number) {

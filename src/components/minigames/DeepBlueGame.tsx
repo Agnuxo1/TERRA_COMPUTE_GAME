@@ -15,7 +15,7 @@ export const meta: MinigameMeta = {
   title: 'DEEP BLUE',
   subtitle: 'Mate the champion',
   accent: '#00F0FF',
-  background: '/assets/puzzles/deepblue/deep_blue.png',
+  background: './assets/puzzles/deepblue/deep_blue.png',
   howTo: [
     'You play White (cream pieces, moving up). In every puzzle you must deliver checkmate.',
     'Click one of your pieces, then click a highlighted square to move it.',
@@ -320,7 +320,7 @@ export default function DeepBlueGame({ difficulty, onComplete }: MinigameProps) 
               style={{ border: `1px solid ${ACCENT}88`, background: '#000' }}
             >
               <img
-                src="/assets/puzzles/deepblue/kasparov.png"
+                src="./assets/puzzles/deepblue/kasparov.png"
                 alt="Kasparov"
                 style={{ position: 'absolute', width: 157, height: 157, left: -47, top: -10, maxWidth: 'none' }}
               />

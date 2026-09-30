@@ -53,7 +53,7 @@ export default function TilePanel() {
       <div className="flex flex-col">
         <PanelHeader title={def.name.toUpperCase()} accent={tone} onClose={close} />
         <div className="relative h-24 shrink-0 overflow-hidden" style={{ borderBottom: '1px solid var(--border)' }}>
-          <img src={`/assets/cards/build-${b.type === 'fusion' ? 'nuclear' : b.type}.png`} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ filter: 'brightness(0.55) saturate(0.9)' }} draggable={false} />
+          <img src={`./assets/cards/build-${b.type === 'fusion' ? 'nuclear' : b.type}.png`} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ filter: 'brightness(0.55) saturate(0.9)' }} draggable={false} />
           <div className="absolute inset-0" style={{ background: 'linear-gradient(0deg, rgba(11,12,16,0.95), transparent 70%)' }} />
           <div className="absolute bottom-1.5 left-3 right-3 flex justify-between items-end">
             <span className="font-mono-data text-[10px]" style={{ color: tone }}>LEVEL {b.level}{b.upgrading ? ' (upgrading)' : ''} · {region?.name}</span>

@@ -274,7 +274,7 @@ function getSfx(src: string): HTMLAudioElement | null {
 
 /**
  * Play a sound effect MP3 file. Suitable for ambient/atmospheric sounds.
- * @param src Path to MP3 file (e.g. '/assets/sounds/plane-1960.mp3')
+ * @param src Path to MP3 file (e.g. './assets/sounds/plane-1960.mp3')
  * @param volume Volume 0.0-1.0 (default 0.2)
  * @param allowOverlap If false, won't play if same sound already playing (default false)
  */

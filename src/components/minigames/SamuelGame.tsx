@@ -15,7 +15,7 @@ export const meta: MinigameMeta = {
   title: "SAMUEL'S CHECKERS",
   subtitle: 'Find the winning combination',
   accent: '#FF477E',
-  background: '/assets/puzzles/samuel/samuel-1959-lab.png',
+  background: './assets/puzzles/samuel/samuel-1959-lab.png',
   howTo: [
     'You are Red and move up the board. Each puzzle shows a target, for example "Capture 3".',
     'Click one of your glowing pieces, then click the glowing dots to jump over enemy pieces one after another.',

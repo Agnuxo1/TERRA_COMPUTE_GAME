@@ -14,12 +14,12 @@ interface CommandAction {
 }
 
 const actions: CommandAction[] = [
-  { key: 'B', label: 'BUILD', iconImg: '/assets/cards/action-build.png', overlay: 'buildings', color: '#00E5A0' },
-  { key: 'T', label: 'TECH', iconImg: '/assets/cards/action-tech.png', overlay: 'tech', color: '#00F0FF' },
-  { key: 'D', label: 'DIPLO', iconImg: '/assets/cards/action-diplo.png', overlay: 'diplomacy', color: '#7B61FF' },
-  { key: 'A', label: 'ATTACK', iconImg: '/assets/cards/action-attack.png', overlay: 'attack', color: '#FF477E' },
-  { key: 'S', label: 'SPY', iconImg: '/assets/cards/action-spy.png', overlay: 'spy', color: '#FFB84D' },
-  { key: 'SPACE', label: 'PAUSE', iconImg: '/assets/cards/action-pause.png', overlay: null, color: '#FFB84D', action: 'pause' },
+  { key: 'B', label: 'BUILD', iconImg: './assets/cards/action-build.png', overlay: 'buildings', color: '#00E5A0' },
+  { key: 'T', label: 'TECH', iconImg: './assets/cards/action-tech.png', overlay: 'tech', color: '#00F0FF' },
+  { key: 'D', label: 'DIPLO', iconImg: './assets/cards/action-diplo.png', overlay: 'diplomacy', color: '#7B61FF' },
+  { key: 'A', label: 'ATTACK', iconImg: './assets/cards/action-attack.png', overlay: 'attack', color: '#FF477E' },
+  { key: 'S', label: 'SPY', iconImg: './assets/cards/action-spy.png', overlay: 'spy', color: '#FFB84D' },
+  { key: 'SPACE', label: 'PAUSE', iconImg: './assets/cards/action-pause.png', overlay: null, color: '#FFB84D', action: 'pause' },
 ];
 
 const actionVideoMap: Record<string, string> = {

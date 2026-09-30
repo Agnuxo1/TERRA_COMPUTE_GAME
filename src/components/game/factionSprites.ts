@@ -29,6 +29,6 @@ const spriteAssetVersion = 'sheet-v1';
 export function getFactionSprite(type: string, factionId?: string | null): string | undefined {
   const file = baseSpriteMap[type];
   if (!file) return undefined;
-  if (!factionId || !factionSpriteIds.has(factionId)) return `/assets/sprites/${file}?v=${spriteAssetVersion}`;
-  return `/assets/sprites/factions/${factionId}/${file}?v=${spriteAssetVersion}`;
+  if (!factionId || !factionSpriteIds.has(factionId)) return `./assets/sprites/${file}?v=${spriteAssetVersion}`;
+  return `./assets/sprites/factions/${factionId}/${file}?v=${spriteAssetVersion}`;
 }
