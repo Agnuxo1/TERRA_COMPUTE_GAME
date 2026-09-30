@@ -1,33 +1,33 @@
 import { useEffect, useState } from 'react';
 import { useGame } from '../App';
 import { play, startAmbient, stopAmbient } from '../hooks/useSound';
+import { TICK_MS } from '../game/engine';
 import ResourceBar from '../components/game/ResourceBar';
+import ContinentMap from '../components/game/ContinentMap';
 import EvolvingMap from '../components/game/EvolvingMap';
-import ContinentCommandMap from '../components/game/ContinentCommandMap';
-import Minimap from '../components/game/Minimap';
 import CommandCard from '../components/game/CommandCard';
-import EventPopup from '../components/game/EventPopup';
+import EventModal from '../components/game/EventModal';
 import NotificationFeed from '../components/game/NotificationFeed';
-import BuildingMenu from '../components/game/BuildingMenu';
 import TechTreeOverlay from '../components/game/TechTreeOverlay';
-import DiplomacyOverlay from '../components/game/DiplomacyOverlay';
-import CyberAttackMenu from '../components/game/CyberAttackMenu';
-import SpyMenu from '../components/game/SpyMenu';
 import Translator from '../components/game/Translator';
+import OverviewPanel from '../components/game/panels/OverviewPanel';
+import TilePanel from '../components/game/panels/TilePanel';
+import BuildPanel from '../components/game/panels/BuildPanel';
+import DiplomacyPanel from '../components/game/panels/DiplomacyPanel';
+import IntelPanel from '../components/game/panels/IntelPanel';
+
+const OVERLAY_KEYS: Record<string, string> = { b: 'buildings', t: 'tech', d: 'diplomacy', a: 'attack', s: 'spy' };
 
 export default function GameScreen() {
   const { state, dispatch } = useGame();
-  const [mapView, setMapView] = useState<'globe' | 'continent'>('globe');
+  const [mapView, setMapView] = useState<'continent' | 'world'>('continent');
 
-  // Game loop tick every 250ms
+  // Simulation clock
   useEffect(() => {
-    const interval = setInterval(() => {
-      dispatch({ type: 'TICK' });
-    }, 250);
-    return () => clearInterval(interval);
+    const id = setInterval(() => dispatch({ type: 'TICK' }), TICK_MS);
+    return () => clearInterval(id);
   }, [dispatch]);
 
-  // Start ambient audio
   useEffect(() => {
     startAmbient();
     return () => stopAmbient();
@@ -35,231 +35,88 @@ export default function GameScreen() {
 
   // Keyboard shortcuts
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Event popup has priority
-      if (state.showEvent) {
+    const onKey = (e: KeyboardEvent) => {
+      if (state.activeEvent) return;
+      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+      const k = e.key.toLowerCase();
+      if (k === 'escape') {
+        if (state.placing) dispatch({ type: 'SET_PLACING', building: null });
+        else if (state.overlay) dispatch({ type: 'CLOSE_OVERLAY' });
+        else if (state.selectedTile !== null) dispatch({ type: 'SELECT_TILE', tileId: null });
         return;
       }
-
-      // Close any overlay with Escape
-      if (state.overlay && e.key === 'Escape') {
-        dispatch({ type: 'CLOSE_OVERLAY' });
+      if (OVERLAY_KEYS[k]) {
+        play('click');
+        dispatch(state.overlay === OVERLAY_KEYS[k] ? { type: 'CLOSE_OVERLAY' } : { type: 'OPEN_OVERLAY', overlay: OVERLAY_KEYS[k] });
         return;
       }
-
-      // Don't process shortcuts while an overlay is open (except Escape)
-      if (state.overlay && e.key !== 'Escape') {
-        return;
-      }
-
-      switch (e.key.toLowerCase()) {
-        case 'b':
-          if (state.overlay === 'buildings') {
-            dispatch({ type: 'CLOSE_OVERLAY' });
-          } else {
-            dispatch({ type: 'OPEN_OVERLAY', overlay: 'buildings' });
-          }
-          play('click');
-          break;
-        case 't':
-          if (state.overlay === 'tech') {
-            dispatch({ type: 'CLOSE_OVERLAY' });
-          } else {
-            dispatch({ type: 'OPEN_OVERLAY', overlay: 'tech' });
-          }
-          play('click');
-          break;
-        case 'd':
-          if (state.overlay === 'diplomacy') {
-            dispatch({ type: 'CLOSE_OVERLAY' });
-          } else {
-            dispatch({ type: 'OPEN_OVERLAY', overlay: 'diplomacy' });
-          }
-          play('click');
-          break;
-        case 'a':
-          if (state.overlay === 'attack') {
-            dispatch({ type: 'CLOSE_OVERLAY' });
-          } else {
-            dispatch({ type: 'OPEN_OVERLAY', overlay: 'attack' });
-          }
-          play('click');
-          break;
-        case 's':
-          if (state.overlay === 'spy') {
-            dispatch({ type: 'CLOSE_OVERLAY' });
-          } else {
-            dispatch({ type: 'OPEN_OVERLAY', overlay: 'spy' });
-          }
-          play('click');
-          break;
-        case ' ':
-          e.preventDefault();
-          dispatch({ type: 'TOGGLE_PAUSE' });
-          break;
-        case '1':
-          dispatch({ type: 'SET_SPEED', speed: 1 });
-          break;
-        case '2':
-          dispatch({ type: 'SET_SPEED', speed: 2 });
-          break;
-        case '3':
-          dispatch({ type: 'SET_SPEED', speed: 3 });
-          break;
-      }
+      if (k === ' ') { e.preventDefault(); dispatch({ type: 'TOGGLE_PAUSE' }); return; }
+      if (k === 'm') { setMapView(v => (v === 'continent' ? 'world' : 'continent')); return; }
+      if (['1', '2', '3'].includes(k)) dispatch({ type: 'SET_SPEED', speed: Number(k) });
     };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dispatch, state.activeEvent, state.overlay, state.placing, state.selectedTile]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [dispatch, state.showEvent, state.overlay]);
+  const side = state.overlay === 'buildings' ? <BuildPanel />
+    : state.overlay === 'diplomacy' ? <DiplomacyPanel />
+    : state.overlay === 'attack' ? <IntelPanel mode="attack" />
+    : state.overlay === 'spy' ? <IntelPanel mode="spy" />
+    : state.selectedTile !== null ? <TilePanel />
+    : <OverviewPanel />;
 
-  // Determine what the right panel shows
-  const rightPanelOverlay = state.overlay === 'buildings' ? 'buildings'
-    : state.overlay === 'diplomacy' ? 'diplomacy'
-    : state.overlay === 'attack' ? 'attack'
-    : state.overlay === 'spy' ? 'spy'
-    : null;
-
-  // Energy ratio for blackout mode overlay
-  const energyRatio = state.energyDemand > 0 ? state.energy / Math.max(state.energyDemand, 1) : 1;
-  const blackoutActive = energyRatio < 0.2;
+  const blackout = state.eco.energyRatio < 0.85;
 
   return (
-    <div className="game-screen-shell relative w-full flex flex-col h-screen md:h-screen" style={{ background: 'var(--void)' }}>
-      {/* Keyframes for blackout overlay pulse */}
-      <style>{`
-        @keyframes blackout-pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.6; }
-        }
-      `}</style>
-
-      {/* 1. Top: Resource Bar */}
+    <div className="game-screen-shell relative w-full flex flex-col h-screen" style={{ background: 'var(--void)' }}>
       <ResourceBar />
 
-      {/* 2. Middle: Map Area + Right Panel */}
       <div className="game-main-layout flex flex-col flex-1 md:flex-row overflow-hidden" style={{ minHeight: 0 }}>
-        {/* Map - ALWAYS VISIBLE */}
-        <div className="game-map-stage relative flex-1 h-[35vh] md:h-auto" style={{ minWidth: 0, minHeight: '200px' }}>
-          {mapView === 'continent' ? (
-            <ContinentCommandMap onExit={() => setMapView('globe')} />
-          ) : (
-            <EvolvingMap onEnterContinent={() => setMapView('continent')} />
-          )}
+        <div className="game-map-stage relative flex-1 h-[48vh] md:h-auto" style={{ minWidth: 0, minHeight: 220 }}>
+          {mapView === 'continent' ? <ContinentMap /> : <EvolvingMap onEnterContinent={() => setMapView('continent')} />}
+
+          {/* view switch */}
+          <div className="absolute top-2 left-2 z-30 flex rounded overflow-hidden" style={{ border: '1px solid var(--border-light)' }}>
+            {(['continent', 'world'] as const).map(v => (
+              <button key={v} onClick={() => { play('click'); setMapView(v); }}
+                className="font-mono-data text-[10px] tracking-wider px-2.5 py-1"
+                style={{ background: mapView === v ? 'var(--cyan)' : 'rgba(11,12,16,0.85)', color: mapView === v ? '#001014' : 'var(--text-secondary)' }}
+                title="[M] toggle">
+                {v === 'continent' ? '◈ CONTINENT' : '◎ WORLD'}
+              </button>
+            ))}
+          </div>
+
           <NotificationFeed />
+          {state.overlay === 'tech' && <TechTreeOverlay />}
+
+          {state.paused && !state.activeEvent && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 px-3 py-1 rounded font-mono-data text-[11px] tracking-[0.3em] animate-pulse-glow pointer-events-none"
+              style={{ background: 'rgba(11,12,16,0.9)', color: 'var(--amber)', border: '1px solid var(--amber)' }}>
+              PAUSED — SPACE TO RESUME
+            </div>
+          )}
+          {blackout && (
+            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at center, transparent 40%, rgba(180,0,0,0.18) 100%)', zIndex: 25, animation: 'pulse 2s infinite' }} />
+          )}
         </div>
 
-        {/* Right Panel: 240px wide */}
-        <div className="game-side-panel shrink-0 flex flex-col" style={{
-          width: '240px',
-          background: 'var(--surface)',
-          borderLeft: '1px solid var(--border)',
-          minHeight: '250px',
-        }}>
-          {/* Show Building Menu */}
-          {rightPanelOverlay === 'buildings' && (
-            <div className="flex-1 overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-              <BuildingMenu />
+        <aside className="game-side-panel shrink-0 flex flex-col md:w-[300px]" style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)', minHeight: 250 }}>
+          <div className="flex-1 overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>{side}</div>
+          {state.overlay === null && state.selectedTile === null && (
+            <div className="shrink-0 px-3 py-1.5 font-mono-data text-[8.5px] leading-relaxed" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-tertiary)' }}>
+              [B] build [T] tech [D] diplo [S] spy [A] covert [M] world [␣] pause [1-3] speed
             </div>
           )}
-
-          {/* Show Diplomacy */}
-          {rightPanelOverlay === 'diplomacy' && (
-            <div className="flex-1 overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-              <DiplomacyOverlay />
-            </div>
-          )}
-
-          {/* Show Attack Menu */}
-          {rightPanelOverlay === 'attack' && (
-            <div className="flex-1 overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-              <CyberAttackMenu />
-            </div>
-          )}
-
-          {/* Show Spy Menu */}
-          {rightPanelOverlay === 'spy' && (
-            <div className="flex-1 overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
-              <SpyMenu />
-            </div>
-          )}
-
-          {/* Default: Minimap + AI Log + Keybinds */}
-          {!rightPanelOverlay && (
-            <>
-              <Minimap />
-              <div className="flex-1 overflow-auto p-2" style={{ minHeight: 0, WebkitOverflowScrolling: 'touch' }}>
-                <h3 className="font-orbitron text-[9px] mb-1.5 tracking-wider" style={{ color: 'var(--cyan)' }}>
-                  RIVAL ACTIVITY
-                </h3>
-                {state.aiLog.length === 0 && (
-                  <div className="text-[9px] font-mono-data" style={{ color: 'var(--text-tertiary)' }}>
-                    No rival activity yet...
-                  </div>
-                )}
-                <div className="flex flex-col gap-0.5">
-                  {state.aiLog.slice(0, 15).map(log => (
-                    <div key={log.id} className="text-[9px] font-mono-data animate-fade-up" style={{ color: 'var(--text-secondary)' }}>
-                      <span style={{ color: 'var(--amber)' }}>{log.year}</span>{' '}
-                      <span style={{ color: 'var(--cyan)' }}>{log.continent}</span>: {log.action}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Recent attacks */}
-                {state.cyberAttacks.filter(a => a.detected).length > 0 && (
-                  <div className="mt-3 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
-                    <h3 className="font-orbitron text-[8px] mb-1 tracking-wider" style={{ color: 'var(--rose)' }}>
-                      ATTACKS DETECTED
-                    </h3>
-                    {state.cyberAttacks.filter(a => a.detected).slice(0, 5).map(a => (
-                      <div key={a.id} className="text-[8px] font-mono-data mb-0.5" style={{ color: 'var(--rose)' }}>
-                        {a.year} — {a.type.toUpperCase()} from {a.from}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="shrink-0 p-2" style={{ borderTop: '1px solid var(--border)' }}>
-                <h3 className="font-orbitron text-[7px] mb-1 tracking-wider" style={{ color: 'var(--text-tertiary)' }}>CONTROLS</h3>
-                <div className="font-mono-data text-[8px]" style={{ color: 'var(--text-tertiary)', lineHeight: '1.5' }}>
-                  [B] Build &nbsp; [T] Tech<br />
-                  [D] Diplo &nbsp; [A] Attack<br />
-                  [S] Spy &nbsp; [␣] Pause<br />
-                  [1-3] Speed &nbsp; [Esc] Close
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        </aside>
       </div>
 
-      {/* 3. Tech Panel - bottom, only when tech overlay is open */}
-      {state.overlay === 'tech' && (
-        <TechTreeOverlay />
-      )}
-
-      {/* 4. Bottom: Action Cards */}
       <CommandCard />
 
-      {/* 5. Event Popup - centered modal (only for events) */}
-      {state.showEvent && <EventPopup />}
+      {state.activeEvent && <EventModal />}
 
-      {/* BLACKOUT MODE OVERLAY: red tint when energy crisis */}
-      {blackoutActive && (
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse at center, transparent 30%, rgba(180,0,0,0.15) 100%)',
-            zIndex: 100,
-            animation: 'pulse 2s infinite',
-          }}
-        />
-      )}
-
-      {/* Translator - top right corner */}
-      <div className="absolute top-1 right-1 z-[60]">
-        <Translator />
+      <div className="absolute bottom-2 left-2 z-[60] hidden md:block">
+        <Translator dropUp />
       </div>
     </div>
   );

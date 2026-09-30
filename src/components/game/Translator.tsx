@@ -45,7 +45,7 @@ const languages: Record<string, string> = {
   sk: 'Slovencina',
 };
 
-export default function Translator() {
+export default function Translator({ dropUp = false }: { dropUp?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentLang, setCurrentLang] = useState('en');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -135,7 +135,7 @@ export default function Translator() {
 
       {isOpen && (
         <div
-          className="absolute right-0 mt-1 rounded"
+          className={dropUp ? 'absolute left-0 bottom-full mb-1 rounded' : 'absolute right-0 mt-1 rounded'}
           style={{
             background: '#1A1D28',
             border: '1px solid #1E2130',

@@ -1,5 +1,8 @@
 import { continents, useGame } from '../../App';
-import { useEffect, useState, useRef, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
+import { countBuildings, hasIntel, operational } from '../../game/engine';
+import { capabilityLabel } from '../../game/format';
+import { regionAnchor } from '../../game/geo';
 import { playSfx } from '../../hooks/useSound';
 import { getFactionSprite } from './factionSprites';
 
@@ -173,7 +176,7 @@ const continentHitZones: Record<string, { left: string; top: string; width: stri
 };
 
 export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
-  const { state, dispatch } = useGame();
+  const { state } = useGame();
   const [planes, setPlanes] = useState<Plane[]>([]);
   const [satellites, setSatellites] = useState<Satellite[]>([]);
   const [rockets, setRockets] = useState<RocketLaunch[]>([]);
@@ -191,7 +194,17 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
   const playerHitZone = state.playerContinent ? continentHitZones[state.playerContinent] : null;
 
   // Count satellite buildings for orbit count
-  const satBuildingCount = state.buildings.find(b => b.type === 'satellite')?.count || 0;
+  const satBuildingCount = countBuildings(state, 'satellite', true);
+
+  // One globe icon per operational building (max 40), anchored on its region.
+  const worldIcons = useMemo(() => {
+    const tiles = state.map?.tiles.filter(t => t.building && operational(t.building) && t.region) ?? [];
+    return tiles.slice(-40).map(t => {
+      const a = regionAnchor(t.region!);
+      const j = (n: number) => (Math.sin(t.id * n) * 0.5) * 22;
+      return { type: t.building!.type, x: a.x + j(12.9898), y: a.y + j(78.233) * 0.6 };
+    });
+  }, [state.map]);
 
   // Preload all aircraft (normal + mirror) + satellite + rocket images
   const allImages = [
@@ -364,66 +377,6 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
     return () => clearInterval(interval);
   }, [state.paused, satellites.length]);
 
-  // ─── DRAGGABLE BUILDING SPRITES ───
-  const moveBuildingOnGlobe = (index: number, clientX: number, clientY: number) => {
-    const rect = mapRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const xPercent = Math.max(2, Math.min(98, ((clientX - rect.left) / rect.width) * 100));
-    const yPercent = Math.max(4, Math.min(96, ((clientY - rect.top) / rect.height) * 100));
-    dispatch({
-      type: 'MOVE_BUILDING_ICON',
-      index,
-      x: (xPercent / 100) * 760,
-      y: (yPercent / 100) * 450,
-    });
-  };
-
-  const handleBuildingPointerDown = (e: ReactPointerEvent<HTMLDivElement>, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.currentTarget.setPointerCapture(e.pointerId);
-    moveBuildingOnGlobe(index, e.clientX, e.clientY);
-    const move = (event: PointerEvent) => {
-      moveBuildingOnGlobe(index, event.clientX, event.clientY);
-    };
-    const up = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-  };
-
-  const handleBuildingPointerMove = (e: ReactPointerEvent<HTMLDivElement>, index: number) => {
-    if ((e.buttons & 1) !== 1) return;
-    e.preventDefault();
-    e.stopPropagation();
-    moveBuildingOnGlobe(index, e.clientX, e.clientY);
-  };
-
-  const handleBuildingPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
-  };
-
-  const handleBuildingMouseDown = (e: ReactMouseEvent<HTMLDivElement>, index: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    moveBuildingOnGlobe(index, e.clientX, e.clientY);
-    const move = (event: MouseEvent) => {
-      moveBuildingOnGlobe(index, event.clientX, event.clientY);
-    };
-    const up = () => {
-      window.removeEventListener('mousemove', move);
-      window.removeEventListener('mouseup', up);
-    };
-    window.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', up);
-  };
-
   return (
     <div ref={mapRef} className="relative w-full h-full overflow-hidden" style={{ background: '#050508' }}>
 
@@ -469,6 +422,35 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
           </span>
         </button>
       )}
+
+      {/* Bloc status badges */}
+      {continents.map(c => {
+        const zone = continentHitZones[c.id];
+        if (!zone) return null;
+        const me = c.id === state.playerContinent;
+        const rival = state.rivals.find(r => r.id === c.id);
+        const intel = me || (rival ? hasIntel(state, rival) : false);
+        const cap = me ? state.capability : rival?.capability ?? 6;
+        const align = me ? state.alignment : rival?.alignment ?? 50;
+        const rel = rival?.relation ?? 100;
+        const relColor = me ? '#FFF4C2' : rel >= 30 ? '#00E5A0' : rel >= 0 ? '#FFB84D' : '#FF477E';
+        return (
+          <div key={`badge-${c.id}`} className="absolute pointer-events-none font-mono-data"
+            style={{
+              left: `calc(${zone.left} + ${zone.width} / 2)`, top: `calc(${zone.top} + ${zone.height} / 2)`,
+              transform: 'translate(-50%, -50%)', zIndex: 40, padding: '3px 6px', borderRadius: 4, whiteSpace: 'nowrap',
+              background: 'rgba(5,5,8,0.78)', border: `1px solid ${c.color}88`, boxShadow: me ? `0 0 14px ${c.color}66` : 'none',
+            }}>
+            <div style={{ fontSize: 9, color: c.color, fontWeight: 700 }}>{me ? '► ' : ''}{c.name.toUpperCase()}</div>
+            <div style={{ fontSize: 8, color: 'var(--text-secondary)' }}>
+              {intel ? `${capabilityLabel(cap)} ${cap.toFixed(1)}` : `≈${capabilityLabel(Math.round(cap))}`}
+              <span style={{ color: intel ? (align >= 70 ? '#00E5A0' : align >= 45 ? '#FFB84D' : '#FF477E') : 'var(--text-tertiary)' }}> · {intel ? `${Math.round(align)}%` : '?'}</span>
+              {!me && <span style={{ color: relColor }}> · ●</span>}
+              {rival && rival.treaties.length > 0 && <span style={{ color: '#7B61FF' }}> · {rival.treaties.map(t => t[0].toUpperCase()).join('')}</span>}
+            </div>
+          </div>
+        );
+      })}
 
       {/* Vignette */}
       <div className="absolute inset-0 pointer-events-none"
@@ -623,7 +605,7 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
       })}
 
       {/* ─── BUILDING ICONS ON TERRITORIES ─── */}
-      {state.buildingIcons.map((icon, i) => {
+      {worldIcons.map((icon, i) => {
         const isCompute = ['lab', 'uni', 'mainframe', 'super', 'datacenter', 'gpucluster', 'aifactory'].includes(icon.type);
         const isSatellite = icon.type === 'satellite';
         const spriteImg = getFactionSprite(icon.type, state.playerContinent);
@@ -632,11 +614,6 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
           <div
             key={`bld-${i}`}
             className="absolute"
-            onPointerDown={(e) => handleBuildingPointerDown(e, i)}
-            onPointerMove={(e) => handleBuildingPointerMove(e, i)}
-            onPointerUp={handleBuildingPointerUp}
-            onPointerCancel={handleBuildingPointerUp}
-            onMouseDown={(e) => handleBuildingMouseDown(e, i)}
             style={{
               left: `${toGlobePercentX(icon.x)}%`,
               top: `${toGlobePercentY(icon.y)}%`,
@@ -649,8 +626,7 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
                 : 'drop-shadow(0 2px 4px rgba(0,0,0,0.65))',
               animation: 'building-pop 0.5s ease-out forwards',
               animationDelay: `${i * 0.08}s`,
-              cursor: 'grab',
-              touchAction: 'none',
+              pointerEvents: 'none',
             }}
           >
             {spriteImg ? (
@@ -663,7 +639,7 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
       })}
 
       {/* ─── ERA INDICATOR ─── */}
-      <div className="absolute top-2 left-[152px] max-md:left-[112px] px-2 py-1 rounded font-orbitron text-[9px] font-bold"
+      <div className="absolute top-2 left-[210px] px-2 py-1 rounded font-orbitron text-[9px] font-bold"
         style={{
           background: year < 1970 ? 'rgba(0,0,0,0.7)' : year < 1990 ? 'rgba(139,119,85,0.4)' : year < 2010 ? 'rgba(0,0,0,0.5)' : 'rgba(0,100,150,0.3)',
           color: year < 1970 ? '#888' : year < 1990 ? '#C4A265' : year < 2000 ? '#00F0FF' : year < 2010 ? '#FFF' : year < 2030 ? '#00E5FF' : '#7B61FF',

@@ -1,8 +1,18 @@
 import { useState } from 'react';
 import { useGame } from '../App';
+import type { GameMode } from '../game/types';
 import { play } from '../hooks/useSound';
 import { isVideoPlayed, markVideoPlayed, getVideoUrl } from '../hooks/useVideo';
 import VideoPlayer from '../components/game/VideoPlayer';
+
+export const COMPLETE_UNLOCK_KEY = 'terra_compute_complete_unlocked';
+function isCompleteUnlocked(): boolean {
+  try {
+    return localStorage.getItem(COMPLETE_UNLOCK_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 const modes = [
   {
@@ -10,8 +20,8 @@ const modes = [
     name: 'PIONEER',
     startYear: 1960,
     color: '#33FF33',
-    description: 'Learn the economy and build your first Safe ASI without rivals or hard defeat states.',
-    features: ['No AI rivals', 'Cannot lose', 'ZF Safe ASI goal', 'Unlocks: Estratega'],
+    description: 'Learn every system at your own pace. Rivals trade and talk but never ignite an ASI, and you cannot lose.',
+    features: ['Start in 1960', 'No defeat states', 'Goal: 10^22 FLOPS · 70% alignment', 'Win to unlock Completo'],
     gradient: 'from-green-900 to-green-700',
     accent: '#33FF33',
     unlocked: true,
@@ -22,8 +32,8 @@ const modes = [
     name: 'ESTRATEGA',
     startYear: 1980,
     color: '#00F0FF',
-    description: 'The real race begins with a working industrial-tech base, rivals, and a reachable Safe AGI endgame.',
-    features: ['Start in 1980', '7 AI rivals', 'AGI + 3ZF goal', 'Unlocks: Completo'],
+    description: 'Start in 1980 with a working industrial base. Seven rivals race you to superintelligence — and some of them are reckless.',
+    features: ['Start in 1980', '7 active rivals', 'Goal: 1 YottaFLOP · 80% alignment', 'Win to unlock Completo'],
     gradient: 'from-cyan-900 to-cyan-700',
     accent: '#00F0FF',
     unlocked: true,
@@ -34,11 +44,11 @@ const modes = [
     name: 'COMPLETO',
     startYear: 1960,
     color: '#7B61FF',
-    description: 'Complete Estratega to unlock',
+    description: 'The full campaign from 1960: every crisis, every breakthrough, every rival. Keep the planet alive until the machine wakes up.',
     features: ['Full timeline 1960+', 'All systems active', 'Full rival competition', 'The ultimate race'],
     gradient: 'from-purple-900 to-purple-700',
     accent: '#7B61FF',
-    unlocked: false,
+    get unlocked() { return isCompleteUnlocked(); },
     cardImage: '/assets/cards/COMPLETE.jpg',
   },
   {
@@ -48,7 +58,7 @@ const modes = [
     startLabel: 'PUZZLES',
     color: '#FFF4C2',
     description: 'Standalone intelligence exercises based on the historical technology events.',
-    features: ['Puzzle-only mode', 'Turing Bombe challenge', 'No economy pressure', 'More events coming'],
+    features: ['8 historical exercises', '3 difficulty levels', 'Star records', 'No economy pressure'],
     gradient: 'from-amber-950 to-green-950',
     accent: '#FFF4C2',
     unlocked: true,
@@ -75,14 +85,14 @@ export default function ModeSelect() {
       setVideoSrc(getVideoUrl(videoId));
       setPendingMode(modeId);
     } else {
-      dispatch({ type: 'SET_MODE', mode: modeId });
+      dispatch({ type: 'SET_MODE', mode: modeId as GameMode });
     }
   };
 
   const handleVideoComplete = () => {
     setVideoSrc(null);
     if (pendingMode) {
-      dispatch({ type: 'SET_MODE', mode: pendingMode });
+      dispatch({ type: 'SET_MODE', mode: pendingMode as GameMode });
       setPendingMode(null);
     }
   };

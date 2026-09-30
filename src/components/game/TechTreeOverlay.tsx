@@ -1,131 +1,79 @@
-import { useGame, techs } from '../../App';
+import { useGame } from '../../App';
+import { ERA_NAMES, techById, techs } from '../../game/data';
+import { TECH_LOOKAHEAD, has, techAvailable, techCost } from '../../game/engine';
 import { play } from '../../hooks/useSound';
-
-const eras = ['Silicon Dawn', 'Digital Age', 'AI Era', 'Intelligence Explosion', 'Singularity'];
 
 export default function TechTreeOverlay() {
   const { state, dispatch } = useGame();
-
-  const handleClose = () => {
-    play('click');
-    dispatch({ type: 'CLOSE_OVERLAY' });
-  };
-
-  const handleResearch = (techId: string) => {
-    if (state.unlockedTechs.includes(techId)) return;
-    play('tech');
-    dispatch({ type: 'RESEARCH', techId });
-  };
+  const current = state.researching ? techById[state.researching] : null;
+  const rate = state.eco.researchRate;
 
   return (
-    <div className="tech-tree-dock shrink-0" style={{
-      background: 'var(--surface)',
-      borderTop: '1px solid var(--border)',
-      maxHeight: '200px',
-    }}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-1.5 shrink-0" style={{
-        background: 'var(--surface-elevated)',
-        borderBottom: '1px solid var(--border)',
-      }}>
-        <div className="flex items-center gap-3">
-          <h2 className="font-orbitron text-xs font-bold" style={{ color: 'var(--cyan)' }}>TECHNOLOGY TREE</h2>
-          <span className="font-mono-data text-[8px]" style={{ color: 'var(--text-tertiary)' }}>
-            {state.totalTechs}/{techs.length} | Efficiency: {state.algorithmicEfficiency.toFixed(2)}x | RP: {state.researchPoints >= 1e6 ? (state.researchPoints/1e6).toFixed(1)+'M' : state.researchPoints >= 1e3 ? (state.researchPoints/1e3).toFixed(1)+'K' : Math.floor(state.researchPoints)}
+    <div className="absolute left-0 right-0 bottom-0 z-40 flex flex-col animate-fade-up"
+      style={{ height: 'min(52vh, 420px)', background: 'rgba(10,11,16,0.97)', borderTop: '2px solid var(--cyan)', boxShadow: '0 -20px 50px rgba(0,0,0,0.6)' }}>
+      <div className="flex items-center justify-between px-3 py-2 shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div className="flex items-center gap-3 min-w-0">
+          <h3 className="font-orbitron text-[12px] font-bold tracking-[0.2em]" style={{ color: 'var(--cyan)' }}>RESEARCH</h3>
+          <span className="font-mono-data text-[10px] truncate" style={{ color: 'var(--text-secondary)' }}>
+            {current
+              ? <>Researching <b style={{ color: '#FFF4C2' }}>{current.name}</b> · {Math.round(state.researchProgress)}/{techCost(state, current.id)} · ~{Math.max(0, (techCost(state, current.id) - state.researchProgress - state.researchPoints) / Math.max(1, rate)).toFixed(1)} yrs</>
+              : <span style={{ color: 'var(--rose)' }}>No research selected — points are piling up unused ({Math.round(state.researchPoints)})</span>}
           </span>
         </div>
-        <button onClick={handleClose}
-          className="px-2 py-0.5 rounded font-mono-data text-[9px]"
-          style={{ background: 'var(--rose-dim)', color: 'var(--rose)', border: '1px solid var(--rose)' }}>
-          ✕
-        </button>
-      </div>
-
-      {/* Current research progress */}
-      {state.techQueue && (
-        <div className="px-3 py-1" style={{ background: 'var(--surface-elevated)', borderBottom: '1px solid var(--border)' }}>
-          <div className="flex items-center gap-2">
-            <span className="font-mono-data text-[8px]" style={{ color: 'var(--amber)' }}>RESEARCHING:</span>
-            <span className="font-rajdhani text-xs font-semibold" style={{ color: 'var(--cyan)' }}>
-              {techs.find(t => t.id === state.techQueue)?.name}
-            </span>
-            <span className="font-mono-data text-[8px]" style={{ color: 'var(--text-tertiary)' }}>
-              ({Math.floor(state.techProgress)}%)
-            </span>
-          </div>
-          <div className="w-full h-1 rounded-full mt-1" style={{ background: 'var(--border)' }}>
-            <div className="h-full rounded-full transition-all" style={{
-              width: `${state.techProgress}%`,
-              background: 'var(--cyan)',
-            }} />
-          </div>
+        <div className="flex items-center gap-3">
+          <span className="font-mono-data text-[10px]" style={{ color: '#A78BFA' }}>+{Math.round(rate)} RP/yr</span>
+          <button onClick={() => dispatch({ type: 'CLOSE_OVERLAY' })} className="font-mono-data text-[10px] px-1.5 rounded hover:brightness-150" style={{ color: 'var(--text-tertiary)', border: '1px solid var(--border-light)' }}>✕</button>
         </div>
-      )}
-
-      {/* Tech rows - horizontal scroll */}
-      <div className="overflow-x-auto p-2" style={{ whiteSpace: 'nowrap' }}>
-        {eras.map(era => {
-          const eraTechs = techs.filter(t => t.era === era);
-          if (eraTechs.length === 0) return null;
-          const eraColors: Record<string, string> = {
-            'Silicon Dawn': '#8A8D9A',
-            'Digital Age': '#3B82F6',
-            'AI Era': '#00E5A0',
-            'Intelligence Explosion': '#FFB84D',
-            'Singularity': '#FFD700',
-          };
-          const ec = eraColors[era] || 'var(--cyan)';
-
-          return (
-            <div key={era} className="inline-block align-top mr-4" style={{ minWidth: '200px' }}>
-              <div className="flex items-center gap-1 mb-1">
-                <div className="w-1.5 h-1.5 rounded-full" style={{ background: ec }} />
-                <span className="font-orbitron text-[8px] tracking-wider" style={{ color: ec }}>{era.toUpperCase()}</span>
+      </div>
+      <div className="px-3 py-1 font-rajdhani text-[11.5px] shrink-0" style={{ color: 'var(--text-tertiary)' }}>
+        Pick one technology at a time. Researching ahead of history costs +10% per year early (max {TECH_LOOKAHEAD} years). Switching keeps half of the invested points.
+      </div>
+      <div className="flex-1 overflow-auto px-2 pb-2">
+        <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(5, minmax(190px, 1fr))', minWidth: 980 }}>
+          {[1, 2, 3, 4, 5].map(era => (
+            <div key={era} className="flex flex-col gap-1.5">
+              <div className="font-mono-data text-[9.5px] tracking-[0.2em] py-1 sticky top-0 z-10" style={{ color: 'var(--amber)', background: 'rgba(10,11,16,0.97)' }}>
+                {['I', 'II', 'III', 'IV', 'V'][era - 1]} · {ERA_NAMES[era].toUpperCase()}
               </div>
-              <div className="flex flex-col gap-0.5">
-                {eraTechs.map(t => {
-                  const unlocked = state.unlockedTechs.includes(t.id);
-                  const available = state.year >= t.year;
-                  const canAfford = state.researchPoints >= t.rpCost * 0.2 || unlocked;
-                  const isQueued = state.techQueue === t.id;
-                  return (
-                    <button
-                      key={t.id}
-                      onClick={() => available && !unlocked ? handleResearch(t.id) : undefined}
-                      className="flex items-center gap-1.5 px-2 py-1 rounded text-left transition-all"
-                      style={{
-                        background: unlocked ? 'rgba(0,229,160,0.1)' : isQueued ? 'rgba(255,184,77,0.1)' : available && canAfford ? 'rgba(0,240,255,0.06)' : 'var(--surface-elevated)',
-                        border: `1px solid ${unlocked ? 'var(--green)' : isQueued ? 'var(--amber)' : available && canAfford ? 'var(--cyan)' : 'var(--border)'}`,
-                        opacity: available ? 1 : 0.4,
-                        cursor: available && !unlocked ? 'pointer' : 'default',
-                        minWidth: 0,
-                      }}
-                    >
-                      <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{
-                        background: unlocked ? 'var(--green)' : isQueued ? 'var(--amber)' : available ? 'var(--cyan)' : 'var(--text-tertiary)'
-                      }} />
-                      <div className="min-w-0">
-                        <span className="font-rajdhani text-[11px] font-semibold truncate block" style={{
-                          color: unlocked ? 'var(--green)' : isQueued ? 'var(--amber)' : available ? 'var(--cyan)' : 'var(--text-secondary)',
-                        }}>
-                          {t.name}
-                        </span>
-                        <span className="font-mono-data text-[7px]" style={{ color: 'var(--text-tertiary)' }}>
-                          {t.year} — {t.effect}
-                        </span>
-                        <span className="font-mono-data text-[7px] ml-1" style={{
-                          color: state.researchPoints >= t.rpCost ? 'var(--green)' : 'var(--amber)'
-                        }}>
-                          {t.rpCost >= 1e6 ? (t.rpCost/1e6).toFixed(0)+'M' : t.rpCost >= 1e3 ? (t.rpCost/1e3).toFixed(0)+'K' : t.rpCost} RP
-                        </span>
+              {techs.filter(t => t.era === era).map(t => {
+                const done = has(state, t.id);
+                const active = state.researching === t.id;
+                const avail = techAvailable(state, t.id);
+                const missing = t.requires.filter(r => !has(state, r)).map(r => techById[r].name);
+                const tooEarly = !done && missing.length === 0 && !avail;
+                const cost = techCost(state, t.id);
+                const early = Math.max(0, Math.ceil(t.year - state.year));
+                const color = done ? '#00E5A0' : active ? '#00F0FF' : avail ? '#FFF4C2' : '#5A5D6A';
+                return (
+                  <button key={t.id} disabled={!avail || active}
+                    onClick={() => { play('tech'); dispatch({ type: 'RESEARCH', techId: t.id }); }}
+                    className={`text-left rounded px-2 py-1.5 transition-all ${avail && !active ? 'hover:brightness-125 cursor-pointer' : 'cursor-default'}`}
+                    style={{
+                      border: `1px solid ${done ? '#00E5A044' : active ? '#00F0FF' : avail ? '#FFF4C244' : 'var(--border)'}`,
+                      background: active ? 'rgba(0,240,255,0.08)' : done ? 'rgba(0,229,160,0.05)' : 'rgba(255,255,255,0.02)',
+                      boxShadow: active ? '0 0 14px rgba(0,240,255,0.25)' : 'none',
+                    }}>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-rajdhani text-[13px] font-bold leading-tight" style={{ color }}>{done ? '✔ ' : active ? '◉ ' : ''}{t.name}</span>
+                      <span className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>{t.year}</span>
+                    </div>
+                    <div className="font-mono-data text-[9px] leading-snug" style={{ color: done ? 'var(--text-tertiary)' : 'var(--text-secondary)' }}>{t.effect}</div>
+                    {!done && (
+                      <div className="font-mono-data text-[9px] mt-0.5" style={{ color: missing.length ? 'var(--rose)' : tooEarly ? 'var(--amber)' : 'var(--green)' }}>
+                        {missing.length ? `needs ${missing.join(', ')}` : tooEarly ? `available from ${t.year - TECH_LOOKAHEAD}` : `${cost} RP${early ? ` (+${early * 10}% early)` : ''}`}
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
+                    )}
+                    {active && (
+                      <div className="h-1 mt-1 rounded-sm overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                        <div className="h-full" style={{ width: `${(state.researchProgress / cost) * 100}%`, background: 'var(--cyan)' }} />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
     </div>
   );

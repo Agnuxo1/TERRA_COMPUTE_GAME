@@ -175,7 +175,7 @@ export default function TitleScreen() {
                 <div>
                   <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>OBJECTIVE</h3>
                   <p className="font-rajdhani text-xs leading-relaxed">
-                    Lead your continental bloc from 1960 to 2035. Build research infrastructure, manage energy, and research technologies to be the first to achieve Safe Artificial Superintelligence (ASI).
+                    Lead your continental bloc from 1960. Build your continent tile by tile — homes, farms, schools, hospitals, kombinats, universities, labs and power — and be the first to ignite a SAFE superintelligence without collapsing the planet.
                   </p>
                 </div>
                 <div>
@@ -186,7 +186,7 @@ export default function TitleScreen() {
                     <div>
                       <span className="font-rajdhani text-xs font-bold" style={{color:'#33FF33'}}>Safe ASI</span>
                       <p className="font-mono-data text-[9px]" style={{color:'var(--text-tertiary)'}}>
-                        Compute ≥ 1e24 FLOPS + Safety ≥ 80% + Year ≥ 2030
+                        Superintelligence Theory + 1 YottaFLOP of compute, then IGNITE with alignment ≥ 80%
                       </p>
                     </div>
                   </div>
@@ -195,10 +195,11 @@ export default function TitleScreen() {
                   <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#FF477E'}}>DEFEAT CONDITIONS</h3>
                   <div className="flex flex-col gap-1.5">
                     {[
-                      {icon:'E',text:'Energy depleted',clr:'#FFB84D'},
-                      {icon:'B',text:'Bankruptcy',clr:'#FF477E'},
-                      {icon:'C',text:'Political collapse',clr:'#FF8C42'},
-                      {icon:'R',text:'Rogue ASI',clr:'#7B61FF'},
+                      {icon:'P',text:'Planet health reaches 0% (climate collapse)',clr:'#00E5A0'},
+                      {icon:'R',text:'Any bloc ignites an unaligned ASI',clr:'#7B61FF'},
+                      {icon:'A',text:'A rival ignites a safe ASI before you',clr:'#00F0FF'},
+                      {icon:'V',text:'Revolution: approval under 20% for 3 years',clr:'#FF8C42'},
+                      {icon:'B',text:'Bankruptcy: debt spirals for 3 years',clr:'#FF477E'},
                     ].map(d=>(
                       <div key={d.text} className="flex items-center gap-2">
                         <div className="shrink-0 w-5 h-5 rounded flex items-center justify-center font-bold text-[10px]"
@@ -213,18 +214,22 @@ export default function TitleScreen() {
                   <div className="flex flex-col gap-0.5 font-mono-data text-[9px]" style={{color:'var(--text-secondary)'}}>
                     <div className="flex justify-between"><span>[B]</span><span style={{color:'var(--text-primary)'}}>Open Build Menu</span></div>
                     <div className="flex justify-between"><span>[T]</span><span style={{color:'var(--text-primary)'}}>Open Tech Tree</span></div>
-                    <div className="flex justify-between"><span>[D]</span><span style={{color:'var(--text-primary)'}}>Open Diplomacy</span></div>
+                    <div className="flex justify-between"><span>[D] [S] [A]</span><span style={{color:'var(--text-primary)'}}>Diplomacy · Spy · Covert ops</span></div>
+                    <div className="flex justify-between"><span>[Click map]</span><span style={{color:'var(--text-primary)'}}>Inspect / build on a tile</span></div>
+                    <div className="flex justify-between"><span>[Wheel · drag]</span><span style={{color:'var(--text-primary)'}}>Zoom · pan the continent</span></div>
+                    <div className="flex justify-between"><span>[M]</span><span style={{color:'var(--text-primary)'}}>Continent / world view</span></div>
                     <div className="flex justify-between"><span>[Space]</span><span style={{color:'var(--text-primary)'}}>Pause / Resume</span></div>
                   </div>
                 </div>
                 <div>
                   <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>TIPS</h3>
                   <ul className="font-mono-data text-[8px] flex flex-col gap-0.5 list-none" style={{paddingLeft:0}}>
-                    {['Build power plants early — energy is critical',
-                      "Don't neglect Safety — Defense Grid prevents rogue AI",
-                      'Balance compute buildings with energy production',
-                      'Watch for historical events — they can help or hurt',
-                      'AI opponents are also building — check Diplomacy tab'].map(t=>(
+                    {['Green tiles = location bonus: farms on rivers, solar on deserts, labs next to universities',
+                      'Food, housing and jobs keep approval up — hover any gauge for the full breakdown',
+                      'Every building costs upkeep each year: upgrade to level 3 instead of spreading out',
+                      'Alignment must keep pace with compute: Safety Institutes + safety research',
+                      'Coal is cheap but heats the planet; nuclear, solar and Climate Accords save it',
+                      'Spy on the front-runner — a reckless rival can end the world for everyone'].map(t=>(
                       <li key={t} style={{display:'flex',gap:'4px'}}>
                         <span style={{color:'#33FF33'}}>◆</span><span>{t}</span>
                       </li>
