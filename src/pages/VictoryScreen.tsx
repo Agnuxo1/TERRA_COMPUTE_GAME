@@ -17,6 +17,11 @@ export default function VictoryScreen() {
 
   useEffect(() => {
     play('victory');
+    try {
+      localStorage.setItem('terra_compute_complete_unlocked', '1');
+    } catch {
+      // storage unavailable
+    }
   }, []);
 
   // Golden particles
@@ -95,8 +100,8 @@ export default function VictoryScreen() {
           VICTORY
         </h1>
 
-        <p className="font-rajdhani text-lg text-center" style={{color:'var(--text-secondary)'}}>
-          You have achieved Safe Artificial Superintelligence.
+        <p className="font-rajdhani text-lg text-center" style={{color:'var(--text-secondary)', maxWidth:'600px'}}>
+          {state.gameOverReason || 'You have achieved Safe Artificial Superintelligence.'}
         </p>
 
         <div className="panel-elevated px-8 py-4 flex flex-col items-center gap-3" style={{maxWidth:'500px'}}>
@@ -110,8 +115,8 @@ export default function VictoryScreen() {
               <span className="font-mono-data text-lg" style={{color:'var(--green)'}}>{fmtNumber(state.compute)}F</span>
             </div>
             <div className="flex flex-col items-center">
-              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>SAFETY</span>
-              <span className="font-orbitron text-xl" style={{color:'var(--green)'}}>{Math.floor(state.safety)}%</span>
+              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>ALIGNMENT</span>
+              <span className="font-orbitron text-xl" style={{color:'var(--green)'}}>{Math.floor(state.alignment)}%</span>
             </div>
           </div>
           <div className="w-full h-px" style={{background:'var(--border)'}}/>
@@ -125,8 +130,8 @@ export default function VictoryScreen() {
               <span className="font-orbitron text-lg" style={{color:'var(--purple)'}}>{state.totalTechs}</span>
             </div>
             <div className="flex flex-col items-center">
-              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>EFFICIENCY</span>
-              <span className="font-mono-data text-lg" style={{color:'var(--cyan)'}}>{state.algorithmicEfficiency.toFixed(2)}x</span>
+              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>PLANET</span>
+              <span className="font-mono-data text-lg" style={{color:'var(--cyan)'}}>{Math.round(state.planetHealth)}%</span>
             </div>
           </div>
         </div>

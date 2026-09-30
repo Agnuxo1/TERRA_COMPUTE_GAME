@@ -21,7 +21,6 @@ button {
     height: 100dvh !important;
     min-height: 100dvh !important;
     overflow: hidden;
-    padding-top: 76px;
   }
 
   .game-main-layout {
@@ -43,8 +42,8 @@ button {
 
   .game-side-panel {
     width: 100% !important;
-    height: 30dvh;
-    max-height: 260px;
+    height: 34dvh;
+    max-height: 320px;
     min-height: 118px !important;
     border-left: 0 !important;
     border-top: 1px solid var(--border);
@@ -94,9 +93,6 @@ button {
     overflow: auto;
   }
 
-  .absolute.top-1.right-1 {
-    top: 80px !important;
-  }
 }
 
 @media (max-width: 430px) {
@@ -112,12 +108,8 @@ button {
 }
 
 @media (max-height: 640px) and (orientation: landscape) {
-  .game-screen-shell {
-    padding-top: 62px;
-  }
-
-  .hud-gauge-panel {
-    height: 62px !important;
+  .hud-strip {
+    min-height: 60px !important;
   }
 
   .hud-gauge {

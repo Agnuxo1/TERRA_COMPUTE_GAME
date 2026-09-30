@@ -52,7 +52,7 @@ function synthTech(t: number) {
     g.gain.linearRampToValueAtTime(0.25, t + i * 0.08 + 0.02);
     g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.18);
     o.connect(g);
-    g.connect(masterGain);
+    g.connect(masterGain!);
     o.start(t + i * 0.08);
     o.stop(t + i * 0.08 + 0.2);
   });
@@ -99,7 +99,7 @@ function synthAlert(t: number) {
     g.gain.linearRampToValueAtTime(0.3, st + 0.01);
     g.gain.exponentialRampToValueAtTime(0.001, st + 0.15);
     o.connect(g);
-    g.connect(masterGain);
+    g.connect(masterGain!);
     o.start(st);
     o.stop(st + 0.16);
   }
@@ -120,7 +120,7 @@ function synthVictory(t: number) {
     g.gain.linearRampToValueAtTime(0.3, t + time + 0.02);
     g.gain.exponentialRampToValueAtTime(0.001, t + time + durs[i]);
     o.connect(g);
-    g.connect(masterGain);
+    g.connect(masterGain!);
     o.start(t + time);
     o.stop(t + time + durs[i] + 0.05);
     time += durs[i];
@@ -138,7 +138,7 @@ function synthDefeat(t: number) {
     g.gain.setValueAtTime(0.25, t + i * 0.3);
     g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.3 + 0.5);
     o.connect(g);
-    g.connect(masterGain);
+    g.connect(masterGain!);
     o.start(t + i * 0.3);
     o.stop(t + i * 0.3 + 0.6);
   });

@@ -2,6 +2,25 @@ import { useEffect, useRef } from 'react';
 import { useGame } from '../App';
 import { play } from '../hooks/useSound';
 
+const OUTCOME_TITLE: Record<string, string> = {
+  rival_asi: 'RACE LOST',
+  rogue_rival: 'ROGUE SUPERINTELLIGENCE',
+  rogue_self: 'MISALIGNED',
+  climate: 'PLANETARY COLLAPSE',
+  revolution: 'REVOLUTION',
+  bankrupt: 'BANKRUPTCY',
+  timeout: 'WINDOW CLOSED',
+};
+const OUTCOME_LESSON: Record<string, string> = {
+  rival_asi: 'RESEARCH FASTER · SABOTAGE THE LEADER · SIGN SAFETY TREATIES TO SLOW THEM',
+  rogue_rival: 'A RECKLESS RIVAL IGNITED FIRST — SPY, SABOTAGE AND BIND THEM WITH SAFETY TREATIES',
+  rogue_self: 'NEVER IGNITE BELOW THE REQUIRED ALIGNMENT',
+  climate: 'CLEAN ENERGY · FORESTS · CLIMATE ACCORDS',
+  revolution: 'FOOD, HOMES, JOBS AND FAIR TAXES KEEP THE PEOPLE ON YOUR SIDE',
+  bankrupt: 'WATCH UPKEEP — EVERY BUILDING COSTS MONEY EVERY YEAR',
+  timeout: 'THE FINAL TECHS AND A YOTTAFLOP MUST ARRIVE BEFORE 2040',
+};
+
 export default function GameOverScreen() {
   const { state, dispatch } = useGame();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -90,10 +109,13 @@ export default function GameOverScreen() {
           color: 'var(--rose)',
           textShadow: '0 0 30px rgba(255,71,126,0.4)',
         }}>
-          DEFEAT
+          {OUTCOME_TITLE[state.outcome ?? ''] ?? 'DEFEAT'}
         </h1>
+        <div className="font-mono-data text-[11px] tracking-[0.3em] -mt-2" style={{ color: 'var(--text-tertiary)' }}>
+          {OUTCOME_LESSON[state.outcome ?? ''] ?? ''}
+        </div>
 
-        <div className="panel-elevated px-6 py-4 flex flex-col items-center gap-2" style={{maxWidth:'420px'}}>
+        <div className="panel-elevated px-6 py-4 flex flex-col items-center gap-2" style={{maxWidth:'560px'}}>
           <p className="font-rajdhani text-base text-center" style={{color:'var(--text-secondary)'}}>
             {state.gameOverReason || 'Your civilization has fallen.'}
           </p>
@@ -109,6 +131,14 @@ export default function GameOverScreen() {
             <div className="flex flex-col items-center">
               <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>TECHS</span>
               <span className="font-orbitron text-lg" style={{color:'var(--green)'}}>{state.totalTechs}</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>PEAK COMPUTE</span>
+              <span className="font-orbitron text-lg" style={{color:'var(--cyan)'}}>10^{state.peakCapability.toFixed(1)}</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>PLANET</span>
+              <span className="font-orbitron text-lg" style={{color: state.planetHealth > 40 ? 'var(--green)' : 'var(--rose)'}}>{Math.round(state.planetHealth)}%</span>
             </div>
           </div>
         </div>

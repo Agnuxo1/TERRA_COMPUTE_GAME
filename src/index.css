@@ -70,3 +70,36 @@ body {
   0%, 100% { opacity: 0.15; }
   50% { opacity: 0.25; }
 }
+
+/* ===== Shared utility classes (were referenced but never defined) ===== */
+.font-mono-data { font-family: 'Share Tech Mono', 'JetBrains Mono', monospace; }
+.font-rajdhani { font-family: 'Rajdhani', sans-serif; }
+.panel-elevated {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fade-up 0.28s ease-out both; }
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.animate-pulse-glow { animation: pulse-glow 1.6s ease-in-out infinite; }
+
+/* ===== Continent map ===== */
+@keyframes smoke-rise {
+  0% { transform: translateY(0) scale(0.7); opacity: 0.55; }
+  100% { transform: translateY(-16px) scale(1.6); opacity: 0; }
+}
+.smoke-puff { animation: smoke-rise 2.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+.smoke-late { animation-delay: 1.3s; }
+@keyframes tile-pulse {
+  0%, 100% { stroke-opacity: 1; }
+  50% { stroke-opacity: 0.35; }
+}
+.tile-selected { animation: tile-pulse 1.2s ease-in-out infinite; }

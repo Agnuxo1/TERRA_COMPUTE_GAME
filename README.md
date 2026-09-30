@@ -22,118 +22,87 @@ Every decision matters. Every building changes the trajectory of history. Will y
 
 ## How to Play
 
-### 1. Select Your Game Mode
+### The goal
+Reach **1 YottaFLOP (10²⁴ FLOPS)**, research **Superintelligence Theory**, and press **IGNITE** with **alignment ≥ 80%** — before any rival does, and without letting **planet health** fall to 0%.
 
-| Mode | Year | Description |
-|------|------|-------------|
-| **PIONEER** | 1960 | Learn the ropes. No rivals. No defeat. Guided tutorials. |
-| **ESTRATEGA** | 1980 | The real race begins. 7 AI rivals compete. Every decision matters. |
-| **COMPLETO** | 1960 | Complete Estratega to unlock. Full timeline, all systems active. |
+You lose if:
+- a rival ignites a safe superintelligence first (**race lost**),
+- anyone — you or a rival — ignites an **unaligned** one (**rogue ASI**),
+- global warming drives planet health to 0% (**planetary collapse**),
+- approval stays under 20% for 3 years (**revolution**), or debt spirals for 3 years (**bankruptcy**),
+- nobody ignites before **2040** (**window closed**).
 
-### 2. Choose Your Faction
+### 1. Select your game mode
 
-Select one of **8 continents**, each with unique strengths:
+| Mode | Start | Description |
+|------|-------|-------------|
+| **PIONEER** | 1960 | Learn every system. Rivals never ignite, no defeat states. Goal: 10²² FLOPS, 70% alignment. |
+| **ESTRATEGA** | 1980 | Start with an industrial base. Seven active rivals, full rules. |
+| **COMPLETO** | 1960 | The full campaign. Unlocked by winning Pioneer or Estratega. |
+| **LOGIC** | — | Replay the 8 breakthrough exercises at 3 difficulty levels. |
 
-- **North America** — +30% Research Speed | GDP: $2,700B
-- **Europe** — +20% Tech Transfer | GDP: $1,750B
-- **Soviet Union** — +40% Resource Extraction | GDP: $1,250B
-- **China** — +50% Population Growth | GDP: $450B
-- **Africa** — +60% Solar Potential | GDP: $400B
-- **South America** — +25% Renewables | GDP: $500B
-- **India** — +40% Labor Force | GDP: $275B
-- **Oceania** — +15% Uranium, Defensive | GDP: $250B
+### 2. Choose your faction — every bonus is real
 
-### 3. Command Your Empire
+| Faction | Bonus |
+|---------|-------|
+| North America | +25% research |
+| Europe | Techs −15% cost, +4 approval |
+| Soviet Union | +30% industry, extra coal & uranium deposits |
+| China | −25% construction time, +20% kombinats |
+| Africa | +60% solar, cheaper land development |
+| South America | +25% farms & solar, forests absorb 2× CO₂ |
+| India | Education grows 40% faster, +15% research |
+| Oceania | Enemy operations −40%, +20% nuclear, rich uranium |
 
-Use the **Command Bar** at the bottom:
+### 3. Build your continent (the central map)
+Your continent is generated from its real outline as an isometric tile map with **terrain** (plains, river valleys, forest, hills, desert, tundra, coast), **mineral deposits** (coal, uranium, silica) and **regions**. Only developed regions can be built on — click a dark region to **DEVELOP** it.
 
-| Button | Action | Description |
-|--------|--------|-------------|
-| **BUILD** | Open Building Menu | Construct farms, factories, labs, data centers... |
-| **TECH** | Research Tree | Unlock technologies from Nuclear Power to Quantum AI |
-| **DIPLO** | Diplomacy Panel | Trade, negotiate, or spy on rivals |
-| **ATTACK** | Military Actions | Sabotage rivals, cyberattacks, resource theft |
-| **SPY** | Intelligence | Monitor rival progress and steal technology |
-| **PAUSE** | Pause/Resume | Time control |
+- Click an empty tile to see what fits there, sorted by its **location multiplier**.
+- Or choose a building in **BUILD [B]**: the map lights up green/amber/red with the bonus of every tile. *Shift+click* places several.
+- Click a building to see its output and **adjacency bonuses**, **UPGRADE** it (levels 1–3) or **DEMOLISH** it.
 
-### 4. The 6 Eras of Progress
+Examples of placement rules: farms +50% on river valleys and +10% per neighbouring farm; solar +60% on desert; nuclear needs coast or river; seaports need coast; institutes +20% per neighbouring university; compute buildings cool for free on tundra or coast; smoke from coal and kombinats makes nearby homes unhappy.
 
-The game advances through **6 technological eras**, each unlocking new buildings and capabilities:
+### 4. Keep the nation alive
+Hover any gauge in the top bar for the full breakdown.
 
-1. **Foundations** (1960-1975) — Basic agriculture, coal power, early education
-2. **Industrial** (1975-1990) — Factories, nuclear energy, mainframe computers
-3. **Knowledge** (1990-2000) — Universities, supercomputers, internet infrastructure
-4. **Digital** (2000-2015) — Data centers, GPU clusters, social media
-5. **AI Era** (2015-2025) — AI factories, chip fabrication, autonomous systems
-6. **Singularity** (2025+) — Quantum computing, neural lace, the final race to ASI
+| Gauge | What drives it |
+|-------|----------------|
+| **Budget** | GDP × tax rate + trade treaties − building upkeep. Tax slider inside the gauge. |
+| **Food / Housing** | Farms and housing blocks. Shortages shrink the population and crush approval. |
+| **Jobs** | Kombinats, markets and ports create jobs; robots fill labour shortages. |
+| **Power** | Coal, nuclear, solar, fusion. Below 100% everything runs slower. Pre-1960 plants slowly retire. |
+| **Education** | Schools lift it to ~75, universities towards 100. Multiplies GDP and research. |
+| **Research** | Institutes, universities, space centres — and, after Deep Learning, compute itself. |
+| **Compute** | Mainframe → Supercomputer → Data Center → GPU Cluster → AI Gigafactory, × technology multipliers. |
+| **Approval** | Food, homes, jobs, healthcare, neighbourhoods, taxes, power cuts, climate damage, events. |
+| **Alignment** | AI Safety Institutes raise it; capability pressure lowers it. Safety research raises its ceiling. |
 
-### 5. Cinematic Video System
+### 5. Research
+30 technologies in 5 eras, with prerequisites. You may research up to 10 years ahead of history, at +10% cost per year early.
 
-Every major action triggers a **unique cinematic video** on your first encounter:
+### 6. The world
+- **Rivals** race along their own compute curves. Without intelligence you only see rough estimates.
+- **Diplomacy [D]**: aid raises relations; treaties need minimum relations — *Trade*, *Research Pact*, *Climate Accord* (cuts their emissions), *AI Safety Treaty* (makes them safer and slower).
+- **Spy [S] / Covert [A]**: intelligence sweeps, research theft, cyber-sabotage, propaganda. Getting caught costs relations.
+- **Planet**: every bloc's emissions heat the world. Low planet health brings droughts, floods and heatwaves.
 
-- **Mode Selection** — 3 videos for Pioneer, Estratega, Completo
-- **Faction Selection** — 8 videos for each continent
-- **Command Actions** — 6 videos for Build, Tech, Diplo, Attack, Spy, Pause
-- **Building Construction** — 20 videos for each building type
-- **Historical Events** — 35+ videos for milestone events
+### 7. History happens
+Around 30 historical events (oil crisis, AI winters, dot-com crash, COVID, ChatGPT…) arrive as **decisions with trade-offs**. Eight AI milestones open a **breakthrough exercise**: a short minigame whose stars grant research and bonuses. Exercises can always be skipped.
 
-Videos play **once** and are remembered via localStorage. Historical events always play their cinematic.
+| Exercise | Milestone | Game |
+|----------|-----------|------|
+| Bombe Codebreaker | Turing | Mastermind-style logic on 4 rotors |
+| Perceptron Trainer | Rosenblatt, 1957 | Tune weights and bias to separate two classes |
+| LISP Pipeline | McCarthy, 1958 | Compose list functions to reach a target |
+| Samuel's Checkers | Samuel, 1959 | Find the longest multi-jump |
+| Integrated Circuit Router | Moore, 1965 | Rotate circuit tiles to power every chip |
+| Deep Blue | 1997 | Mate-in-1 and mate-in-2 chess puzzles |
+| Atari Go vs Proto-AlphaGo | 2016 | First capture wins |
+| Attention Is All You Need | 2017 | Find what each pronoun refers to |
 
----
-
-## Building Cards
-
-Construct these buildings to grow your empire. Each building card shows cost, effects, and unlock requirements.
-
-### Population
-
-| Card | Building | Cost | Effect |
-|------|----------|------|--------|
-| ![Housing](public/assets/cards/build-housing.png) | **Housing** | $50B | +10K Population, +5 Jobs |
-| ![Farm](public/assets/cards/build-farm.png) | **Farm** | $30B | +100 Food, +2K Jobs |
-| ![Hospital](public/assets/cards/build-hospital.png) | **Hospital** | $80B | +5% Health, -2% Death Rate |
-
-### Economy
-
-| Card | Building | Cost | Effect |
-|------|----------|------|--------|
-| ![Factory](public/assets/cards/build-factory.png) | **Factory** | $100B | +$20B GDP, +5K Jobs |
-| ![Market](public/assets/cards/build-market.png) | **Market** | $60B | +10% Trade, +$5B GDP |
-| ![Seaport](public/assets/cards/build-seaport.png) | **Seaport** | $150B | +25% Trade, +$15B GDP |
-
-### Education & Research
-
-| Card | Building | Cost | Effect |
-|------|----------|------|--------|
-| ![School](public/assets/cards/build-school.png) | **School** | $40B | +2% Education, +1K Jobs |
-| ![Lab](public/assets/cards/build-lab.png) | **Research Lab** | $200B | +10% Research Speed, +50 Compute |
-| ![University](public/assets/cards/build-uni.png) | **University** | $500B | +15% Education, +200 Compute |
-
-### Energy
-
-| Card | Building | Cost | Effect |
-|------|----------|------|--------|
-| ![Coal Plant](public/assets/cards/build-coal.png) | **Coal Plant** | $80B | +500 Energy, -2% Environment |
-| ![Nuclear Plant](public/assets/cards/build-nuclear.png) | **Nuclear** | $400B | +2,000 Energy, Requires Uranium |
-| ![Solar Farm](public/assets/cards/build-solar.png) | **Solar Farm** | $300B | +1,000 Energy, Clean |
-
-### Computing (The Path to ASI)
-
-| Card | Building | Cost | Era | Effect |
-|------|----------|------|-----|--------|
-| ![Mainframe](public/assets/cards/build-mainframe.png) | **Mainframe** | $500B | Industrial | +1K Compute |
-| ![Supercomputer](public/assets/cards/build-super.png) | **Supercomputer** | $2,000B | Knowledge | +100K Compute |
-| ![Data Center](public/assets/cards/build-datacenter.png) | **Data Center** | $5,000B | Digital | +10M Compute |
-| ![GPU Cluster](public/assets/cards/build-gpucluster.png) | **GPU Cluster** | $20,000B | AI Era | +1T Compute |
-| ![AI Factory](public/assets/cards/build-aifactory.png) | **AI Factory** | $50,000B | AI Era | +100T Compute |
-| ![Chip Fab](public/assets/cards/build-chipfab.png) | **Chip Fab** | $30,000B | AI Era | +50% Chip Production |
-
-### Defense
-
-| Card | Building | Cost | Effect |
-|------|----------|------|--------|
-| ![Defense Network](public/assets/cards/build-defense.png) | **Defense Grid** | $1,000B | Cyber defense, Anti-sabotage |
-| ![Satellite](public/assets/cards/build-satellite.png) | **Satellite** | $2,000B | Intelligence, +10% Research |
+### Controls
+`B` build · `T` tech · `D` diplomacy · `S` spy · `A` covert · `M` continent/world view · `Space` pause · `1–3` speed · `Esc` cancel · mouse wheel / drag to zoom and pan.
 
 ---
 
@@ -141,12 +110,12 @@ Construct these buildings to grow your empire. Each building card shows cost, ef
 
 | Card | Action | Key | Description |
 |------|--------|-----|-------------|
-| ![Build](public/assets/cards/action-build.png) | **BUILD** | B | Open building construction menu |
-| ![Tech](public/assets/cards/action-tech.png) | **TECH** | T | View and research technologies |
-| ![Diplo](public/assets/cards/action-diplo.png) | **DIPLOMACY** | D | Trade, negotiate, form alliances |
-| ![Attack](public/assets/cards/action-attack.png) | **ATTACK** | A | Military and cyber operations |
-| ![Spy](public/assets/cards/action-spy.png) | **SPY** | S | Espionage and intelligence |
-| ![Pause](public/assets/cards/action-pause.png) | **PAUSE** | Space | Pause or resume the game |
+| ![Build](public/assets/cards/action-build.png) | **BUILD** | B | Construction menu and placement on the map |
+| ![Tech](public/assets/cards/action-tech.png) | **TECH** | T | Research tree |
+| ![Diplo](public/assets/cards/action-diplo.png) | **DIPLOMACY** | D | Aid and treaties |
+| ![Attack](public/assets/cards/action-attack.png) | **ATTACK** | A | Sabotage and propaganda |
+| ![Spy](public/assets/cards/action-spy.png) | **SPY** | S | Intelligence and research theft |
+| ![Pause](public/assets/cards/action-pause.png) | **PAUSE** | Space | Pause or resume |
 
 ---
 
@@ -214,21 +183,26 @@ Each continent has a unique propaganda-style card with special bonuses:
 
 ## Game Mechanics
 
-### Resources
-- **GDP** — Economic power. Used to build and research.
-- **Population** — Workforce. Affected by health, food, and housing.
-- **Food** — Must stay above 30% or famine strikes.
-- **Energy** — Powers all buildings. Shortages halt production.
-- **Compute** — The key metric. Reach 10^30 FLOPS to achieve ASI.
-- **Stability** — Internal peace. Below 30% triggers crises.
+The rules live in `src/game/` as plain TypeScript with no React dependency:
 
-### Death Conditions (Estratega & Completo)
-- Food drops below **10%** for 10+ ticks
-- Unemployment exceeds **50%** for 10+ ticks
-- Stability below **15%** triggers collapse
+| File | Contents |
+|------|----------|
+| `data.ts` | Continents, buildings, technologies, historical events |
+| `mapgen.ts` | Continent tile map generated from the real territory outlines |
+| `engine.ts` | Reducer, yearly economy, placement rules, rivals, climate, events, victory and defeat |
+| `bot.ts` | Scripted player used by the balance simulator |
 
-### Time Scale
-The game uses logarithmic time scaling: **1960 to 2035** in approximately **10 minutes** of real gameplay. Early years pass slowly; the AI era accelerates dramatically.
+Balance is checked headless (continent, mode, strategy, seed):
+
+```bash
+node tools/sim/sim.ts eu complete balanced 11
+```
+
+Every minigame has a solvability test in `tools/verify-minigames/`:
+
+```bash
+node tools/verify-minigames/turing.test.ts
+```
 
 ---
 
@@ -265,13 +239,12 @@ Immersive era-specific audio:
 
 - **75** Cinematic Videos
 - **71** Card Images (PNG)
-- **8** Mode/Faction Card Images (JPG)
-- **35+** Historical Events
-- **20** Building Types
-- **6** Action Buttons
-- **8** Playable Factions
-- **3** Game Modes
-- **6** Technological Eras
+- **8** Playable Factions with generated tile maps
+- **22** Building Types, 3 levels each
+- **30** Technologies in 5 eras
+- **30+** Historical decisions + dynamic climate, AI-incident and diplomatic events
+- **8** Breakthrough minigames
+- **4** Game Modes
 
 ---
 
