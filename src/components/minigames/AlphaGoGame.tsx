@@ -17,7 +17,7 @@ export const meta: MinigameMeta = {
   title: 'ATARI GO VS. PROTO-ALPHAGO',
   subtitle: 'First capture wins',
   accent: '#FFD166',
-  background: '/assets/puzzles/alphago/bg_alphago.png',
+  background: './assets/puzzles/alphago/bg_alphago.png',
   howTo: [
     'You are Black and move first. Click an intersection to place a stone.',
     'A group of stones needs empty neighbouring points, its liberties. A group with no liberties is captured.',

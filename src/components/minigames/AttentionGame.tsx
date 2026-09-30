@@ -14,7 +14,7 @@ export const meta: MinigameMeta = {
   title: 'ATTENTION IS ALL YOU NEED',
   subtitle: 'Point the query at the right word',
   accent: '#B388FF',
-  background: '/assets/AGI_Nexus_Final/game_dashboard.png',
+  background: './assets/AGI_Nexus_Final/game_dashboard.png',
   howTo: [
     'Each round shows a sentence split into tokens. One token is the QUERY, usually a pronoun such as "it" or "they".',
     'Click the token the query refers to, using common sense: who or what does the sentence mean?',

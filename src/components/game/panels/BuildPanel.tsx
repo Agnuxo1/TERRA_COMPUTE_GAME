@@ -48,7 +48,7 @@ export default function BuildPanel() {
                 title={unlocked ? 'Click, then click a tile on the map' : undefined}
               >
                 <div className="relative h-16 overflow-hidden">
-                  <img src={`/assets/cards/build-${b.id === 'fusion' ? 'nuclear' : b.id}.png`} alt="" className="absolute inset-0 w-full h-full object-cover"
+                  <img src={`./assets/cards/build-${b.id === 'fusion' ? 'nuclear' : b.id}.png`} alt="" className="absolute inset-0 w-full h-full object-cover"
                     style={{ filter: `brightness(${active ? 0.8 : 0.5}) saturate(${unlocked ? 1 : 0})${b.id === 'fusion' ? ' hue-rotate(200deg)' : ''}` }} draggable={false} />
                   <div className="absolute inset-0" style={{ background: `linear-gradient(90deg, rgba(11,12,16,0.92) 35%, transparent)` }} />
                   <div className="absolute left-2 top-1.5 right-2">

@@ -8,19 +8,19 @@ import { getFactionSprite } from './factionSprites';
 
 // ─── SOUND PATHS ───
 function getPlaneSound(year: number): string {
-  if (year < 1970) return '/assets/sounds/plane-1960.mp3';
-  if (year < 1980) return '/assets/sounds/plane-1970.mp3';
-  if (year < 1990) return '/assets/sounds/plane-1980.mp3';
-  if (year < 2010) return '/assets/sounds/plane-2000.mp3';
-  if (year < 2020) return '/assets/sounds/plane-2010.mp3';
-  if (year < 2030) return '/assets/sounds/plane-2020.mp3';
-  return '/assets/sounds/plane-2030.mp3';
+  if (year < 1970) return './assets/sounds/plane-1960.mp3';
+  if (year < 1980) return './assets/sounds/plane-1970.mp3';
+  if (year < 1990) return './assets/sounds/plane-1980.mp3';
+  if (year < 2010) return './assets/sounds/plane-2000.mp3';
+  if (year < 2020) return './assets/sounds/plane-2010.mp3';
+  if (year < 2030) return './assets/sounds/plane-2020.mp3';
+  return './assets/sounds/plane-2030.mp3';
 }
-const ROCKET_SOUND = '/assets/sounds/rocket-launch.mp3';
-const SATELLITE_SOUND = '/assets/sounds/satellite-beep.mp3';
+const ROCKET_SOUND = './assets/sounds/rocket-launch.mp3';
+const SATELLITE_SOUND = './assets/sounds/satellite-beep.mp3';
 
 // ─── SINGLE GLOBE MAP ───
-const GLOBE_MAP = '/assets/map-2020.jpg';
+const GLOBE_MAP = './assets/map-2020.jpg';
 
 // ─── AIR ROUTES: right→left (x decreciente, use NORMAL plane image) ───
 const AIR_ROUTES_RL = [
@@ -50,34 +50,34 @@ const ORBIT_PATHS = [
 
 // ─── IMAGE PATHS ───
 function getPlaneImage(year: number): string {
-  if (year < 1970) return '/assets/plane-1960.png';
-  if (year < 1980) return '/assets/plane-1970.png';
-  if (year < 1990) return '/assets/plane-1980.png';
-  if (year < 2000) return '/assets/plane-1990.png';
-  if (year < 2010) return '/assets/plane-2000.png';
-  if (year < 2020) return '/assets/plane-2010.png';
-  if (year < 2030) return '/assets/plane-2020.png';
-  return '/assets/plane-2030.png';
+  if (year < 1970) return './assets/plane-1960.png';
+  if (year < 1980) return './assets/plane-1970.png';
+  if (year < 1990) return './assets/plane-1980.png';
+  if (year < 2000) return './assets/plane-1990.png';
+  if (year < 2010) return './assets/plane-2000.png';
+  if (year < 2020) return './assets/plane-2010.png';
+  if (year < 2030) return './assets/plane-2020.png';
+  return './assets/plane-2030.png';
 }
 
 function getPlaneImageMirror(year: number): string {
-  if (year < 1970) return '/assets/plane-1960-mirror.png';
-  if (year < 1980) return '/assets/plane-1970-mirror.png';
-  if (year < 1990) return '/assets/plane-1980-mirror.png';
-  if (year < 2000) return '/assets/plane-1990-mirror.png';
-  if (year < 2010) return '/assets/plane-2000-mirror.png';
-  if (year < 2020) return '/assets/plane-2010-mirror.png';
-  if (year < 2030) return '/assets/plane-2020-mirror.png';
-  return '/assets/plane-2030-mirror.png';
+  if (year < 1970) return './assets/plane-1960-mirror.png';
+  if (year < 1980) return './assets/plane-1970-mirror.png';
+  if (year < 1990) return './assets/plane-1980-mirror.png';
+  if (year < 2000) return './assets/plane-1990-mirror.png';
+  if (year < 2010) return './assets/plane-2000-mirror.png';
+  if (year < 2020) return './assets/plane-2010-mirror.png';
+  if (year < 2030) return './assets/plane-2020-mirror.png';
+  return './assets/plane-2030-mirror.png';
 }
 
 function getSatelliteImage(year: number): string {
-  if (year < 1990) return '/assets/satellite-1960.png';
-  if (year < 2030) return '/assets/satellite-2020.png';
-  return '/assets/satellite-2030.png';
+  if (year < 1990) return './assets/satellite-1960.png';
+  if (year < 2030) return './assets/satellite-2020.png';
+  return './assets/satellite-2030.png';
 }
 
-const ROCKET_IMAGE = '/assets/rocket-launch.png';
+const ROCKET_IMAGE = './assets/rocket-launch.png';
 
 // ─── TYPES ───
 interface Plane {
@@ -208,14 +208,14 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
 
   // Preload all aircraft (normal + mirror) + satellite + rocket images
   const allImages = [
-    '/assets/plane-1960.png', '/assets/plane-1970.png', '/assets/plane-1980.png',
-    '/assets/plane-1990.png', '/assets/plane-2000.png', '/assets/plane-2010.png',
-    '/assets/plane-2020.png', '/assets/plane-2030.png',
-    '/assets/plane-1960-mirror.png', '/assets/plane-1970-mirror.png', '/assets/plane-1980-mirror.png',
-    '/assets/plane-1990-mirror.png', '/assets/plane-2000-mirror.png', '/assets/plane-2010-mirror.png',
-    '/assets/plane-2020-mirror.png', '/assets/plane-2030-mirror.png',
-    '/assets/satellite-1960.png', '/assets/satellite-2020.png', '/assets/satellite-2030.png',
-    '/assets/rocket-launch.png',
+    './assets/plane-1960.png', './assets/plane-1970.png', './assets/plane-1980.png',
+    './assets/plane-1990.png', './assets/plane-2000.png', './assets/plane-2010.png',
+    './assets/plane-2020.png', './assets/plane-2030.png',
+    './assets/plane-1960-mirror.png', './assets/plane-1970-mirror.png', './assets/plane-1980-mirror.png',
+    './assets/plane-1990-mirror.png', './assets/plane-2000-mirror.png', './assets/plane-2010-mirror.png',
+    './assets/plane-2020-mirror.png', './assets/plane-2030-mirror.png',
+    './assets/satellite-1960.png', './assets/satellite-2020.png', './assets/satellite-2030.png',
+    './assets/rocket-launch.png',
   ];
   const { cache: imgCache } = useImagePreloader(allImages);
 

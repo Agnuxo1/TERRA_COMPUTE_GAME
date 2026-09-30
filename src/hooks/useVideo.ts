@@ -29,5 +29,5 @@ export function resetPlayedVideos(): void {
 
 /** Get the video URL for a given card/video ID */
 export function getVideoUrl(videoId: string): string {
-  return `/assets/cards/${videoId}.mp4`;
+  return `./assets/cards/${videoId}.mp4`;
 }

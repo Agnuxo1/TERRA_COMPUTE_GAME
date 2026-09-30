@@ -5,7 +5,7 @@ import { StarRow } from '../components/minigames/MinigameShell';
 import type { MinigameDifficulty, Stars } from '../components/minigames/types';
 import { play } from '../hooks/useSound';
 
-const LOGIC_CARD = '/assets/cards/LOGIC.png';
+const LOGIC_CARD = './assets/cards/LOGIC.png';
 const STORE = 'terra_compute_logic_stars';
 
 function loadStars(): Record<string, number> {

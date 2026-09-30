@@ -9,14 +9,14 @@ import VideoPlayer from '../components/game/VideoPlayer';
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const continentCardMap: Record<string, string> = {
-  na: '/assets/cards/continent-usa.png',
-  eu: '/assets/cards/continent-europe.png',
-  su: '/assets/cards/continent-ussr.png',
-  cn: '/assets/cards/continent-china.png',
-  af: '/assets/cards/continent-africa.png',
-  sa: '/assets/cards/continent-southamerica.png',
-  in: '/assets/cards/continent-india.png',
-  oc: '/assets/cards/continent-oceania.png',
+  na: './assets/cards/continent-usa.png',
+  eu: './assets/cards/continent-europe.png',
+  su: './assets/cards/continent-ussr.png',
+  cn: './assets/cards/continent-china.png',
+  af: './assets/cards/continent-africa.png',
+  sa: './assets/cards/continent-southamerica.png',
+  in: './assets/cards/continent-india.png',
+  oc: './assets/cards/continent-oceania.png',
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -51,9 +51,9 @@ export default function TitleScreen() {
   ];
 
   const panelBgMap:Record<string,string>={
-    howto:'/assets/cards/action-tech.png',
-    settings:'/assets/cards/action-pause.png',
-    credits:'/assets/cards/event-coldwar91.png',
+    howto:'./assets/cards/action-tech.png',
+    settings:'./assets/cards/action-pause.png',
+    credits:'./assets/cards/event-coldwar91.png',
   };
 
   return (

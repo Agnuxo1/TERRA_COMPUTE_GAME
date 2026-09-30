@@ -14,7 +14,7 @@ export const meta: MinigameMeta = {
   title: 'BOMBE CODEBREAKER',
   subtitle: 'Turing machine room - find the day\'s rotor setting',
   accent: '#FFB84D',
-  background: '/assets/puzzles/turing-bombe-background.png',
+  background: './assets/puzzles/turing-bombe-background.png',
   rewardLabel: 'Research + Education',
   howTo: [
     'The enemy machine is set to a secret of 4 rotor letters. Find it.',

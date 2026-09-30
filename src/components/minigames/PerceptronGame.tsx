@@ -15,7 +15,7 @@ export const meta: MinigameMeta = {
   title: 'PERCEPTRON TRAINER',
   subtitle: 'Rosenblatt weight board - teach the machine to tell the two signals apart',
   accent: '#33FF33',
-  background: '/assets/puzzles/perceptron-weight-board.png',
+  background: './assets/puzzles/perceptron-weight-board.png',
   rewardLabel: 'Compute efficiency',
   howTo: [
     'Red and cyan signals are scattered on the plot. Draw a line that puts all red on one side and all cyan on the other.',

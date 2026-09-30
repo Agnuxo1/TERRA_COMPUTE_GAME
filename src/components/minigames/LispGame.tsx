@@ -14,7 +14,7 @@ export const meta: MinigameMeta = {
   title: 'LISP PIPELINE',
   subtitle: 'Dartmouth lab - compose list functions to reach the target',
   accent: '#00F0FF',
-  background: '/assets/puzzles/lisp-dartmouth-lab.png',
+  background: './assets/puzzles/lisp-dartmouth-lab.png',
   rewardLabel: 'Research points',
   howTo: [
     'Turn the INPUT list into the TARGET list by filling the pipeline slots with function cards.',
