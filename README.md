@@ -78,6 +78,14 @@ Hover any gauge in the top bar for the full breakdown.
 | **Approval** | Food, homes, jobs, healthcare, neighbourhoods, taxes, power cuts, climate damage, events. |
 | **Alignment** | AI Safety Institutes raise it; capability pressure lowers it. Safety research raises its ceiling. |
 
+### Industry, market and decrees
+- **Steel** comes from Industrial Kombinats, **chips** from Chip Foundries (+50% on silica). Advanced buildings cost steel and chips, and compute buildings burn chips every year to keep their hardware running.
+- Anything you lack is **imported** automatically at world-market prices — convenient, but expensive. Prices move when you trade a lot and follow history (chips are precious in the 1960s, cheap in the 2000s, scarce again in the AI boom).
+- **ECONOMY [E]** opens the decree board and the world market. Decrees (Five-Year Plan, Free Market, Welfare State, Austerity, Autarky, Open Trade, Green Deal, Space Race, Security State, Ministry of Truth, Manhattan Project for AI, Safety First…) each have a clear benefit and a clear price, some exclude each other, slots grow with each era, and every change reshuffles the government for two years.
+
+### The command map
+An animated isometric view in the spirit of classic RTS games: an automatic road network with traffic, smoking chimneys and cooling towers, a radioactive glow over nuclear plants, plasma in fusion reactors, data beams over AI datacenters, rocket launches from space centres, ships in the ports, a day–night cycle and smog that thickens as the planet suffers. A clickable sector map (minimap) shows the whole continent; arrows, screen edges, drag and mouse wheel move the camera.
+
 ### 5. Research
 30 technologies in 5 eras, with prerequisites. You may research up to 10 years ahead of history, at +10% cost per year early.
 
@@ -102,7 +110,10 @@ Around 30 historical events (oil crisis, AI winters, dot-com crash, COVID, ChatG
 | Attention Is All You Need | 2017 | Find what each pronoun refers to |
 
 ### Controls
-`B` build · `T` tech · `D` diplomacy · `S` spy · `A` covert · `M` continent/world view · `Space` pause · `1–3` speed · `Esc` cancel · mouse wheel / drag to zoom and pan.
+`B` build · `T` tech · `D` diplomacy · `S` spy · `A` covert · `E` economy · `M` continent/world view · `Space` pause · `1–3` speed · `Esc` cancel / game menu · arrows, screen edge, drag and mouse wheel move the camera · `Home` fits the map · double-click focuses a tile.
+
+### A complete game
+Interactive tutorial, three difficulty levels (easy / normal / hard), save games in three slots plus autosave, settings (volume, scrolling, day–night, reduced motion), 15 achievements and an end-of-game report with charts of your whole run.
 
 ---
 
@@ -244,6 +255,8 @@ Immersive era-specific audio:
 - **30** Technologies in 5 eras
 - **30+** Historical decisions + dynamic climate, AI-incident and diplomatic events
 - **8** Breakthrough minigames
+- **14** National decrees, a two-good industrial economy and a world market
+- **15** Achievements, 3 difficulty levels, save slots + autosave
 - **4** Game Modes
 
 ---
