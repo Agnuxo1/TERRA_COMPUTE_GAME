@@ -19,6 +19,7 @@ const actions: CommandAction[] = [
   { key: 'D', label: 'DIPLO', iconImg: './assets/cards/action-diplo.png', overlay: 'diplomacy', color: '#7B61FF' },
   { key: 'A', label: 'ATTACK', iconImg: './assets/cards/action-attack.png', overlay: 'attack', color: '#FF477E' },
   { key: 'S', label: 'SPY', iconImg: './assets/cards/action-spy.png', overlay: 'spy', color: '#FFB84D' },
+  { key: 'E', label: 'ECONOMY', iconImg: './assets/cards/action-automation.png', overlay: 'economy', color: '#FFD166' },
   { key: 'SPACE', label: 'PAUSE', iconImg: './assets/cards/action-pause.png', overlay: null, color: '#FFB84D', action: 'pause' },
 ];
 
@@ -28,6 +29,7 @@ const actionVideoMap: Record<string, string> = {
   D: 'action-diplo',
   A: 'action-attack',
   S: 'action-spy',
+  E: 'action-automation',
   SPACE: 'action-pause',
 };
 
@@ -81,6 +83,7 @@ export default function CommandCard() {
         return (
           <button
             key={action.key}
+            data-tutorial={`cmd-${action.overlay ?? action.action}`}
             onClick={() => handleAction(action)}
             className="command-card-button relative flex flex-col items-center justify-center rounded overflow-hidden transition-all hover:brightness-125 hover:scale-105"
             style={{

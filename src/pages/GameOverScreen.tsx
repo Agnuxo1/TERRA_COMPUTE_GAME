@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useGame } from '../App';
 import { play } from '../hooks/useSound';
+import EndStats from '../components/meta/EndStats';
 
 const OUTCOME_TITLE: Record<string, string> = {
   rival_asi: 'RACE LOST',
@@ -102,48 +103,52 @@ export default function GameOverScreen() {
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-center">
+    <div className="relative w-full h-full overflow-hidden">
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{zIndex:0}}/>
-      <div className="relative z-10 flex flex-col items-center gap-4 animate-fade-up">
-        <h1 className="font-orbitron text-5xl font-black tracking-wider" style={{
+      <div className="absolute inset-0 z-10 overflow-auto">
+      <div className="min-h-full w-full flex flex-col items-center justify-center gap-3 px-3 py-4 mx-auto animate-fade-up" style={{maxWidth:'1000px'}}>
+        <h1 className="font-orbitron font-black tracking-wider text-center" style={{
+          fontSize: 'clamp(1.6rem, min(5vw, 7vh), 3rem)', lineHeight: 1.05,
           color: 'var(--rose)',
           textShadow: '0 0 30px rgba(255,71,126,0.4)',
         }}>
           {OUTCOME_TITLE[state.outcome ?? ''] ?? 'DEFEAT'}
         </h1>
-        <div className="font-mono-data text-[11px] tracking-[0.3em] -mt-2" style={{ color: 'var(--text-tertiary)' }}>
+        <div className="font-mono-data text-[10px] tracking-[0.25em] -mt-1 text-center" style={{ color: 'var(--text-tertiary)' }}>
           {OUTCOME_LESSON[state.outcome ?? ''] ?? ''}
         </div>
 
-        <div className="panel-elevated px-6 py-4 flex flex-col items-center gap-2" style={{maxWidth:'560px'}}>
-          <p className="font-rajdhani text-base text-center" style={{color:'var(--text-secondary)'}}>
+        <div className="panel-elevated px-5 py-2.5 flex flex-col items-center gap-1" style={{maxWidth:'640px'}}>
+          <p className="font-rajdhani text-sm text-center leading-snug" style={{color:'var(--text-secondary)'}}>
             {state.gameOverReason || 'Your civilization has fallen.'}
           </p>
-          <div className="flex gap-6 mt-2">
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 mt-1">
             <div className="flex flex-col items-center">
               <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>YEAR</span>
-              <span className="font-orbitron text-lg" style={{color:'var(--cyan)'}}>{Math.floor(state.year)}</span>
+              <span className="font-orbitron text-base" style={{color:'var(--cyan)'}}>{Math.floor(state.year)}</span>
             </div>
             <div className="flex flex-col items-center">
               <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>BUILDINGS</span>
-              <span className="font-orbitron text-lg" style={{color:'var(--amber)'}}>{state.totalBuildings}</span>
+              <span className="font-orbitron text-base" style={{color:'var(--amber)'}}>{state.totalBuildings}</span>
             </div>
             <div className="flex flex-col items-center">
               <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>TECHS</span>
-              <span className="font-orbitron text-lg" style={{color:'var(--green)'}}>{state.totalTechs}</span>
+              <span className="font-orbitron text-base" style={{color:'var(--green)'}}>{state.totalTechs}</span>
             </div>
             <div className="flex flex-col items-center">
               <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>PEAK COMPUTE</span>
-              <span className="font-orbitron text-lg" style={{color:'var(--cyan)'}}>10^{state.peakCapability.toFixed(1)}</span>
+              <span className="font-orbitron text-base" style={{color:'var(--cyan)'}}>10^{state.peakCapability.toFixed(1)}</span>
             </div>
             <div className="flex flex-col items-center">
               <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>PLANET</span>
-              <span className="font-orbitron text-lg" style={{color: state.planetHealth > 40 ? 'var(--green)' : 'var(--rose)'}}>{Math.round(state.planetHealth)}%</span>
+              <span className="font-orbitron text-base" style={{color: state.planetHealth > 40 ? 'var(--green)' : 'var(--rose)'}}>{Math.round(state.planetHealth)}%</span>
             </div>
           </div>
         </div>
 
-        <div className="flex gap-3 mt-2">
+        <EndStats state={state} accent="var(--rose)" />
+
+        <div className="flex gap-3">
           <button onClick={handleRetry}
             className="px-6 py-2.5 rounded font-orbitron text-sm font-bold"
             style={{background:'var(--cyan)', color:'#000'}}>
@@ -155,6 +160,7 @@ export default function GameOverScreen() {
             MAIN MENU
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

@@ -3,24 +3,33 @@ import { useGame } from '../App';
 import { play, startAmbient, stopAmbient } from '../hooks/useSound';
 import { TICK_MS } from '../game/engine';
 import ResourceBar from '../components/game/ResourceBar';
-import ContinentMap from '../components/game/ContinentMap';
+import RTSMap from '../components/game/map/RTSMap';
 import EvolvingMap from '../components/game/EvolvingMap';
 import CommandCard from '../components/game/CommandCard';
 import EventModal from '../components/game/EventModal';
 import NotificationFeed from '../components/game/NotificationFeed';
 import TechTreeOverlay from '../components/game/TechTreeOverlay';
 import Translator from '../components/game/Translator';
+import Tutorial from '../components/game/Tutorial';
+import PauseMenu from '../components/meta/PauseMenu';
+import AutosaveToast from '../components/meta/AutosaveToast';
+import { useAutosave } from '../hooks/useAutosave';
+import { useSettings } from '../lib/settings';
 import OverviewPanel from '../components/game/panels/OverviewPanel';
 import TilePanel from '../components/game/panels/TilePanel';
 import BuildPanel from '../components/game/panels/BuildPanel';
 import DiplomacyPanel from '../components/game/panels/DiplomacyPanel';
 import IntelPanel from '../components/game/panels/IntelPanel';
+import EconomyPanel from '../components/game/panels/EconomyPanel';
 
-const OVERLAY_KEYS: Record<string, string> = { b: 'buildings', t: 'tech', d: 'diplomacy', a: 'attack', s: 'spy' };
+const OVERLAY_KEYS: Record<string, string> = { b: 'buildings', t: 'tech', d: 'diplomacy', a: 'attack', s: 'spy', e: 'economy' };
 
 export default function GameScreen() {
   const { state, dispatch } = useGame();
   const [mapView, setMapView] = useState<'continent' | 'world'>('continent');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { justSaved, lastSavedYear } = useAutosave();
+  const [settings] = useSettings();
 
   // Simulation clock
   useEffect(() => {
@@ -36,13 +45,14 @@ export default function GameScreen() {
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (state.activeEvent) return;
+      if (state.activeEvent || menuOpen) return;
       if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
       const k = e.key.toLowerCase();
       if (k === 'escape') {
         if (state.placing) dispatch({ type: 'SET_PLACING', building: null });
         else if (state.overlay) dispatch({ type: 'CLOSE_OVERLAY' });
         else if (state.selectedTile !== null) dispatch({ type: 'SELECT_TILE', tileId: null });
+        else setMenuOpen(true);
         return;
       }
       if (OVERLAY_KEYS[k]) {
@@ -56,12 +66,13 @@ export default function GameScreen() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [dispatch, state.activeEvent, state.overlay, state.placing, state.selectedTile]);
+  }, [dispatch, state.activeEvent, state.overlay, state.placing, state.selectedTile, menuOpen]);
 
   const side = state.overlay === 'buildings' ? <BuildPanel />
     : state.overlay === 'diplomacy' ? <DiplomacyPanel />
     : state.overlay === 'attack' ? <IntelPanel mode="attack" />
     : state.overlay === 'spy' ? <IntelPanel mode="spy" />
+    : state.overlay === 'economy' ? <EconomyPanel />
     : state.selectedTile !== null ? <TilePanel />
     : <OverviewPanel />;
 
@@ -73,7 +84,7 @@ export default function GameScreen() {
 
       <div className="game-main-layout flex flex-col flex-1 md:flex-row overflow-hidden" style={{ minHeight: 0 }}>
         <div className="game-map-stage relative flex-1 h-[48vh] md:h-auto" style={{ minWidth: 0, minHeight: 220 }}>
-          {mapView === 'continent' ? <ContinentMap /> : <EvolvingMap onEnterContinent={() => setMapView('continent')} />}
+          {mapView === 'continent' ? <RTSMap options={{ edgeScroll: settings.edgeScroll, scrollSpeed: settings.scrollSpeed, dayNight: settings.dayNight, reduceMotion: settings.reduceMotion }} /> : <EvolvingMap onEnterContinent={() => setMapView('continent')} />}
 
           {/* view switch */}
           <div className="absolute top-2 left-2 z-30 flex rounded overflow-hidden" style={{ border: '1px solid var(--border-light)' }}>
@@ -101,17 +112,21 @@ export default function GameScreen() {
           )}
         </div>
 
-        <aside className="game-side-panel shrink-0 flex flex-col md:w-[300px]" style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)', minHeight: 250 }}>
+        <aside data-tutorial="side" className="game-side-panel shrink-0 flex flex-col md:w-[300px]" style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)', minHeight: 250 }}>
           <div className="flex-1 overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>{side}</div>
           {state.overlay === null && state.selectedTile === null && (
             <div className="shrink-0 px-3 py-1.5 font-mono-data text-[8.5px] leading-relaxed" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-tertiary)' }}>
-              [B] build [T] tech [D] diplo [S] spy [A] covert [M] world [␣] pause [1-3] speed
+              [B] build [T] tech [D] diplo [S] spy [A] covert [E] economy [M] world [␣] pause [1-3] speed
             </div>
           )}
         </aside>
       </div>
 
       <CommandCard />
+
+      <Tutorial />
+      <AutosaveToast visible={justSaved} year={lastSavedYear} />
+      {menuOpen && <PauseMenu onClose={() => setMenuOpen(false)} />}
 
       {state.activeEvent && <EventModal />}
 

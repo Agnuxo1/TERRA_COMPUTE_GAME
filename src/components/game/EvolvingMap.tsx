@@ -202,7 +202,8 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
     return tiles.slice(-40).map(t => {
       const a = regionAnchor(t.region!);
       const j = (n: number) => (Math.sin(t.id * n) * 0.5) * 22;
-      return { type: t.building!.type, x: a.x + j(12.9898), y: a.y + j(78.233) * 0.6 };
+      // percentages of the globe image (the icon layer treats values ≤ 100 as percentages)
+      return { type: t.building!.type, x: ((a.x + j(12.9898)) / 760) * 100, y: ((a.y + j(78.233) * 0.6) / 450) * 100 };
     });
   }, [state.map]);
 
@@ -421,6 +422,30 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
             ENTER COMMAND MAP
           </span>
         </button>
+      )}
+
+      {/* Diplomatic links: treaties (violet) and hostility (red) */}
+      {state.playerContinent && continentHitZones[state.playerContinent] && (
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ zIndex: 35 }}>
+          {state.rivals.map(r => {
+            const a = continentHitZones[state.playerContinent!];
+            const b = continentHitZones[r.id];
+            if (!b) return null;
+            const ax = parseFloat(a.left) + parseFloat(a.width) / 2, ay = parseFloat(a.top) + parseFloat(a.height) / 2;
+            const bx = parseFloat(b.left) + parseFloat(b.width) / 2, by = parseFloat(b.top) + parseFloat(b.height) / 2;
+            const allied = r.treaties.length > 0;
+            const hostile = r.relation < -30;
+            if (!allied && !hostile) return null;
+            const mx = (ax + bx) / 2, my = Math.min(ay, by) - 10;
+            return (
+              <path key={r.id} d={`M ${ax} ${ay} Q ${mx} ${my} ${bx} ${by}`} fill="none"
+                stroke={allied ? '#7B61FF' : '#FF477E'} strokeOpacity={allied ? 0.75 : 0.45} strokeWidth={allied ? 0.18 + r.treaties.length * 0.06 : 0.15}
+                strokeDasharray={allied ? '1.2 1' : '0.6 1.2'}>
+                <animate attributeName="stroke-dashoffset" values="0;-4.4" dur={allied ? '1.6s' : '3s'} repeatCount="indefinite" />
+              </path>
+            );
+          })}
+        </svg>
       )}
 
       {/* Bloc status badges */}

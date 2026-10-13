@@ -212,7 +212,7 @@ export default function RTSMap({ options = {} }: { options?: MapOptions }) {
       {hoverTile && mouse && !drag.current?.moved && <TileTooltip state={state} tile={hoverTile} placement={hoverPl} x={mouse.x} y={mouse.y} />}
 
       {/* Minimap */}
-      <div className="absolute bottom-2 left-2 z-20 rounded overflow-hidden"
+      <div data-tutorial="minimap" className="absolute bottom-2 left-2 z-20 rounded overflow-hidden"
         style={{ border: '1px solid var(--border-light)', background: 'rgba(5,8,12,0.9)', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}
         onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onPointerMove={e => e.stopPropagation()} onWheel={e => e.stopPropagation()}>
         <div className="flex justify-between px-1.5 py-0.5 font-mono-data text-[8.5px] tracking-widest" style={{ color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border)' }}>

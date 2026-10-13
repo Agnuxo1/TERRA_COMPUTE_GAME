@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useGame } from '../../../App';
 import { buildings, CATEGORY_COLOR, CATEGORY_LABEL, techById } from '../../../game/data';
-import { countBuildings, evaluatePlacement, isUnlocked, popScale, scaledCost, suggestTile } from '../../../game/engine';
+import { buildQuote, countBuildings, evaluatePlacement, isUnlocked, popScale, suggestTile } from '../../../game/engine';
 import { fmtMoney } from '../../../game/format';
 import type { BuildingCategory } from '../../../game/types';
 import { play } from '../../../hooks/useSound';
 import { PanelHeader } from './common';
+import CostLine from './CostLine';
 
 const CATS: BuildingCategory[] = ['people', 'economy', 'energy', 'science', 'compute', 'safety'];
 
@@ -31,8 +32,8 @@ export default function BuildPanel() {
       <div className="flex-1 overflow-auto p-2 flex flex-col gap-2" style={{ WebkitOverflowScrolling: 'touch' }}>
         {list.map(b => {
           const unlocked = isUnlocked(state, b.id);
-          const cost = scaledCost(state, b.id);
-          const afford = state.budget >= cost;
+          const q = buildQuote(state, b.id);
+          const afford = q.ok;
           const tone = CATEGORY_COLOR[b.category];
           const active = state.placing === b.id;
           const best = unlocked ? suggestTile(state, b.id) : null;
@@ -56,8 +57,8 @@ export default function BuildPanel() {
                       <span className="font-rajdhani text-[14px] font-bold" style={{ color: tone }}>{b.icon} {b.name}</span>
                       {owned > 0 && <span className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>×{owned}</span>}
                     </div>
-                    <div className="font-mono-data text-[9.5px] mt-0.5" style={{ color: afford ? 'var(--text-primary)' : 'var(--rose)' }}>
-                      {fmtMoney(cost)} <span style={{ color: 'var(--text-tertiary)' }}>· upkeep ${b.upkeep}B/yr · {b.buildTime}y</span>
+                    <div className="font-mono-data text-[9.5px] mt-0.5 truncate">
+                      <CostLine q={q} showImport={false} /> <span style={{ color: 'var(--text-tertiary)' }}>· ${b.upkeep}B/yr · {b.buildTime}y</span>
                     </div>
                     <div className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>
                       {b.energyProduce ? <span style={{ color: 'var(--green)' }}>+{b.energyProduce} GW </span> : b.energyUse ? <span>−{b.energyUse} GW </span> : null}
@@ -72,6 +73,15 @@ export default function BuildPanel() {
                 {!unlocked && b.requiresTech && (
                   <div className="font-mono-data text-[9.5px] mt-1" style={{ color: 'var(--amber)' }}>🔒 Research: {techById[b.requiresTech].name}</div>
                 )}
+                {unlocked && q.importCost > 0 && (
+                  <div className="font-mono-data text-[9.5px] mt-1" style={{ color: 'var(--amber)' }}
+                    title="Goods missing from your stock are bought on the world market at the current buy price">
+                    (+{fmtMoney(q.importCost)} import{q.importSteel ? ` · ${q.importSteel} steel` : ''}{q.importChips ? ` · ${q.importChips} chips` : ''})
+                  </div>
+                )}
+                {unlocked && !q.ok && q.reason && (
+                  <div className="font-mono-data text-[9.5px] mt-0.5" style={{ color: 'var(--rose)' }}>✕ {q.reason}</div>
+                )}
                 {unlocked && (
                   <div className="flex gap-1 mt-1.5">
                     <button onClick={() => { play('click'); dispatch({ type: 'SET_PLACING', building: active ? null : b.id }); }}
@@ -83,7 +93,7 @@ export default function BuildPanel() {
                       onClick={() => { if (best !== null) { play('build'); dispatch({ type: 'BUILD', tileId: best, building: b.id }); dispatch({ type: 'SET_PLACING', building: null }); } }}
                       className={`flex-1 font-mono-data text-[9.5px] py-1 rounded ${best === null || !afford ? 'opacity-40 cursor-not-allowed' : 'hover:brightness-125'}`}
                       style={{ color: 'var(--text-primary)', border: '1px solid var(--border-light)' }}
-                      title="Build immediately on the best available tile">
+                      title={!afford && q.reason ? q.reason : `Build immediately on the best available tile · ${fmtMoney(q.total)} total${q.importCost ? ` incl. ${fmtMoney(q.importCost)} imports` : ''}`}>
                       {best === null ? 'NO FREE TILE' : `BEST SPOT ×${bestMult.toFixed(2)}`}
                     </button>
                   </div>

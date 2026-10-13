@@ -2,11 +2,19 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useGame } from '../App';
 import { play, enableAudio } from '../hooks/useSound';
 import Translator from '../components/game/Translator';
+import SettingsForm from '../components/meta/SettingsForm';
+import SaveSlots, { latestSave, slotLabel } from '../components/meta/SaveSlots';
+import { loadGame, type SaveSlot } from '../game/save';
+import { ACHIEVEMENTS, getUnlocked } from '../game/achievements';
+
+type Panel = 'howto' | 'settings' | 'credits' | 'load' | 'achievements';
 
 export default function TitleScreen() {
   const { dispatch } = useGame();
   const [audioOn, setAudioOn] = useState(false);
-  const [activePanel, setActivePanel] = useState<'howto' | 'settings' | 'credits' | null>(null);
+  const [activePanel, setActivePanel] = useState<Panel | null>(null);
+  const [latest, setLatest] = useState(() => latestSave());
+  const [unlocked] = useState(() => getUnlocked());
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particles = useRef<Array<{x:number;y:number;vx:number;vy:number;size:number;alpha:number}>>([]);
 
@@ -41,11 +49,22 @@ export default function TitleScreen() {
   },[initParticles]);
 
   const handleNewGame=()=>{play('click');dispatch({type:'SET_SCREEN',screen:'mode'});};
-  const openPanel=(panel:'howto'|'settings'|'credits')=>{play('click');setActivePanel(activePanel===panel?null:panel);};
+  const openPanel=(panel:Panel)=>{play('click');setActivePanel(activePanel===panel?null:panel);};
+  const loadSlot=(slot:SaveSlot)=>{
+    const s=loadGame(slot);
+    if(!s){setLatest(latestSave());return false;}
+    play('coin');
+    dispatch({type:'LOAD_STATE',state:s});
+    return true;
+  };
 
-  const buttons=[
+  const buttons:Array<{label:string;action:()=>void;icon:string;sub?:string}>=[
+    ...(latest?[{label:'CONTINUE',action:()=>{play('click');loadSlot(latest.slot);},icon:'↻',
+      sub:`${slotLabel(latest.slot)} · ${latest.year}`}]:[]),
     {label:'NEW GAME',action:handleNewGame,icon:'▶'},
+    {label:'LOAD GAME',action:()=>openPanel('load'),icon:'⇩'},
     {label:'HOW TO PLAY',action:()=>openPanel('howto'),icon:'?'},
+    {label:'ACHIEVEMENTS',action:()=>openPanel('achievements'),icon:'♛'},
     {label:'SETTINGS',action:()=>openPanel('settings'),icon:'⚙'},
     {label:'CREDITS',action:()=>openPanel('credits'),icon:'★'},
   ];
@@ -54,7 +73,10 @@ export default function TitleScreen() {
     howto:'./assets/cards/action-tech.png',
     settings:'./assets/cards/action-pause.png',
     credits:'./assets/cards/event-coldwar91.png',
+    load:'./assets/cards/action-pause.png',
+    achievements:'./assets/cards/action-tech.png',
   };
+  const unlockedCount=ACHIEVEMENTS.filter(a=>unlocked[a.id]).length;
 
   return (
     <div className="relative w-full h-full flex" style={{background:'var(--void)'}}>
@@ -65,7 +87,8 @@ export default function TitleScreen() {
       <canvas ref={canvasRef} className="absolute inset-0" style={{zIndex:0}}/>
 
       {/* Title & Buttons */}
-      <div className="relative z-10 flex-1 flex flex-col justify-center items-center gap-8 px-4">
+      <div className="title-col relative z-10 flex-1 flex flex-col items-center gap-8 px-4 py-4 overflow-y-auto" style={{minHeight:0}}>
+        <style>{`.title-col>:first-of-type{margin-top:auto}.title-col>:last-child{margin-bottom:auto}@media (max-height:620px){.title-col{gap:0.9rem}.title-btn{padding-top:0.35rem!important;padding-bottom:0.35rem!important}}`}</style>
 
         {/* Title */}
         <div className="flex flex-col items-center gap-3">
@@ -103,7 +126,7 @@ export default function TitleScreen() {
         <div className="flex flex-col gap-2 w-72">
           {buttons.map(btn=>(
             <button key={btn.label} onClick={btn.action}
-              className="w-full text-left flex items-center gap-3 px-4 py-2.5 rounded transition-all
+              className="title-btn w-full text-left flex items-center gap-3 px-4 py-2.5 rounded transition-all
                 hover:shadow-[0_0_12px_rgba(51,255,51,0.25)] hover:border-[#33FF33]"
               style={{
                 background:'var(--surface-elevated)',
@@ -118,6 +141,9 @@ export default function TitleScreen() {
               <span className="font-orbitron text-[10px] font-bold tracking-widest">
                 {btn.label}
               </span>
+              {btn.sub&&(
+                <span className="ml-auto font-mono-data text-[8.5px]" style={{color:'#33FF33',opacity:0.6}}>{btn.sub}</span>
+              )}
             </button>
           ))}
 
@@ -153,12 +179,14 @@ export default function TitleScreen() {
 
           {/* Header */}
           <div className="relative flex items-center justify-between p-3 shrink-0"
-            style={{borderBottom:'1px solid var(--border)',background:'rgba(22,25,36,0.7)',backdropFilter:'blur(4px)'}}>
+            style={{borderBottom:'1px solid var(--border)',background:'rgba(22,25,36,0.7)',backdropFilter:'blur(4px)',paddingRight:'92px'}}>
             <h2 className="font-orbitron text-xs font-bold"
               style={{color:'#33FF33',textShadow:'0 1px 3px rgba(0,0,0,0.9)'}}>
               {activePanel==='howto'&&'HOW TO PLAY'}
               {activePanel==='settings'&&'SETTINGS'}
               {activePanel==='credits'&&'CREDITS'}
+              {activePanel==='load'&&'LOAD GAME'}
+              {activePanel==='achievements'&&`ACHIEVEMENTS ${unlockedCount}/${ACHIEVEMENTS.length}`}
             </h2>
             <button onClick={()=>{play('click');setActivePanel(null);}}
               className="px-2 py-0.5 rounded font-mono-data text-[9px] hover:brightness-125"
@@ -241,32 +269,48 @@ export default function TitleScreen() {
 
             {/* SETTINGS */}
             {activePanel==='settings'&&(
-              <div className="flex flex-col gap-4" style={{color:'var(--text-secondary)'}}>
+              <div className="flex flex-col gap-3">
+                <SettingsForm accent="#33FF33"/>
                 <div>
-                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>AUDIO</h3>
-                  <button onClick={()=>{enableAudio();setAudioOn(true);play('click');}}
-                    className="w-full py-2 rounded font-orbitron text-[9px] font-bold tracking-wider
-                      hover:shadow-[0_0_8px_rgba(51,255,51,0.2)]"
-                    style={{background:'rgba(51,255,51,0.1)',color:'#33FF33',
-                      border:'1px solid rgba(51,255,51,0.3)'}}>
-                    {audioOn?'AUDIO ON':'ENABLE AUDIO'}
-                  </button>
+                  <h3 className="font-orbitron text-[10px] mb-1 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>DIFFICULTY</h3>
+                  <p className="font-mono-data text-[9px]" style={{color:'var(--text-tertiary)'}}>Chosen per game on the faction screen, next to BEGIN.</p>
                 </div>
-                <div>
-                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>GAME SPEED</h3>
-                  <div className="flex flex-col gap-0.5 font-mono-data text-[9px]">
-                    <div className="flex justify-between"><span>[1]</span><span style={{color:'var(--text-primary)'}}>1x — Normal</span></div>
-                    <div className="flex justify-between"><span>[2]</span><span style={{color:'var(--text-primary)'}}>2x — Fast</span></div>
-                    <div className="flex justify-between"><span>[3]</span><span style={{color:'var(--text-primary)'}}>3x — Ultra</span></div>
-                  </div>
+              </div>
+            )}
+
+            {/* LOAD GAME */}
+            {activePanel==='load'&&(
+              <div className="flex flex-col gap-2">
+                <SaveSlots mode="load" accent="#33FF33" allowDelete onPick={loadSlot} onChanged={()=>setLatest(latestSave())}/>
+                <p className="font-mono-data text-[8.5px]" style={{color:'var(--text-tertiary)'}}>Saves live in this browser. The AUTO slot is written every few in-game years (see Settings).</p>
+              </div>
+            )}
+
+            {/* ACHIEVEMENTS */}
+            {activePanel==='achievements'&&(
+              <div className="flex flex-col gap-1.5">
+                <div className="w-full h-1.5 rounded-sm overflow-hidden mb-1" style={{background:'rgba(255,255,255,0.06)'}}>
+                  <div style={{width:`${(unlockedCount/ACHIEVEMENTS.length)*100}%`,height:'100%',background:'#33FF33',boxShadow:'0 0 8px #33FF33'}}/>
                 </div>
-                <div>
-                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>DIFFICULTY</h3>
-                  <div className="p-2 rounded" style={{background:'var(--surface-elevated)',border:'1px solid var(--border)'}}>
-                    <span className="font-bold font-orbitron text-[9px]" style={{color:'#FFB84D'}}>Standard</span>
-                    <p className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>Balanced AI opponents. Events occur normally.</p>
-                  </div>
-                </div>
+                {ACHIEVEMENTS.map(a=>{
+                  const at=unlocked[a.id];
+                  return (
+                    <div key={a.id} className="flex items-start gap-2 p-2 rounded"
+                      style={{background:at?'rgba(51,255,51,0.06)':'rgba(255,255,255,0.02)',
+                        border:`1px solid ${at?'rgba(51,255,51,0.35)':'var(--border)'}`,opacity:at?1:0.6}}>
+                      <div className="shrink-0 w-6 h-6 rounded flex items-center justify-center text-[12px]"
+                        style={{background:at?'rgba(51,255,51,0.12)':'transparent',color:at?'#33FF33':'var(--text-tertiary)',
+                          border:`1px solid ${at?'rgba(51,255,51,0.4)':'var(--border-light)'}`}}>
+                        {at?a.icon:'✕'}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-orbitron text-[9.5px] font-bold tracking-wider" style={{color:at?'#33FF33':'var(--text-secondary)'}}>{at?a.name:`${a.name} · LOCKED`}</div>
+                        <div className="font-rajdhani text-[11.5px] leading-tight" style={{color:'var(--text-secondary)'}}>{a.description}</div>
+                        {at&&<div className="font-mono-data text-[8.5px]" style={{color:'var(--text-tertiary)'}}>Unlocked {new Date(at).toLocaleDateString()}</div>}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 

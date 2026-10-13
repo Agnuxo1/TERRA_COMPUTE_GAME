@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useGame } from '../App';
 import { play } from '../hooks/useSound';
+import EndStats from '../components/meta/EndStats';
 
 function fmtNumber(n: number): string {
   if (n >= 1e24) return (n / 1e24).toFixed(1) + 'Y';
@@ -90,53 +91,56 @@ export default function VictoryScreen() {
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center justify-center">
+    <div className="relative w-full h-full overflow-hidden">
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{zIndex:0}}/>
-      <div className="relative z-10 flex flex-col items-center gap-4 animate-fade-up">
-        <h1 className="font-orbitron text-5xl font-black tracking-wider" style={{
+      <div className="absolute inset-0 z-10 overflow-auto">
+      <div className="min-h-full w-full flex flex-col items-center justify-center gap-3 px-3 py-4 mx-auto animate-fade-up" style={{maxWidth:'1000px'}}>
+        <h1 className="font-orbitron font-black tracking-wider text-center" style={{
+          fontSize: 'clamp(1.6rem, min(5vw, 7vh), 3rem)', lineHeight: 1.05,
           color: '#FFD700',
           textShadow: '0 0 30px rgba(255,215,0,0.4)',
         }}>
           VICTORY
         </h1>
 
-        <p className="font-rajdhani text-lg text-center" style={{color:'var(--text-secondary)', maxWidth:'600px'}}>
+        <p className="font-rajdhani text-sm text-center leading-snug" style={{color:'var(--text-secondary)', maxWidth:'640px'}}>
           {state.gameOverReason || 'You have achieved Safe Artificial Superintelligence.'}
         </p>
 
-        <div className="panel-elevated px-8 py-4 flex flex-col items-center gap-3" style={{maxWidth:'500px'}}>
-          <div className="grid grid-cols-3 gap-6">
+        <div className="panel-elevated px-5 py-2.5 flex flex-wrap justify-center items-center gap-x-6 gap-y-1" style={{maxWidth:'720px'}}>
+          <div className="contents">
             <div className="flex flex-col items-center">
               <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>YEAR ACHIEVED</span>
-              <span className="font-orbitron text-xl" style={{color:'var(--cyan)'}}>{state.victoryYear}</span>
+              <span className="font-orbitron text-base" style={{color:'var(--cyan)'}}>{state.victoryYear}</span>
             </div>
             <div className="flex flex-col items-center">
               <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>COMPUTE</span>
-              <span className="font-mono-data text-lg" style={{color:'var(--green)'}}>{fmtNumber(state.compute)}F</span>
+              <span className="font-mono-data text-base" style={{color:'var(--green)'}}>{fmtNumber(state.compute)}F</span>
             </div>
             <div className="flex flex-col items-center">
               <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>ALIGNMENT</span>
-              <span className="font-orbitron text-xl" style={{color:'var(--green)'}}>{Math.floor(state.alignment)}%</span>
+              <span className="font-orbitron text-base" style={{color:'var(--green)'}}>{Math.floor(state.alignment)}%</span>
             </div>
           </div>
-          <div className="w-full h-px" style={{background:'var(--border)'}}/>
-          <div className="grid grid-cols-3 gap-6">
+          <div className="contents">
             <div className="flex flex-col items-center">
               <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>BUILDINGS</span>
-              <span className="font-orbitron text-lg" style={{color:'var(--amber)'}}>{state.totalBuildings}</span>
+              <span className="font-orbitron text-base" style={{color:'var(--amber)'}}>{state.totalBuildings}</span>
             </div>
             <div className="flex flex-col items-center">
               <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>TECHS</span>
-              <span className="font-orbitron text-lg" style={{color:'var(--purple)'}}>{state.totalTechs}</span>
+              <span className="font-orbitron text-base" style={{color:'var(--purple)'}}>{state.totalTechs}</span>
             </div>
             <div className="flex flex-col items-center">
               <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>PLANET</span>
-              <span className="font-mono-data text-lg" style={{color:'var(--cyan)'}}>{Math.round(state.planetHealth)}%</span>
+              <span className="font-mono-data text-base" style={{color:'var(--cyan)'}}>{Math.round(state.planetHealth)}%</span>
             </div>
           </div>
         </div>
 
-        <div className="flex gap-3 mt-2">
+        <EndStats state={state} accent="#FFD700" />
+
+        <div className="flex gap-3">
           <button onClick={handlePlayAgain}
             className="px-6 py-2.5 rounded font-orbitron text-sm font-bold"
             style={{background:'#FFD700', color:'#000'}}>
@@ -148,6 +152,7 @@ export default function VictoryScreen() {
             MAIN MENU
           </button>
         </div>
+      </div>
       </div>
     </div>
   );
