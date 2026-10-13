@@ -13,9 +13,11 @@ import {
   ARCHIVE_MINIGAMES_STRATEGIST, buildingById, continentById, continents, historicalEvents, techById,
 } from './data.ts';
 import { generateContinentMap, neighbourTiles } from './mapgen.ts';
+import { basePrice, PRICE_IMPACT, type Good } from './market.ts';
+import { POLICY_COOLDOWN, POLICY_GDP_COST, policyById, policySlots } from './policies.ts';
 import { mulberry32 } from './rng.ts';
 import type {
-  AIStrategy, BuildingId, Economy, ForecastWarning, GameEvent, GameMode, GameState, LogEntry, MapData, Modifier,
+  AIStrategy, BuildingId, Difficulty, Economy, ForecastWarning, GameEvent, GameMode, GameState, LogEntry, MapData, Modifier,
   Notification, PlacedBuilding, Rival, Tile, TreatyId,
 } from './types.ts';
 
@@ -40,7 +42,7 @@ export type CovertOp = 'intel' | 'steal' | 'sabotage' | 'propaganda';
 
 export type Action =
   | { type: 'SET_MODE'; mode: GameMode }
-  | { type: 'START_GAME'; continentId: string; seed?: number }
+  | { type: 'START_GAME'; continentId: string; seed?: number; difficulty?: Difficulty }
   | { type: 'TICK' }
   | { type: 'SELECT_TILE'; tileId: number | null }
   | { type: 'SET_PLACING'; building: BuildingId | null }
@@ -50,6 +52,8 @@ export type Action =
   | { type: 'DEVELOP_REGION'; regionId: string }
   | { type: 'RESEARCH'; techId: string }
   | { type: 'SET_TAX'; rate: number }
+  | { type: 'SET_POLICY'; policyId: string; on: boolean }
+  | { type: 'TRADE'; good: Good; amount: number }
   | { type: 'DIPLOMACY'; rivalId: string; action: 'gift' | TreatyId | `cancel_${TreatyId}` }
   | { type: 'COVERT'; rivalId: string; op: CovertOp }
   | { type: 'RESOLVE_EVENT'; choice: number }
@@ -71,14 +75,16 @@ const emptyEconomy: Economy = {
   gdp: 0, income: 0, upkeep: 0, netBudget: 0, foodSupply: 0, foodDemand: 0, housingCap: 0, jobs: 0, workers: 0,
   unemployment: 0, energySupply: 0, energyDemand: 0, energyRatio: 1, researchRate: 0, computeRaw: 0, computeMult: 1,
   emissions: 0, alignmentGain: 0, alignmentPressure: 0, approvalTarget: 60, approvalFactors: [], eduTarget: 0, comfort: 0, staffing: 1,
+  steelProd: 0, steelUse: 0, chipProd: 0, chipUse: 0, chipFactor: 1, policyCost: 0, imports: 0,
 };
 
 export const initialState: GameState = {
   screen: 'title', gameMode: null, seed: 1, year: 1960, startYear: 1960, tickCount: 0, playerContinent: null,
   map: null, ownedRegions: [], selectedTile: null, placing: null,
-  budget: 0, population: 0, education: 0, researchPoints: 0, approval: 70, alignment: 50, capability: 6, compute: 1e6, taxRate: 0.22,
+  budget: 0, steel: 0, chips: 0, population: 0, education: 0, researchPoints: 0, approval: 70, alignment: 50, capability: 6, compute: 1e6, taxRate: 0.22,
   legacy: { food: 0, housing: 0, jobs: 0, energy: 0, emissionsPerGW: 0.2 },
   eco: emptyEconomy,
+  policies: [], policyCooldown: 0, priceMod: { steel: 1, chips: 1 }, history: [], difficulty: 'normal',
   unlockedTechs: [], researching: null, researchProgress: 0,
   rivals: [], co2: 0, temperature: 0.3, planetHealth: 100, doomClock: 12,
   firedEvents: [], eventQueue: [], activeEvent: null, modifiers: [], minigameResults: {}, playerLaunchReady: false,
@@ -102,6 +108,7 @@ function bonus<K extends string>(s: GameState, key: K): number | undefined {
 }
 
 export const has = (s: GameState, tech: string) => s.unlockedTechs.includes(tech);
+export const pol = (s: GameState, policy: string) => s.policies.includes(policy);
 
 function modProduct(s: GameState, key: keyof Modifier): number {
   let v = 1;
@@ -148,7 +155,83 @@ export function scaledCost(s: GameState, type: BuildingId): number {
   if (type === 'chipfab') cost *= modProduct(s, 'chipCost');
   if (type === 'gpucluster' && s.modifiers.some(m => m.id === 'alexnet_gpu')) cost *= 0.7;
   if ((type === 'solar' || type === 'nuclear') && s.modifiers.some(m => m.id === 'ukr_renew')) cost *= 0.7;
+  cost *= policyCostMult(s, type);
   return Math.round(cost);
+}
+
+function policyCostMult(s: GameState, type: BuildingId): number {
+  let m = 1;
+  if (pol(s, 'mass_housing') && (type === 'housing' || type === 'hospital')) m *= 0.6;
+  if (pol(s, 'education_drive') && (type === 'school' || type === 'uni')) m *= 0.75;
+  if (pol(s, 'green_deal') && (type === 'solar' || type === 'nuclear')) m *= 0.75;
+  if (pol(s, 'space_race') && type === 'satellite') m *= 0.7;
+  return m;
+}
+
+/** Steel and chips needed to build a new copy. */
+export function goodsCost(s: GameState, type: BuildingId): { steel: number; chips: number } {
+  const def = buildingById[type];
+  const k = 1 + 0.04 * countBuildings(s, type);
+  return { steel: Math.round((def.steel ?? 0) * k), chips: Math.round((def.chips ?? 0) * k) };
+}
+
+export function upgradeGoods(s: GameState, tile: Tile): { steel: number; chips: number } {
+  if (!tile.building) return { steel: 0, chips: 0 };
+  const def = buildingById[tile.building.type];
+  const f = tile.building.level === 1 ? 1.3 : 2.0;
+  return { steel: Math.round((def.steel ?? 0) * f), chips: Math.round((def.chips ?? 0) * f) };
+}
+
+export function marketSpread(s: GameState): number {
+  return pol(s, 'open_trade') ? 0.05 : 0.15;
+}
+
+export function marketPrice(s: GameState, good: Good, side: 'buy' | 'sell'): number {
+  const p = basePrice(good, s.year) * s.priceMod[good] * (good === 'chips' && s.modifiers.some(m => m.id === 'chipwar_prices') ? 1.6 : 1);
+  return side === 'buy' ? p * (1 + marketSpread(s)) : p * (1 - marketSpread(s));
+}
+
+export interface CostQuote {
+  money: number;
+  steel: number;
+  chips: number;
+  importSteel: number;
+  importChips: number;
+  importCost: number;
+  total: number;
+  ok: boolean;
+  reason?: string;
+}
+
+/** Full price of a purchase: missing goods are imported at market price (unless Autarky forbids it). */
+export function quote(s: GameState, money: number, goods: { steel: number; chips: number }): CostQuote {
+  const importSteel = Math.max(0, goods.steel - Math.floor(s.steel));
+  const importChips = Math.max(0, goods.chips - Math.floor(s.chips));
+  const importCost = Math.round(importSteel * marketPrice(s, 'steel', 'buy') + importChips * marketPrice(s, 'chips', 'buy'));
+  const total = money + importCost;
+  let reason: string | undefined;
+  if ((importSteel || importChips) && pol(s, 'autarky')) reason = `Autarky: produce ${importSteel ? `${importSteel} steel` : ''}${importSteel && importChips ? ' and ' : ''}${importChips ? `${importChips} chips` : ''} first`;
+  else if (s.budget < total) reason = `Needs $${Math.round(total)}B`;
+  return { money, steel: goods.steel, chips: goods.chips, importSteel, importChips, importCost, total, ok: !reason, reason };
+}
+
+export function buildQuote(s: GameState, type: BuildingId): CostQuote {
+  return quote(s, scaledCost(s, type), goodsCost(s, type));
+}
+
+export function upgradeQuote(s: GameState, tile: Tile): CostQuote {
+  return quote(s, upgradeCost(s, tile), upgradeGoods(s, tile));
+}
+
+/** Pays a quote: spends money, consumes stock, imports the rest and moves world prices. */
+function payQuote(s: GameState, q: CostQuote) {
+  s.budget -= q.total;
+  s.steel = Math.max(0, s.steel - (q.steel - q.importSteel));
+  s.chips = Math.max(0, s.chips - (q.chips - q.importChips));
+  s.priceMod = {
+    steel: s.priceMod.steel + q.importSteel * PRICE_IMPACT,
+    chips: s.priceMod.chips + q.importChips * PRICE_IMPACT,
+  };
 }
 
 export function upgradeCost(s: GameState, tile: Tile): number {
@@ -323,6 +406,7 @@ export function computeEconomy(s: GameState): Economy {
   let jobs = s.legacy.jobs, automation = 0;
   let sectorGdp = 0, upkeep = 0, emissions = energySupply * s.legacy.emissionsPerGW;
   let computeRaw = 0, alignmentGain = 0, chipfabs = 0;
+  let steelProd = 0, chipProd = 0, chipUse = 0;
   let comfortSum = 0, housingTiles = 0;
   let forestTiles = 0;
 
@@ -371,9 +455,14 @@ export function computeEconomy(s: GameState): Economy {
       case 'solar': energySupply += def.energyProduce * lm * m * solarMult; break;
       case 'defense': alignmentGain += 0.8 * lm * m * safetyMult; break;
       case 'robot': automation += 6 * ps * lm; break;
-      case 'chipfab': chipfabs++; break;
+      case 'chipfab':
+        chipfabs++;
+        chipProd += 30 * lm * m;
+        break;
+      case 'factory': steelProd += 6 * lm * m * industry; break;
       default: break;
     }
+    if (def.chipUpkeep) chipUse += def.chipUpkeep * lm;
     const sg = SECTOR_GDP[b.type];
     if (sg) {
       let g = sg * lm * m;
@@ -391,6 +480,7 @@ export function computeEconomy(s: GameState): Economy {
   const energyRatio = energyDemand > 0 ? clamp(energySupply / energyDemand, 0, 1) : 1;
 
   // Labour
+  if (pol(s, 'mass_housing')) housingCap *= 1.15;
   const workers = s.population * 0.45 + automation;
   const staffing = jobs > 0 ? clamp(workers / jobs, 0, 1) : 1;
   const unemployment = clamp(1 - jobs / Math.max(workers, 1), 0, 1);
@@ -411,14 +501,25 @@ export function computeEconomy(s: GameState): Economy {
   if (has(s, 'web')) gdpMult *= 1.1;
   if (has(s, 'agentic')) gdpMult *= 1.15;
   gdpMult *= modProduct(s, 'gdp');
+  if (pol(s, 'free_market')) gdpMult *= 1.12;
+  if (pol(s, 'green_deal')) gdpMult *= 0.95;
   const unrest = s.approval < 35 ? 0.85 : 1;
   const productivity = baseProductivity(s);
   const gdp = (employed * productivity * (0.6 + s.education / 100 * 0.9) + sectorGdp * staffing) * gdpMult * unrest * (0.5 + 0.5 * energyRatio);
-  const tradeIncome = s.rivals.reduce((sum, r) => sum + (r.treaties.includes('trade') ? tradeValue(s, r) : 0), 0);
+  const tradeIncome = s.rivals.reduce((sum, r) => sum + (r.treaties.includes('trade') ? tradeValue(s, r) : 0), 0) * (pol(s, 'open_trade') ? 1.5 : 1);
   const income = gdp * s.taxRate + tradeIncome;
   if (s.modifiers.some(m => m.id === 'agents_state')) upkeep *= 0.85;
+  if (pol(s, 'austerity')) upkeep *= 0.85;
+  const policyCost = s.policies.reduce((sum, p) => sum + (POLICY_GDP_COST[p] ?? 0) * gdp, 0);
   const debtInterest = s.budget < 0 ? -s.budget * 0.1 : 0;
-  const netBudget = income - upkeep - debtInterest;
+
+  // Goods: own production, and chips the hardware burns every year
+  const goodsMult = staffing * energyRatio * (pol(s, 'autarky') ? 1.25 : 1);
+  steelProd *= goodsMult * (pol(s, 'five_year_plan') ? 1.35 : 1) * (pol(s, 'free_market') ? 0.9 : 1) * (pol(s, 'open_trade') ? 0.9 : 1);
+  chipProd *= goodsMult * (0.5 + s.education / 200);
+  const chipGap = Math.max(0, chipUse - chipProd);
+  const imports = s.chips <= 1 && !pol(s, 'autarky') ? chipGap * marketPrice(s, 'chips', 'buy') : 0;
+  const netBudget = income - upkeep - policyCost - debtInterest - imports;
 
   // Research
   let researchMult = (bonus(s, 'research') ?? 1) * modProduct(s, 'research');
@@ -427,19 +528,25 @@ export function computeEconomy(s: GameState): Economy {
   if (has(s, 'agentic')) researchMult *= 1.2;
   if (has(s, 'agi')) researchMult *= 1.5;
   researchMult *= 1 + 0.1 * s.rivals.filter(r => r.treaties.includes('research')).length;
+  if (pol(s, 'space_race')) researchMult *= 1.1;
+  if (pol(s, 'propaganda')) researchMult *= 0.95;
+  if (pol(s, 'manhattan_ai')) researchMult *= 1.15;
+  const policyCompute = (pol(s, 'manhattan_ai') ? 1.35 : 1) * (pol(s, 'safety_first') ? 0.9 : 1);
+  const chipFactor = s.eco.chipFactor ?? 1;
   const baseRP = 15 + (continentById(s.playerContinent)?.techLevel ?? 4) * 3;
   const humanRP = (baseRP + (labRP + uniRP + spaceRP) * staffing * energyRatio) * (0.4 + s.education / 100);
-  const compute = computeRaw * techComputeMult(s) * (1 + 0.12 * Math.min(4, chipfabs)) * energyRatio * Math.sqrt(staffing);
+  const compute = computeRaw * techComputeMult(s) * (1 + 0.12 * Math.min(4, chipfabs)) * policyCompute * chipFactor * energyRatio * Math.sqrt(staffing);
   const capability = Math.log10(Math.max(1, compute));
   const computeRP = has(s, 'dl') ? 30 * Math.max(0, capability - 14) ** 2 : 0;
   const researchRate = (humanRP + computeRP) * researchMult;
 
   // Alignment
-  const pressure = Math.max(0, capability - 15) ** 2 * 0.12 * (has(s, 'interp') ? 0.75 : 1);
-  alignmentGain = alignmentGain * energyRatio + modSum(s, 'alignment');
+  const pressure = Math.max(0, capability - 15) ** 2 * 0.12 * (has(s, 'interp') ? 0.75 : 1) * (pol(s, 'manhattan_ai') ? 1.5 : 1);
+  alignmentGain = alignmentGain * energyRatio * (pol(s, 'safety_first') ? 1.6 : 1) + modSum(s, 'alignment');
 
   // Emissions (forests absorb)
   const sink = forestTiles * 0.4 * (bonus(s, 'forestSink') ?? 1);
+  if (pol(s, 'green_deal')) emissions *= 0.7;
   emissions = Math.max(0, emissions - sink) + (s.modifiers.some(m => m.id === 'ukr_coal') ? 40 : 0) + (s.modifiers.some(m => m.id === 'greenrev_adopt') ? 3 : 0);
 
   // Approval target
@@ -459,13 +566,17 @@ export function computeEconomy(s: GameState): Economy {
   f.push({ label: 'Education', value: s.education * 0.05 });
   const modApproval = modSum(s, 'approval');
   if (modApproval) f.push({ label: 'Events', value: modApproval });
+  const polApproval = (pol(s, 'welfare') ? 8 : 0) + (pol(s, 'austerity') ? -8 : 0) + (pol(s, 'five_year_plan') ? -4 : 0) + (pol(s, 'free_market') ? -2 : 0)
+    + (pol(s, 'autarky') ? 3 : 0) + (pol(s, 'open_trade') ? -2 : 0) + (pol(s, 'propaganda') ? 7 : 0) + (pol(s, 'security_state') ? -5 : 0);
+  if (polApproval) f.push({ label: 'Policies', value: polApproval });
   if (s.budget < 0) f.push({ label: 'Debt', value: -8 });
   const approvalTarget = clamp(f.reduce((a, b) => a + b.value, 0), 0, 100);
 
   return {
     gdp, income, upkeep, netBudget, foodSupply, foodDemand, housingCap: totalHousing, jobs, workers, unemployment,
-    energySupply, energyDemand, energyRatio, researchRate, computeRaw, computeMult: techComputeMult(s) * (1 + 0.12 * Math.min(4, chipfabs)),
+    energySupply, energyDemand, energyRatio, researchRate, computeRaw, computeMult: techComputeMult(s) * (1 + 0.12 * Math.min(4, chipfabs)) * policyCompute,
     emissions, alignmentGain, alignmentPressure: pressure, approvalTarget, approvalFactors: f, eduTarget, comfort, staffing,
+    steelProd, steelUse: 0, chipProd, chipUse, chipFactor, policyCost, imports,
   };
 }
 
@@ -520,11 +631,14 @@ export function affinity(a: string, b: string): number {
   return AFFINITY[`${a}-${b}`] ?? AFFINITY[`${b}-${a}`] ?? 0;
 }
 
-function createRivals(player: string, mode: GameMode, startYear: number): Rival[] {
+const DIFF_LAG: Record<Difficulty, number> = { easy: 1.5, normal: 0, hard: -1.2 };
+const DIFF_CLIMATE: Record<Difficulty, number> = { easy: 0.85, normal: 1, hard: 1.15 };
+
+function createRivals(player: string, mode: GameMode, startYear: number, difficulty: Difficulty): Rival[] {
   return continents.filter(c => c.id !== player).map(c => {
     const strategy = STRATEGY_OF[c.id];
     const techLag = (5 - c.techLevel) * 0.25;
-    const lag = LAG_OF[strategy] + techLag + (rand() - 0.5) * 1.2 + (mode === 'pioneer' ? 3 : mode === 'strategist' ? 1.8 : 0);
+    const lag = LAG_OF[strategy] + techLag + (rand() - 0.5) * 1.2 + (mode === 'pioneer' ? 3 : mode === 'strategist' ? 1.8 : 0) + DIFF_LAG[difficulty];
     const yearsIn = startYear - 1960;
     return {
       id: c.id, strategy,
@@ -569,7 +683,7 @@ function tickRivals(s: GameState, dt: number) {
     r.emissions = 34 * Math.pow(r.gdp / 1000, 0.75) * (1 - r.cleanShare);
     // Relations relax toward the cold-war baseline
     const base = affinity(s.playerContinent || '', r.id);
-    r.relation = clamp(r.relation + (base - r.relation) * 0.04 * dt + (r.treaties.length ? 0.6 * dt : 0), -100, 100);
+    r.relation = clamp(r.relation + (base - r.relation) * 0.04 * dt + (r.treaties.length ? 0.6 * dt : 0) - (pol(s, 'propaganda') ? dt : 0), -100, 100);
 
     // Notable actions
     r.cooldown -= dt;
@@ -596,7 +710,7 @@ function rivalAction(s: GameState, r: Rival, pioneer: boolean) {
   const defense = countBuildings(s, 'defense', true);
   const opsMult = bonus(s, 'enemyOps') ?? 1;
   if (!pioneer && r.relation < -20 && (r.strategy === 'aggressive' || r.relation < -50) && s.year > 1970 && chance(0.6)) {
-    const success = clamp((0.55 - defense * 0.08) * opsMult, 0.05, 0.9);
+    const success = clamp((0.55 - defense * 0.08) * opsMult * (pol(s, 'security_state') ? 0.5 : 1), 0.05, 0.9);
     if (rand() < success) {
       if (s.capability > 12 && chance(0.5)) {
         const targets = s.map!.tiles.filter(t => t.building && isCompute(t.building.type) && t.building.progress >= 1);
@@ -665,6 +779,9 @@ const OBJECTIVES: ObjectiveDef[] = [
   { id: 'region', text: 'Develop a new region', hint: 'Click a dark region on the map and press DEVELOP.', reward: 100, check: s => s.ownedRegions.length >= 3 },
   { id: 'mainframe', text: 'Build a Mainframe Center', hint: 'Needs Integrated Circuits. Compute is the road to ASI.', reward: 150, check: s => countBuildings(s, 'mainframe', true) >= 1 },
   { id: 'edu40', text: 'Reach education 40', hint: 'Schools raise the ceiling; universities push it past 70.', reward: 150, check: s => s.education >= 40 },
+  { id: 'decree', text: 'Sign your first decree', hint: 'Open ECONOMY [E] and adopt a policy. Every decree has a price.', reward: 80, check: s => s.policies.length > 0 },
+  { id: 'steel', text: 'Stockpile 100 steel', hint: 'Kombinats produce steel; importing it costs money every time.', reward: 120, check: s => s.steel >= 100 },
+  { id: 'chips', text: 'Make your own chips', hint: 'A Chip Foundry (Lithography) saves expensive imports. Silica deposits +50%.', reward: 600, check: s => countBuildings(s, 'chipfab', true) >= 1 },
   { id: 'clean', text: 'Build clean power', hint: 'Nuclear (coast/river) or Solar. Coal is heating the planet.', reward: 200, check: s => countBuildings(s, 'nuclear', true) + countBuildings(s, 'solar', true) >= 1 },
   { id: 'safety', text: 'Found an AI Safety Institute', hint: 'Research Cybernetics. Alignment must stay ahead of capability.', reward: 300, check: s => countBuildings(s, 'defense', true) >= 1 },
   { id: 'tera', text: 'Reach 1 TeraFLOP', hint: 'Supercomputers (Vector Supercomputers tech).', reward: 400, check: s => s.capability >= 12 },
@@ -722,7 +839,7 @@ function bestTiles(s: GameState, type: BuildingId, n: number, regions: string[])
   return picks;
 }
 
-export function startGame(state: GameState, continentId: string, seed = Date.now() % 1e9): GameState {
+export function startGame(state: GameState, continentId: string, seed = Date.now() % 1e9, difficulty: Difficulty = 'normal'): GameState {
   const c = continentById(continentId)!;
   const mode = state.gameMode || 'complete';
   reseed(seed);
@@ -754,7 +871,7 @@ export function startGame(state: GameState, continentId: string, seed = Date.now
     objectives: [],
     firedEvents: historicalEvents.filter(e => e.year < startYear).map(e => e.id),
   };
-  s.rivals = createRivals(continentId, mode, startYear);
+  s.rivals = createRivals(continentId, mode, startYear, difficulty);
 
   // Starting infrastructure on the capital region
   const home = [capital.id];
@@ -777,7 +894,11 @@ export function startGame(state: GameState, continentId: string, seed = Date.now
   eco = computeEconomy(s);
   s.legacy.energy = Math.max(10, eco.energyDemand * 1.18 - eco.energySupply);
   s.eco = computeEconomy(s);
-  s.budget = s.eco.income * (strategist ? 1.2 : 0.9);
+  s.budget = s.eco.income * (strategist ? 1.2 : 0.9) * (difficulty === 'easy' ? 1.3 : difficulty === 'hard' ? 0.85 : 1);
+  s.difficulty = difficulty;
+  s.steel = strategist ? 120 : 40;
+  s.chips = strategist ? 30 : 4;
+  s.history = [];
   s.researchPoints = strategist ? 400 : 0;
   s.compute = Math.max(1e6, s.eco.computeRaw * techComputeMult(s));
   s.capability = Math.log10(s.compute);
@@ -834,18 +955,40 @@ function tick(prev: GameState): GameState {
 
   // 3. Stocks
   s.budget += eco.netBudget * dt;
+  s.steel = Math.max(0, s.steel + eco.steelProd * dt);
+  s.chips += (eco.chipProd - eco.chipUse) * dt;
+  let chipFactor = 1;
+  if (s.chips < 0) {
+    const short = -s.chips;
+    s.chips = 0;
+    if (pol(s, 'autarky')) {
+      chipFactor = eco.chipUse > 0 ? clamp(eco.chipProd / eco.chipUse, 0, 1) : 1;
+    } else {
+      // Imports are already booked in netBudget (eco.imports); just move the world price.
+      s.priceMod = { ...s.priceMod, chips: s.priceMod.chips + short * PRICE_IMPACT };
+    }
+  }
+  if (s.budget < 0 && eco.imports > 0) chipFactor = Math.min(chipFactor, 0.5);
+  s.eco = { ...eco, chipFactor };
+  // World prices drift back to normal; policy changes cool down.
+  s.priceMod = {
+    steel: 1 + (s.priceMod.steel - 1) * (1 - 0.25 * dt),
+    chips: 1 + (s.priceMod.chips - 1) * (1 - 0.25 * dt),
+  };
+  s.policyCooldown = Math.max(0, s.policyCooldown - dt);
+  if (s.policies.length > policySlots(s.year)) s.policies = s.policies.slice(0, policySlots(s.year));
   s.researchPoints += eco.researchRate * dt;
-  s.education = clamp(s.education + clamp(eco.eduTarget - s.education, -2, 2 * (bonus(s, 'education') ?? 1) * (has(s, 'pc') ? 1.1 : 1)) * dt, 0, 100);
+  s.education = clamp(s.education + clamp(eco.eduTarget - s.education, -2, 2 * (bonus(s, 'education') ?? 1) * (has(s, 'pc') ? 1.1 : 1) * (pol(s, 'education_drive') ? 1.5 : 1)) * dt, 0, 100);
   s.approval = clamp(s.approval + (eco.approvalTarget - s.approval) * Math.min(1, 0.8 * dt), 0, 100);
   const health = eco.approvalFactors.find(f => f.label === 'Healthcare')?.value ?? 0;
-  let r = 0.021 - 0.012 * s.education / 100 + 0.0004 * (health + 3) + modSum(s, 'popGrowth');
+  let r = 0.021 - 0.012 * s.education / 100 + 0.0004 * (health + 3) + modSum(s, 'popGrowth') + (pol(s, 'welfare') ? 0.002 : 0);
   const fr = eco.foodSupply / Math.max(1, eco.foodDemand);
   if (fr < 1) r = Math.min(r, -(1 - fr) * 0.25);
   if (s.population > eco.housingCap) r = Math.min(r, -0.004 * (s.population / eco.housingCap - 1) * 10);
   s.population = Math.max(1, s.population * (1 + r * dt));
 
   // 4. Compute, capability & alignment
-  s.compute = Math.max(1e6, eco.computeRaw * eco.computeMult * eco.energyRatio * Math.sqrt(eco.staffing));
+  s.compute = Math.max(1e6, eco.computeRaw * eco.computeMult * s.eco.chipFactor * eco.energyRatio * Math.sqrt(eco.staffing));
   s.capability = Math.log10(s.compute);
   s.peakCapability = Math.max(s.peakCapability, s.capability);
   s.alignment = clamp(s.alignment + (eco.alignmentGain * (s.alignment < alignmentCap(s) ? 1 : 0) - eco.alignmentPressure) * dt, 0, 100);
@@ -872,7 +1015,7 @@ function tick(prev: GameState): GameState {
   tickRivals(s, dt);
   const worldEmissions = eco.emissions + s.rivals.reduce((a, b) => a + b.emissions, 0);
   s.co2 += Math.max(0, worldEmissions - 120) * dt;
-  s.temperature = (s.startYear === 1980 ? 0.45 : 0.3) + s.co2 * 6e-5;
+  s.temperature = (s.startYear === 1980 ? 0.45 : 0.3) + s.co2 * 6e-5 * DIFF_CLIMATE[s.difficulty ?? 'normal'];
   s.planetHealth = clamp(100 - (s.temperature - 0.6) * 48, 0, 100);
   const risks = [
     { c: s.capability, a: s.alignment },
@@ -887,7 +1030,15 @@ function tick(prev: GameState): GameState {
   }
 
   // 8. Yearly checks: events, objectives, crises
-  if (yearInt !== lastYearInt) yearly(s, yearInt, pioneer);
+  if (yearInt !== lastYearInt) {
+    yearly(s, yearInt, pioneer);
+    s.history = [...s.history, {
+      year: yearInt, gdp: Math.round(eco.gdp), budget: Math.round(s.budget), population: Math.round(s.population),
+      capability: +s.capability.toFixed(2), alignment: Math.round(s.alignment), approval: Math.round(s.approval),
+      planetHealth: Math.round(s.planetHealth), emissions: Math.round(eco.emissions),
+      rivalTop: +Math.max(...s.rivals.map(r => r.capability), 0).toFixed(2), research: Math.round(eco.researchRate),
+    }].slice(-120);
+  }
   if (s.tickCount % 8 === 0) refreshObjectives(s);
   s.warnings = forecast(s);
   s.playerLaunchReady = has(s, 'asi') && s.capability >= asiThreshold(s);
@@ -937,6 +1088,19 @@ export function techAvailable(s: GameState, techId: string): boolean {
 /** Alignment can only be pushed as far as your safety science allows. */
 export function alignmentCap(s: GameState): number {
   return Math.min(98, 55 + (has(s, 'alignment') ? 15 : 0) + (has(s, 'interp') ? 15 : 0) + (has(s, 'agi') ? 10 : 0));
+}
+
+export function policyAvailability(s: GameState, id: string, on = true): { ok: boolean; reason?: string } {
+  const def = policyById[id];
+  if (!def) return { ok: false, reason: 'Unknown policy' };
+  if (s.policyCooldown > 0) return { ok: false, reason: `Government reshuffle in ${s.policyCooldown.toFixed(1)} yrs` };
+  if (!on) return s.policies.includes(id) ? { ok: true } : { ok: false };
+  if (s.policies.includes(id)) return { ok: false, reason: 'Already active' };
+  if (def.requiresTech && !has(s, def.requiresTech)) return { ok: false, reason: `Requires ${techById[def.requiresTech]?.name}` };
+  const clash = (def.excludes ?? []).find(x => s.policies.includes(x));
+  if (clash) return { ok: false, reason: `Conflicts with ${policyById[clash].name}` };
+  if (s.policies.length >= policySlots(s.year)) return { ok: false, reason: 'No free slot — repeal a decree first' };
+  return { ok: true };
 }
 
 export function techCost(s: GameState, techId: string): number {
@@ -1048,6 +1212,7 @@ function forecast(s: GameState): ForecastWarning[] {
   if (s.approval < 35) w.push({ kind: 'approval', text: `Unrest: approval ${Math.round(s.approval)}%.`, severity: 'danger' });
   if (e.netBudget < 0) w.push({ kind: 'budget', text: `Budget deficit ${Math.round(e.netBudget)}B/yr.`, severity: s.budget < 0 ? 'danger' : 'warning' });
   if (s.planetHealth < 45) w.push({ kind: 'climate', text: `Planet health ${Math.round(s.planetHealth)}%. Cut emissions, sign a Climate Accord.`, severity: s.planetHealth < 25 ? 'danger' : 'warning' });
+  if (e.chipUse > e.chipProd && s.chips < e.chipUse) w.push({ kind: 'budget', text: pol(s, 'autarky') ? `Chip shortage: compute at ${Math.round(e.chipFactor * 100)}%. Build foundries.` : `Importing chips: -$${Math.round(Math.max(e.imports, (e.chipUse - e.chipProd) * marketPrice(s, 'chips', 'buy')))}B/yr. Build foundries.`, severity: e.chipFactor < 1 ? 'danger' : 'warning' });
   if (s.capability >= 15 && s.alignment < 55) w.push({ kind: 'alignment', text: `Alignment ${Math.round(s.alignment)}% is falling behind capability.`, severity: s.alignment < 40 ? 'danger' : 'warning' });
   return w;
 }
@@ -1110,8 +1275,8 @@ function applyEffect(s: GameState, effect: string) {
     case 'covid_open': s.population *= 1 - 0.015 / (1 + hospitals * 0.4); addMod(s, { id: 'covid', label: 'Pandemic grief', years: 3, approval: -12 }); break;
     case 'gpt3_race': s.researchPoints += 8000; s.alignment = clamp(s.alignment - 6, 0, 100); break;
     case 'gpt3_careful': s.alignment = clamp(s.alignment + 8, 0, 100); break;
-    case 'chip_domestic': addMod(s, { id: 'chip_domestic', label: 'Domestic foundries', years: 8, chipCost: 0.6 }); break;
-    case 'chip_grey': s.budget -= 1500; allRivals(-5); break;
+    case 'chip_domestic': addMod(s, { id: 'chip_domestic', label: 'Domestic foundries', years: 8, chipCost: 0.6 }); addMod(s, { id: 'chipwar_prices', label: 'Chip War prices', years: 5 }); break;
+    case 'chip_grey': s.budget -= 1500; allRivals(-5); s.chips += 300; addMod(s, { id: 'chipwar_prices', label: 'Chip War prices', years: 5 }); break;
     case 'ukr_renew': addMod(s, { id: 'ukr_renew', label: 'Renewables push', years: 6 }); addMod(s, { id: 'ukr_shock', label: 'Energy shock', years: 2, energySupply: 0.9 }); break;
     case 'ukr_coal': addMod(s, { id: 'ukr_coal', label: 'Coal comeback', years: 6 }); break;
     case 'chatgpt_office': addMod(s, { id: 'chatgpt_office', label: 'AI in the office', years: 10, gdp: 1.1, approval: -4 }); break;
@@ -1183,7 +1348,8 @@ export function covertChance(s: GameState, r: Rival, op: CovertOp): number {
   const base = { intel: 0.8, steal: 0.6, sabotage: 0.45, propaganda: 0.55 }[op];
   const def = r.strategy === 'defensive' ? 0.15 : 0;
   const quantum = s.modifiers.some(m => m.id === 'quantum_crypto') ? 0.25 : 0;
-  return clamp(base + Math.min(0.3, sats * 0.1) + quantum - def, 0.05, 0.95);
+  const policy = (pol(s, 'security_state') ? 0.15 : 0) + (pol(s, 'space_race') ? 0.1 : 0);
+  return clamp(base + Math.min(0.3, sats * 0.1) + quantum + policy - def, 0.05, 0.95);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1201,7 +1367,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
     case 'SET_MODE':
       return { ...state, screen: action.mode === 'logic' ? 'logic' : 'select', gameMode: action.mode };
     case 'START_GAME':
-      return startGame(state, action.continentId, action.seed);
+      return startGame(state, action.continentId, action.seed, action.difficulty);
     case 'TICK':
       return tick(state);
     case 'SELECT_TILE':
@@ -1213,14 +1379,15 @@ export function gameReducer(state: GameState, action: Action): GameState {
       const tile = state.map?.tiles[action.tileId];
       if (!tile) return state;
       const pl = evaluatePlacement(state, tile, action.building);
-      const cost = scaledCost(state, action.building);
-      if (!pl.ok || state.budget < cost) return state;
+      const q = buildQuote(state, action.building);
+      if (!pl.ok || !q.ok) return state;
       let s = withTile(state, action.tileId, t => ({
         ...t,
         terrain: t.terrain === 'forest' && action.building !== 'solar' ? 'plains' : t.terrain,
         building: { type: action.building, level: 1, progress: 0, upgrading: false },
       }));
-      s = { ...s, budget: s.budget - cost, totalBuildings: s.totalBuildings + 1, selectedTile: action.tileId };
+      s = { ...s, totalBuildings: s.totalBuildings + 1, selectedTile: action.tileId };
+      payQuote(s, q);
       s.eco = computeEconomy(s);
       return s;
     }
@@ -1229,17 +1396,20 @@ export function gameReducer(state: GameState, action: Action): GameState {
       const tile = state.map?.tiles[action.tileId];
       const b = tile?.building;
       if (!tile || !b || b.level >= MAX_LEVEL || b.progress < 1 || b.upgrading) return state;
-      const cost = upgradeCost(state, tile);
-      if (state.budget < cost) return state;
+      const q = upgradeQuote(state, tile);
+      if (!q.ok) return state;
       const s = withTile(state, action.tileId, t => ({ ...t, building: { ...b, level: b.level + 1, progress: 0, upgrading: true } }));
-      return { ...s, budget: s.budget - cost };
+      payQuote(s, q);
+      return s;
     }
 
     case 'DEMOLISH': {
       const tile = state.map?.tiles[action.tileId];
       if (!tile?.building) return state;
-      const refund = Math.round(buildingById[tile.building.type].cost * 0.25);
+      const def = buildingById[tile.building.type];
+      const refund = Math.round(def.cost * 0.25);
       const s = withTile(state, action.tileId, t => ({ ...t, building: undefined }));
+      s.steel += Math.round((def.steel ?? 0) * 0.5);
       s.eco = computeEconomy(s);
       return { ...s, budget: s.budget + refund };
     }
@@ -1265,6 +1435,38 @@ export function gameReducer(state: GameState, action: Action): GameState {
 
     case 'SET_TAX':
       return { ...state, taxRate: clamp(action.rate, 0.1, 0.4) };
+
+    case 'SET_POLICY': {
+      const check = policyAvailability(state, action.policyId, action.on);
+      if (!check.ok) return state;
+      const policies = action.on ? [...state.policies, action.policyId] : state.policies.filter(p => p !== action.policyId);
+      const s = { ...state, policies, policyCooldown: POLICY_COOLDOWN };
+      const def = policyById[action.policyId];
+      notify(s, action.on ? `📜 Decree signed: ${def.name}.` : `📜 Decree repealed: ${def.name}.`, 'info');
+      pushLog(s, 'Government', `${action.on ? 'Adopted' : 'Repealed'} ${def.name}.`, 'info');
+      s.eco = computeEconomy(s);
+      return s;
+    }
+
+    case 'TRADE': {
+      const amount = Math.round(action.amount);
+      if (!amount) return state;
+      const s = { ...state, priceMod: { ...state.priceMod } };
+      if (amount > 0) {
+        if (pol(s, 'autarky')) return state;
+        const cost = amount * marketPrice(s, action.good, 'buy');
+        if (s.budget < cost) return state;
+        s.budget -= cost;
+        s[action.good] += amount;
+      } else {
+        const qty = Math.min(-amount, Math.floor(s[action.good]));
+        if (qty <= 0) return state;
+        s.budget += qty * marketPrice(s, action.good, 'sell');
+        s[action.good] -= qty;
+      }
+      s.priceMod[action.good] = Math.max(0.5, s.priceMod[action.good] + amount * PRICE_IMPACT);
+      return s;
+    }
 
     case 'DIPLOMACY': {
       const r = state.rivals.find(x => x.id === action.rivalId);
