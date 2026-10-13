@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { useGame } from '../../App';
 import { play } from '../../hooks/useSound';
-import { alignmentCap, requiredAlignment } from '../../game/engine';
+import { alignmentCap, marketPrice, pol, requiredAlignment } from '../../game/engine';
+import { GOOD_INFO } from '../../game/market';
 import { ERA_NAMES, techById } from '../../game/data';
 import { capabilityLabel, fmtFlops, fmtMoney, fmtPop, fmtSigned } from '../../game/format';
 
@@ -73,6 +74,21 @@ export default function ResourceBar() {
   const er = e.energySupply / Math.max(1, e.energyDemand);
   const req = requiredAlignment(state);
   const research = state.researching ? techById[state.researching] : null;
+  // Goods: steel has no running consumption (only construction); chips are burnt by hardware every year.
+  const qty = (v: number) => (v >= 10000 ? `${(v / 1000).toFixed(0)}k` : v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${Math.round(v)}`);
+  const perYr = (v: number) => `${fmtSigned(v, Math.abs(v) < 10 && Math.abs(v) >= 0.05 ? 1 : 0)}/yr`;
+  const steelNet = e.steelProd - e.steelUse;
+  const chipNet = e.chipProd - e.chipUse;
+  const chipRunway = chipNet < 0 ? state.chips / -chipNet : Infinity;
+  const chipCrisis = e.chipProd < e.chipUse && state.chips < e.chipUse;
+  const chipsColor = chipCrisis || e.chipFactor < 0.999 ? '#FF477E' : chipNet < 0 ? '#FFB84D' : GOOD_INFO.chips.color;
+  const priceRows = (g: 'steel' | 'chips') => (
+    <>
+      <Row k="Buy price" v={pol(state, 'autarky') ? 'banned (Autarky)' : `$${marketPrice(state, g, 'buy').toFixed(2)}B`} tone={pol(state, 'autarky') ? 'dim' : undefined} />
+      <Row k="Sell price" v={`$${marketPrice(state, g, 'sell').toFixed(2)}B`} />
+      <Row k="World price" v={state.priceMod[g] > 1.01 ? `rising +${Math.round((state.priceMod[g] - 1) * 100)}%` : state.priceMod[g] < 0.99 ? `falling ${Math.round((state.priceMod[g] - 1) * 100)}%` : 'stable'} tone={state.priceMod[g] > 1.01 ? 'bad' : state.priceMod[g] < 0.99 ? 'good' : 'dim'} />
+    </>
+  );
 
   const gauges: GaugeDef[] = [
     {
@@ -124,6 +140,36 @@ export default function ResourceBar() {
       detail: <><Row k="Supply" v={`${e.energySupply.toFixed(0)} GW`} /><Row k="Demand" v={`${e.energyDemand.toFixed(0)} GW`} /><Row k="Your emissions" v={`${e.emissions.toFixed(0)} Mt/yr`} tone={e.emissions > 200 ? 'bad' : 'dim'} /><Tip>Below 100% there are blackouts: research, compute and GDP all drop. Old pre-1960 plants slowly retire.</Tip></>,
     },
     {
+      label: 'STEEL', value: qty(state.steel), sub: perYr(steelNet), percent: clampPercent((state.steel / 250) * 100),
+      color: e.steelProd <= 0 && state.steel < 20 ? '#FFB84D' : GOOD_INFO.steel.color,
+      detail: (
+        <>
+          <Row k="Stock" v={`${Math.floor(state.steel)} ${GOOD_INFO.steel.unit}`} />
+          <Row k="Kombinat output" v={`+${e.steelProd.toFixed(1)}/yr`} tone={e.steelProd > 0 ? 'good' : 'dim'} />
+          {e.steelUse > 0 && <Row k="Consumption" v={`-${e.steelUse.toFixed(1)}/yr`} tone="bad" />}
+          {priceRows('steel')}
+          <Tip>Every building needs steel. Missing steel is imported at the buy price when you build. Press [E] to trade.</Tip>
+        </>
+      ),
+    },
+    {
+      label: 'CHIPS', value: qty(state.chips), sub: perYr(chipNet),
+      percent: e.chipUse > 0 ? clampPercent(chipNet >= 0 ? 100 : (chipRunway / 5) * 100) : clampPercent((state.chips / 100) * 100),
+      color: chipsColor, pulse: chipCrisis || e.chipFactor < 0.999,
+      detail: (
+        <>
+          <Row k="Stock" v={`${Math.floor(state.chips)} ${GOOD_INFO.chips.unit}`} />
+          <Row k="Foundry output" v={`+${e.chipProd.toFixed(1)}/yr`} tone={e.chipProd > 0 ? 'good' : 'dim'} />
+          <Row k="Hardware burn" v={`-${e.chipUse.toFixed(1)}/yr`} tone={e.chipUse > e.chipProd ? 'bad' : 'dim'} />
+          {Number.isFinite(chipRunway) && <Row k="Stock lasts" v={`${chipRunway.toFixed(1)} yrs`} tone={chipRunway < 1 ? 'bad' : undefined} />}
+          {e.imports > 0 && <Row k="Auto-imports" v={`-${fmtMoney(e.imports)}/yr`} tone="bad" />}
+          {e.chipFactor < 0.999 && <Row k="Compute throttled" v={`${Math.round(e.chipFactor * 100)}%`} tone="bad" />}
+          {priceRows('chips')}
+          <Tip>Computers burn chips every year. When the stock runs out, the shortfall is imported automatically (or compute throttles under Autarky). Chip Foundries fix it.</Tip>
+        </>
+      ),
+    },
+    {
       label: 'EDU', value: `${Math.round(state.education)}`, sub: `→ ${Math.round(e.eduTarget)}`, percent: state.education, color: '#FFB84D',
       detail: <><Row k="Education" v={state.education.toFixed(1)} /><Row k="Target (schools/unis)" v={e.eduTarget.toFixed(0)} /><Tip>Education multiplies GDP and research. Schools lift it to ~70, universities beyond. It changes slowly.</Tip></>,
     },
@@ -158,7 +204,7 @@ export default function ResourceBar() {
   return (
     <>
       <style>{HUD_CSS}</style>
-      <header className="hud-strip" aria-label="Strategic indicators">
+      <header className="hud-strip" aria-label="Strategic indicators" data-tutorial="hud">
         {gauges.map(g => <Gauge key={g.label} g={g} open={open === g.label} onOpen={v => setOpen(v ? g.label : null)} />)}
         <div className="hud-speed-dock" aria-label="Time controls">
           <button onClick={() => { play('click'); dispatch({ type: 'TOGGLE_PAUSE' }); }} className="hud-speed-button"

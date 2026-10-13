@@ -3,6 +3,23 @@ import { useGame, continents } from '../App';
 import { play } from '../hooks/useSound';
 import { isVideoPlayed, markVideoPlayed, getVideoUrl } from '../hooks/useVideo';
 import VideoPlayer from '../components/game/VideoPlayer';
+import type { Difficulty } from '../game/types';
+
+const DIFF_KEY = 'terra_compute_difficulty';
+const DIFFICULTIES: Array<{ id: Difficulty; label: string; color: string; text: string }> = [
+  { id: 'easy', label: 'EASY', color: 'var(--green)', text: 'Rivals research slower, milder climate, more starting budget.' },
+  { id: 'normal', label: 'NORMAL', color: 'var(--cyan)', text: 'The historical race as balanced. Recommended first game.' },
+  { id: 'hard', label: 'HARD', color: 'var(--rose)', text: 'Rivals research faster, harsher climate, less starting budget.' },
+];
+
+function loadDifficulty(): Difficulty {
+  try {
+    const v = localStorage.getItem(DIFF_KEY);
+    return v === 'easy' || v === 'hard' || v === 'normal' ? v : 'normal';
+  } catch {
+    return 'normal';
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  CONTINENT → PROPAGANDA CARD IMAGE MAP
@@ -78,6 +95,17 @@ export default function ContinentSelect() {
   const [mounted, setMounted] = useState(false);
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [pendingContinent, setPendingContinent] = useState<string | null>(null);
+  const [difficulty, setDifficulty] = useState<Difficulty>(loadDifficulty);
+
+  const chooseDifficulty = (d: Difficulty) => {
+    play('click');
+    setDifficulty(d);
+    try {
+      localStorage.setItem(DIFF_KEY, d);
+    } catch {
+      // storage unavailable
+    }
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => setMounted(true), 50);
@@ -99,14 +127,14 @@ export default function ContinentSelect() {
       setVideoSrc(getVideoUrl(videoId));
       setPendingContinent(selected);
     } else {
-      dispatch({ type: 'START_GAME', continentId: selected });
+      dispatch({ type: 'START_GAME', continentId: selected, difficulty });
     }
   };
 
   const handleVideoComplete = () => {
     setVideoSrc(null);
     if (pendingContinent) {
-      dispatch({ type: 'START_GAME', continentId: pendingContinent });
+      dispatch({ type: 'START_GAME', continentId: pendingContinent, difficulty });
       setPendingContinent(null);
     }
   };
@@ -120,7 +148,7 @@ export default function ContinentSelect() {
 
   return (
     <div
-      className="w-full h-full flex flex-col items-center justify-center p-4 relative overflow-hidden"
+      className="w-full h-full flex flex-col items-center [justify-content:safe_center] p-4 relative overflow-x-hidden overflow-y-auto"
       style={{ background: 'var(--void)' }}
     >
       {/* ─── Injected keyframes ─── */}
@@ -429,8 +457,36 @@ export default function ContinentSelect() {
           </div>
         )}
 
-        {/* ─── Begin Button ─── */}
-        <div className="flex justify-center">
+        {/* ─── Difficulty + Begin ─── */}
+        <div className="flex flex-wrap justify-center items-center gap-3">
+          <div className="flex flex-col items-center gap-1" role="radiogroup" aria-label="Difficulty">
+            <div className="flex rounded overflow-hidden" style={{ border: '1px solid var(--border-light)' }}>
+              {DIFFICULTIES.map(d => {
+                const on = d.id === difficulty;
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => chooseDifficulty(d.id)}
+                    title={d.text}
+                    className="font-orbitron text-[10px] font-bold tracking-[0.18em] px-3 py-2 transition-all"
+                    style={{
+                      background: on ? `color-mix(in srgb, ${d.color}, transparent 80%)` : 'rgba(11,12,16,0.85)',
+                      color: on ? d.color : 'var(--text-tertiary)',
+                      boxShadow: on ? `inset 0 -2px 0 ${d.color}` : 'none',
+                    }}
+                  >
+                    {d.label}
+                  </button>
+                );
+              })}
+            </div>
+            <span className="font-rajdhani text-[11px] text-center leading-tight" style={{ color: 'var(--text-secondary)', maxWidth: 300 }}>
+              {DIFFICULTIES.find(d => d.id === difficulty)?.text}
+            </span>
+          </div>
           <button
             onClick={handleBegin}
             disabled={!selected}
@@ -477,7 +533,6 @@ export default function ContinentSelect() {
           .grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; max-width: 480px !important; margin: 0 auto; }
         }
         @media (max-width: 480px) {
-          .grid { grid-tem        @media (max-width: 480px) {
           .grid { grid-template-columns: repeat(2, 1fr) !important; gap: 6px !important; }
         }
       `}</style>

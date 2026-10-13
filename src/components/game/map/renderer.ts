@@ -23,7 +23,9 @@ export interface MapUi {
   reduceMotion: boolean;
 }
 
-interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; r: number; color: string; kind: 'smoke' | 'steam' | 'spark' }
+interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; r: number; color: string; kind: 'smoke' | 'steam' | 'spark' | 'ember' | 'weld' | 'vapor' | 'trail' }
+interface Boat { port: number; water: number[]; t: number; dir: number; speed: number }
+interface Rocket { x: number; y: number; vy: number; age: number }
 interface Floater { x: number; y: number; text: string; color: string; age: number }
 interface Ping { x: number; y: number; color: string; age: number; label?: string }
 interface Vehicle { path: number[]; seg: number; t: number; speed: number; kind: 'truck' | 'van' }
@@ -110,6 +112,12 @@ export class MapRenderer {
   private floaters: Floater[] = [];
   private pings: Ping[] = [];
   private glow = new Map<string, HTMLCanvasElement>();
+  private puffs = new Map<string, HTMLCanvasElement>();
+  private glowQueue: Array<() => void> = [];
+  private boats: Boat[] = [];
+  private rockets: Rocket[] = [];
+  private nextLaunch = new Map<number, number>();
+  private wind = 0;
   private prevBuildings = new Map<number, { type: BuildingId; progress: number; level: number }>();
   private lastYear = -1;
   private emitAcc = 0;
@@ -285,6 +293,27 @@ export class MapRenderer {
       c.fillStyle = grad;
       c.fillRect(0, 0, 64, 64);
       this.glow.set(color, g);
+    }
+    return g;
+  }
+
+  /** Soft cloud puff (several overlapping blobs) used for smoke and steam. */
+  private puffSprite(color: string): HTMLCanvasElement {
+    let g = this.puffs.get(color);
+    if (!g) {
+      g = document.createElement('canvas');
+      g.width = g.height = 64;
+      const c = g.getContext('2d')!;
+      const blobs: Array<[number, number, number]> = [[32, 34, 22], [22, 30, 14], [42, 28, 15], [30, 22, 13], [38, 40, 12]];
+      for (const [x, y, r] of blobs) {
+        const grad = c.createRadialGradient(x, y, 0, x, y, r);
+        grad.addColorStop(0, color);
+        grad.addColorStop(0.55, color.replace(/[\d.]+\)$/, '0.45)'));
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        c.fillStyle = grad;
+        c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+      }
+      this.puffs.set(color, g);
     }
     return g;
   }
@@ -487,6 +516,18 @@ export class MapRenderer {
       tree.add(found);
       remaining.delete(found);
     }
+    // ships shuttle along the water next to every seaport
+    this.boats = [];
+    for (const t of map.tiles) {
+      if (t.building?.type !== 'seaport') continue;
+      const water: number[] = [];
+      for (const [c, r] of allNeighbours(t.col, t.row)) {
+        if (c < 0 || r < 0 || c >= map.cols || r >= map.rows) continue;
+        const n = map.tiles[r * map.cols + c];
+        if (n.terrain === 'water') water.push(n.id);
+      }
+      if (water.length) this.boats.push({ port: t.id, water, t: Math.random(), dir: 1, speed: 0.08 + Math.random() * 0.05 });
+    }
     // vehicles proportional to the network
     const want = Math.min(36, Math.floor(this.roads.length / 3));
     const nodes = [...this.roadAdj.keys()];
@@ -573,22 +614,37 @@ export class MapRenderer {
         if (!b || !operational(b)) continue;
         const [cx, cy] = tileCenter(t.col, t.row);
         const size = spriteSize(b.type);
-        if (SMOKE.includes(b.type) && Math.random() < 0.55) {
-          const dirty = b.type === 'coal';
-          this.particles.push({ x: cx - 8 + Math.random() * 10, y: cy - size * 0.62, vx: 4 + Math.random() * 4, vy: -10 - Math.random() * 6, life: 0, max: 2.6 + Math.random(), r: dirty ? 3 : 2.4, color: dirty ? '#7C8088' : '#A8AFBA', kind: 'smoke' });
-        } else if (b.type === 'nuclear' && Math.random() < 0.45) {
-          this.particles.push({ x: cx - 12 + Math.random() * 14, y: cy - size * 0.6, vx: 3, vy: -8 - Math.random() * 4, life: 0, max: 2.2, r: 3.4, color: '#E8EEF4', kind: 'steam' });
-        }
+        this.emit(t.id, b.type, b.level, cx, cy, size);
       }
     }
+    this.wind = Math.sin(this.time * 0.07) * 9 + Math.sin(this.time * 0.23) * 3;
     for (const p of this.particles) {
       p.life += dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      if (p.kind === 'spark') p.vy += 40 * dt;
-      else { p.r += dt * 2.2; p.vx *= 0.99; }
+      if (p.kind === 'spark' || p.kind === 'weld') p.vy += 60 * dt;
+      else if (p.kind === 'ember') { p.vx += (Math.random() - 0.5) * 20 * dt; }
+      else if (p.kind === 'trail') { p.r += dt * 6; p.vx *= 0.96; p.vy *= 0.96; }
+      else {
+        // smoke & steam: rise, slow down, widen and bend with the wind
+        p.r += dt * (p.kind === 'steam' ? 6.5 : 4.2);
+        p.vy *= 0.985;
+        p.vx += (this.wind - p.vx) * 0.6 * dt;
+      }
     }
-    this.particles = this.particles.filter(p => p.life < p.max).slice(-700);
+    this.particles = this.particles.filter(p => p.life < p.max).slice(-1100);
+    for (const bt of this.boats) {
+      if (!speed) continue;
+      bt.t += bt.dir * bt.speed * dt * (0.8 + 0.2 * speed);
+      if (bt.t > 1 || bt.t < 0) { bt.dir *= -1; bt.t = Math.max(0, Math.min(1, bt.t)); }
+    }
+    for (const r of this.rockets) {
+      r.age += dt;
+      r.vy -= 34 * dt;
+      r.y += r.vy * dt;
+      if (Math.random() < 0.9) this.particles.push({ x: r.x + (Math.random() - 0.5) * 2, y: r.y + 6, vx: (Math.random() - 0.5) * 6, vy: 6, life: 0, max: 1.6, r: 2.5, color: 'rgba(225,225,230,0.8)', kind: 'trail' });
+    }
+    this.rockets = this.rockets.filter(r => r.age < 4.5);
     for (const f of this.floaters) { f.age += dt; f.y -= 14 * dt; }
     this.floaters = this.floaters.filter(f => f.age < 2.2);
     for (const p of this.pings) p.age += dt;
@@ -604,6 +660,235 @@ export class MapRenderer {
         const next = options.length ? options[Math.floor(Math.random() * options.length)] : v.path[0];
         v.path = [at, next];
       }
+    }
+  }
+
+  /** Particle emitters per building type (called ~8 times a second). */
+  private emit(id: number, type: BuildingId, level: number, cx: number, cy: number, size: number) {
+    const x0 = cx - size / 2;
+    const y0 = cy - size * 0.7;
+    const P = (x: number, y: number, kind: Particle['kind'], color: string, r: number, max: number, vx = 0, vy = -12) =>
+      this.particles.push({ x, y, vx, vy, life: 0, max, r, color, kind });
+    const rnd = Math.random;
+    switch (type) {
+      case 'coal': {
+        // thick black columns from both stacks, glowing embers from the furnace
+        for (const fx of [0.32, 0.52]) if (rnd() < 0.75) P(x0 + size * fx + rnd() * 4, y0 + size * 0.2, 'smoke', 'rgba(52,54,60,0.85)', 4 + level, 4.5 + rnd() * 1.5, 2 + rnd() * 3, -16 - rnd() * 6);
+        if (rnd() < 0.35) P(cx - 6 + rnd() * 12, cy - size * 0.18, 'ember', '#FF8A2A', 1.3, 1.6, (rnd() - 0.5) * 6, -14 - rnd() * 10);
+        break;
+      }
+      case 'factory': {
+        for (const fx of [0.24, 0.33, 0.42]) if (rnd() < 0.5) P(x0 + size * fx + rnd() * 3, y0 + size * 0.12, 'smoke', 'rgba(120,124,132,0.8)', 3 + level * 0.6, 3.6 + rnd(), 3, -14 - rnd() * 5);
+        if (rnd() < 0.06) {
+          // welding flash with a spray of sparks
+          const wx = cx - 8 + rnd() * 18;
+          const wy = cy - size * 0.2 + rnd() * 8;
+          for (let i = 0; i < 9; i++) P(wx, wy, 'weld', i % 3 ? '#FFE9A8' : '#9FD8FF', 1.1, 0.35 + rnd() * 0.3, (rnd() - 0.5) * 70, -20 - rnd() * 30);
+        }
+        break;
+      }
+      case 'chipfab':
+        if (rnd() < 0.4) P(x0 + size * (0.3 + rnd() * 0.3), y0 + size * 0.22, 'vapor', 'rgba(235,245,255,0.7)', 2.2, 2.2, 2, -9);
+        break;
+      case 'nuclear': {
+        // great white plumes from the cooling towers
+        for (const fx of [0.3, 0.52]) if (rnd() < 0.8) P(x0 + size * fx + (rnd() - 0.5) * 8, y0 + size * 0.16, 'steam', 'rgba(238,243,248,0.9)', 5 + level, 3.8 + rnd() * 1.4, 1 + rnd() * 2, -18 - rnd() * 6);
+        break;
+      }
+      case 'housing':
+        if (rnd() < 0.08) P(cx - 10 + rnd() * 20, y0 + size * 0.2, 'smoke', 'rgba(170,176,186,0.45)', 1.8, 2.4, 2, -8);
+        break;
+      case 'satellite': {
+        const due = this.nextLaunch.get(id) ?? this.time + 8 + rnd() * 30;
+        if (!this.nextLaunch.has(id)) this.nextLaunch.set(id, due);
+        if (this.time > due && !this.ui.reduceMotion) {
+          this.rockets.push({ x: cx + 10, y: cy - size * 0.35, vy: -6, age: 0 });
+          for (let i = 0; i < 26; i++) P(cx + 10 + (rnd() - 0.5) * 16, cy - size * 0.2, 'trail', 'rgba(220,220,225,0.85)', 3, 2.5, (rnd() - 0.5) * 40, -rnd() * 8);
+          this.nextLaunch.set(id, this.time + 35 + rnd() * 40);
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  /** Per-building animated overlays. Additive glows are queued and drawn after the night pass. */
+  private fx(ctx: CanvasRenderingContext2D, t: Tile, type: BuildingId, cx: number, cy: number, size: number) {
+    const T = this.time;
+    const ph = t.id * 1.618;
+    const y0 = cy - size * 0.7;
+    const glow = (color: string, x: number, y: number, w: number, h: number, a: number) =>
+      this.glowQueue.push(() => {
+        this.ctx.globalAlpha = Math.max(0, Math.min(1, a));
+        this.ctx.drawImage(this.glowSprite(color), x - w / 2, y - h / 2, w, h);
+      });
+    switch (type) {
+      case 'nuclear': {
+        // Cherenkov-blue reactor glow, a periodic radiation flash and a slowly turning trefoil hologram
+        const pulse = 0.55 + Math.sin(T * 2.2 + ph) * 0.25;
+        glow('rgba(80,255,190,0.95)', cx + 8, cy - size * 0.22, 46, 30, pulse);
+        glow('rgba(60,170,255,0.9)', cx + 8, cy - size * 0.22, 22, 14, pulse + 0.2);
+        const cycle = (T + ph) % 6;
+        if (cycle < 0.9) {
+          const k = cycle / 0.9;
+          this.glowQueue.push(() => {
+            const c = this.ctx;
+            c.globalAlpha = (1 - k) * 0.9;
+            c.save();
+            c.translate(cx + 8, cy - size * 0.22);
+            c.scale(1, 0.5);
+            c.strokeStyle = '#7CFFC4';
+            c.lineWidth = 2.5 * (1 - k) + 0.5;
+            c.beginPath(); c.arc(0, 0, 6 + k * 46, 0, Math.PI * 2); c.stroke();
+            c.restore();
+            c.drawImage(this.glowSprite('rgba(170,255,220,1)'), cx + 8 - 30 * (1 - k), cy - size * 0.22 - 20 * (1 - k), 60 * (1 - k), 40 * (1 - k));
+          });
+        }
+        this.glowQueue.push(() => {
+          const c = this.ctx;
+          c.globalAlpha = 0.28 + Math.sin(T * 1.3 + ph) * 0.1;
+          c.save();
+          c.translate(cx + 8, y0 - 4);
+          c.scale(1, 0.55);
+          c.rotate(T * 0.5);
+          c.fillStyle = '#9DFF6A';
+          for (let i = 0; i < 3; i++) {
+            c.rotate((Math.PI * 2) / 3);
+            c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, 9, -0.5, 0.5); c.closePath(); c.fill();
+          }
+          c.beginPath(); c.arc(0, 0, 2.2, 0, Math.PI * 2); c.fill();
+          c.restore();
+        });
+        break;
+      }
+      case 'coal': {
+        const flick = 0.45 + Math.random() * 0.25 + Math.sin(T * 9 + ph) * 0.1;
+        glow('rgba(255,120,30,0.9)', cx - 2, cy - size * 0.18, 38, 22, flick);
+        break;
+      }
+      case 'factory': {
+        const flick = 0.35 + Math.sin(T * 7 + ph) * 0.12 + Math.random() * 0.12;
+        glow('rgba(255,150,60,0.9)', cx + 4, cy - size * 0.16, 30, 18, flick);
+        break;
+      }
+      case 'chipfab': {
+        const k = 0.45 + Math.sin(T * 2.5 + ph) * 0.25;
+        glow('rgba(0,240,255,0.9)', cx, cy - size * 0.25, 44, 22, k);
+        break;
+      }
+      case 'fusion': {
+        // plasma torus with crawling arcs
+        this.glowQueue.push(() => {
+          const c = this.ctx;
+          const ry = cy - size * 0.5;
+          c.save();
+          c.translate(cx, ry);
+          c.scale(1, 0.38);
+          for (let i = 0; i < 2; i++) {
+            c.globalAlpha = 0.55 + Math.sin(T * 4 + i * 2) * 0.25;
+            c.strokeStyle = i ? '#B48CFF' : '#6FB6FF';
+            c.lineWidth = 3 - i;
+            c.beginPath(); c.arc(0, 0, 20 + i * 5, T * (1.5 + i), T * (1.5 + i) + Math.PI * 1.6); c.stroke();
+          }
+          c.restore();
+          c.globalAlpha = 0.6 + Math.random() * 0.4;
+          c.drawImage(this.glowSprite('rgba(170,140,255,1)'), cx - 16, ry - 12, 32, 24);
+          if (Math.random() < 0.25) {
+            c.strokeStyle = '#E2D6FF';
+            c.lineWidth = 1;
+            c.globalAlpha = 0.9;
+            c.beginPath();
+            let ax = cx, ay = ry;
+            c.moveTo(ax, ay);
+            for (let i = 0; i < 5; i++) { ax += (Math.random() - 0.5) * 14; ay += -4 + Math.random() * 8; c.lineTo(ax, ay); }
+            c.stroke();
+          }
+        });
+        break;
+      }
+      case 'gpucluster':
+      case 'aifactory':
+      case 'datacenter': {
+        // data beam pulses climbing into the sky
+        const beamH = type === 'aifactory' ? 90 : type === 'gpucluster' ? 60 : 36;
+        this.glowQueue.push(() => {
+          const c = this.ctx;
+          const top = y0 - beamH;
+          const grad = c.createLinearGradient(0, y0 + size * 0.2, 0, top);
+          grad.addColorStop(0, 'rgba(0,240,255,0.5)');
+          grad.addColorStop(1, 'rgba(0,240,255,0)');
+          c.globalAlpha = 0.5 + Math.sin(T * 3 + ph) * 0.2;
+          c.fillStyle = grad;
+          c.fillRect(cx - 1.2, top, 2.4, y0 + size * 0.2 - top);
+          const k = ((T * 0.8 + ph) % 1);
+          c.globalAlpha = 1 - k;
+          c.drawImage(this.glowSprite('rgba(150,250,255,1)'), cx - 5, y0 + size * 0.2 - (y0 + size * 0.2 - top) * k - 5, 10, 10);
+        });
+        if (type === 'aifactory') {
+          this.glowQueue.push(() => {
+            const c = this.ctx;
+            c.save();
+            c.translate(cx, y0 - 6);
+            c.scale(1, 0.32);
+            c.strokeStyle = '#00F0FF';
+            for (let i = 0; i < 3; i++) {
+              c.globalAlpha = 0.45 - i * 0.1;
+              c.lineWidth = 1.5;
+              c.setLineDash([6, 4]);
+              c.lineDashOffset = (i % 2 ? 1 : -1) * T * 30;
+              c.beginPath(); c.arc(0, -i * 18, 26 - i * 5, 0, Math.PI * 2); c.stroke();
+            }
+            c.setLineDash([]);
+            c.restore();
+          });
+        }
+        break;
+      }
+      case 'lab':
+      case 'uni':
+      case 'satellite':
+      case 'super':
+      case 'mainframe': {
+        // red aircraft-warning beacon
+        const on = Math.sin(T * 3 + ph) > 0.6;
+        if (on) glow('rgba(255,50,50,1)', cx + 4, y0 + size * 0.08, 10, 10, 1);
+        break;
+      }
+      case 'defense': {
+        // rotating radar sweep
+        this.glowQueue.push(() => {
+          const c = this.ctx;
+          c.save();
+          c.translate(cx, y0 + size * 0.1);
+          c.scale(1, 0.45);
+          const a = T * 1.6 + ph;
+          const grad = c.createRadialGradient(0, 0, 0, 0, 0, 26);
+          grad.addColorStop(0, 'rgba(0,229,160,0.5)');
+          grad.addColorStop(1, 'rgba(0,229,160,0)');
+          c.fillStyle = grad;
+          c.globalAlpha = 0.9;
+          c.beginPath(); c.moveTo(0, 0); c.arc(0, 0, 26, a, a + 0.7); c.closePath(); c.fill();
+          c.strokeStyle = 'rgba(0,229,160,0.35)';
+          c.lineWidth = 1;
+          c.beginPath(); c.arc(0, 0, 26, 0, Math.PI * 2); c.stroke();
+          c.restore();
+        });
+        break;
+      }
+      case 'market': {
+        const flick = Math.random() < 0.04 ? 0.1 : 0.55 + Math.sin(T * 2 + ph) * 0.15;
+        glow('rgba(255,90,200,0.9)', cx - 6, cy - size * 0.12, 26, 12, flick);
+        break;
+      }
+      case 'solar': {
+        // a bright sun glint sweeping over the panels
+        const k = ((T * 0.25 + ph * 0.1) % 1);
+        glow('rgba(255,255,230,1)', cx - 22 + k * 44, cy - 6 + Math.sin(k * Math.PI) * -4, 16, 10, Math.sin(k * Math.PI) * 0.8);
+        break;
+      }
+      default:
+        break;
     }
   }
 
@@ -678,6 +963,27 @@ export class MapRenderer {
       ctx.setLineDash([]);
     }
 
+    this.glowQueue = [];
+    // ships next to seaports
+    for (const bt of this.boats) {
+      const port = map.tiles[bt.port];
+      const pos = Math.min(bt.water.length - 1, Math.floor(bt.t * bt.water.length));
+      const w = map.tiles[bt.water[pos]];
+      if (!port || !w) continue;
+      const [px, py] = tileCenter(port.col, port.row);
+      const [wx, wy] = tileCenter(w.col, w.row);
+      const x = wx + (px - wx) * 0.15 + Math.sin(this.time + bt.port) * 3;
+      const y = wy + (py - wy) * 0.15 + Math.cos(this.time * 1.3 + bt.port) * 1.2;
+      ctx.fillStyle = 'rgba(200,235,250,0.25)';
+      ctx.beginPath(); ctx.ellipse(x - bt.dir * 7, y + 2, 9, 2.2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#2A2F38';
+      ctx.beginPath(); ctx.moveTo(x - 9, y); ctx.lineTo(x + 9, y); ctx.lineTo(x + 6, y + 4); ctx.lineTo(x - 7, y + 4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = ['#C0392B', '#2E86C1', '#D4AC0D'][bt.port % 3];
+      ctx.fillRect(x - 6, y - 4, 4, 4); ctx.fillRect(x - 1, y - 4, 4, 4);
+      ctx.fillStyle = '#E8E6E3';
+      ctx.fillRect(x + 4, y - 6, 3, 6);
+    }
+
     // buildings, vehicles and ghost in painter's order (by row)
     const hover = this.ui.hover !== null ? map.tiles[this.ui.hover] : null;
     const drawables: Array<{ row: number; fn: () => void }> = [];
@@ -692,12 +998,27 @@ export class MapRenderer {
     drawables.sort((p, q) => p.row - q.row);
     for (const d of drawables) d.fn();
 
-    // particles
+    // rockets
+    for (const r of this.rockets) {
+      ctx.fillStyle = '#E8E6E3';
+      ctx.fillRect(r.x - 1.5, r.y - 9, 3, 10);
+      ctx.fillStyle = '#C0392B';
+      ctx.beginPath(); ctx.moveTo(r.x - 1.5, r.y - 9); ctx.lineTo(r.x, r.y - 13); ctx.lineTo(r.x + 1.5, r.y - 9); ctx.fill();
+      this.glowQueue.push(() => {
+        this.ctx.globalAlpha = 0.9;
+        this.ctx.drawImage(this.glowSprite('rgba(255,170,60,1)'), r.x - 6, r.y, 12, 16);
+      });
+    }
+
+    // soft particles (smoke, steam, vapor, rocket trails)
     for (const p of this.particles) {
+      if (p.kind === 'spark' || p.kind === 'ember' || p.kind === 'weld') continue;
       const k = p.life / p.max;
-      ctx.globalAlpha = p.kind === 'spark' ? 1 - k : (1 - k) * (p.kind === 'steam' ? 0.55 : 0.42);
-      ctx.fillStyle = p.color;
-      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+      const fadeIn = Math.min(1, p.life / 0.35);
+      const base = p.kind === 'steam' ? 0.7 : p.kind === 'trail' ? 0.6 : p.kind === 'vapor' ? 0.35 : 0.62;
+      ctx.globalAlpha = (1 - k) * fadeIn * base;
+      const d = p.r * 2.4;
+      ctx.drawImage(this.puffSprite(p.color), p.x - d / 2, p.y - d / 2, d, d);
     }
     ctx.globalAlpha = 1;
 
@@ -733,6 +1054,19 @@ export class MapRenderer {
         ctx.globalAlpha = 1;
       }
     }
+
+    // additive light pass: furnace glows, reactors, beams, sparks, embers
+    ctx.globalCompositeOperation = 'lighter';
+    for (const g of this.glowQueue) g();
+    for (const p of this.particles) {
+      if (p.kind !== 'spark' && p.kind !== 'ember' && p.kind !== 'weld') continue;
+      const k = p.life / p.max;
+      ctx.globalAlpha = 1 - k;
+      const d = p.kind === 'weld' ? 5 : p.kind === 'ember' ? 6 : p.r * 3;
+      ctx.drawImage(this.glowSprite(p.color === '#FF8A2A' ? 'rgba(255,138,42,1)' : p.kind === 'weld' ? 'rgba(255,240,200,1)' : 'rgba(255,170,90,1)'), p.x - d / 2, p.y - d / 2, d, d);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
 
     // hover outline (+ adjacency lines while placing)
     if (hover) {
@@ -936,6 +1270,7 @@ export class MapRenderer {
         ctx.filter = 'none';
       }
     }
+    if (!constructing) this.fx(ctx, t, b.type, cx, cy, size);
     if (b.type === 'fusion' && !constructing) {
       ctx.globalCompositeOperation = 'lighter';
       const pulse = 0.5 + Math.sin(this.time * 3) * 0.3;

@@ -1,9 +1,10 @@
 import { useGame } from '../../../App';
 import { buildingById, buildings, CATEGORY_COLOR, depositInfo, MAX_LEVEL, terrainInfo } from '../../../game/data';
-import { buildTime, describeOutput, evaluatePlacement, housingComfort, isUnlocked, regionCost, scaledCost, upgradeCost } from '../../../game/engine';
+import { buildQuote, buildTime, describeOutput, evaluatePlacement, housingComfort, isUnlocked, regionCost, upgradeQuote } from '../../../game/engine';
 import { fmtMoney } from '../../../game/format';
 import { play } from '../../../hooks/useSound';
 import { ActionButton, KV, PanelHeader, Section } from './common';
+import CostLine from './CostLine';
 
 export default function TilePanel() {
   const { state, dispatch } = useGame();
@@ -47,7 +48,7 @@ export default function TilePanel() {
     const pl = evaluatePlacement(state, tile, b.type, true);
     const out = describeOutput(state, tile);
     const next = b.level < MAX_LEVEL && b.progress >= 1 && !b.upgrading ? describeOutput(state, tile, b.type, b.level + 1) : null;
-    const upCost = upgradeCost(state, tile);
+    const upQ = upgradeQuote(state, tile);
     const refund = Math.round(def.cost * 0.25);
     return (
       <div className="flex flex-col">
@@ -83,9 +84,13 @@ export default function TilePanel() {
           <div className="flex flex-col gap-1.5">
             {next && (
               <>
-                <ActionButton color="#FFD166" disabled={state.budget < upCost} onClick={() => { play('build'); dispatch({ type: 'UPGRADE', tileId: tile.id }); }}>
-                  ▲ UPGRADE TO LEVEL {b.level + 1} · {fmtMoney(upCost)}
+                <ActionButton color="#FFD166" disabled={!upQ.ok} title={upQ.reason} onClick={() => { play('build'); dispatch({ type: 'UPGRADE', tileId: tile.id }); }}>
+                  ▲ UPGRADE TO LEVEL {b.level + 1}
                 </ActionButton>
+                <div className="font-mono-data text-[9.5px] leading-snug text-center">
+                  <CostLine q={upQ} />
+                  {!upQ.ok && upQ.reason && <div style={{ color: 'var(--rose)' }}>✕ {upQ.reason}</div>}
+                </div>
                 <div className="font-mono-data text-[9px] leading-snug" style={{ color: 'var(--text-tertiary)' }}>
                   Level {b.level + 1}: {next.filter(o => !['Upkeep', 'Jobs'].includes(o.label)).slice(0, 2).map(o => `${o.label} ${o.value}`).join(' · ')}
                 </div>
@@ -103,7 +108,7 @@ export default function TilePanel() {
   // ── Empty owned tile: quick build list sorted by suitability ──
   const options = buildings
     .filter(d => isUnlocked(state, d.id))
-    .map(d => ({ d, pl: evaluatePlacement(state, tile, d.id), cost: scaledCost(state, d.id) }))
+    .map(d => ({ d, pl: evaluatePlacement(state, tile, d.id), q: buildQuote(state, d.id) }))
     .filter(o => o.pl.ok)
     .sort((a, b2) => b2.pl.mult - a.pl.mult);
   return (
@@ -118,18 +123,23 @@ export default function TilePanel() {
       </Section>
       <Section title="BUILD HERE" accent="var(--green)">
         <div className="flex flex-col gap-1">
-          {options.map(({ d, pl, cost }) => {
+          {options.map(({ d, pl, q }) => {
             const tone = CATEGORY_COLOR[d.category];
-            const afford = state.budget >= cost;
+            const afford = q.ok;
             return (
               <button key={d.id} disabled={!afford}
                 onClick={() => { play('build'); dispatch({ type: 'BUILD', tileId: tile.id, building: d.id }); }}
                 className={`flex items-center justify-between gap-2 rounded px-2 py-1 text-left transition-all ${afford ? 'hover:brightness-125' : 'opacity-40 cursor-not-allowed'}`}
                 style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${pl.mult >= 1.15 ? tone : 'var(--border)'}` }}
-                title={d.description}>
-                <span className="font-rajdhani text-[13px] font-semibold truncate" style={{ color: tone }}>{d.icon} {d.short}</span>
-                <span className="font-mono-data text-[9.5px] whitespace-nowrap" style={{ color: pl.mult >= 1.05 ? 'var(--green)' : pl.mult < 0.9 ? 'var(--rose)' : 'var(--text-secondary)' }}>
-                  ×{pl.mult.toFixed(2)} <span style={{ color: afford ? 'var(--text-primary)' : 'var(--rose)' }}>{fmtMoney(cost)}</span>
+                title={afford ? d.description : `${d.description}
+✕ ${q.reason}`}>
+                <span className="flex flex-col min-w-0">
+                  <span className="font-rajdhani text-[13px] font-semibold truncate" style={{ color: tone }}>{d.icon} {d.short}</span>
+                  {!afford && q.reason && <span className="font-mono-data text-[8.5px] truncate" style={{ color: 'var(--rose)' }}>{q.reason}</span>}
+                </span>
+                <span className="font-mono-data text-[9.5px] whitespace-nowrap text-right flex flex-col items-end">
+                  <span style={{ color: pl.mult >= 1.05 ? 'var(--green)' : pl.mult < 0.9 ? 'var(--rose)' : 'var(--text-secondary)' }}>×{pl.mult.toFixed(2)}</span>
+                  <CostLine q={q} dimGoods />
                 </span>
               </button>
             );

@@ -1,15 +1,19 @@
 // Web Audio API - generates 8-bit arcade sounds in real time
+import { getSettings, subscribeSettings } from '../lib/settings';
+
+const BASE_GAIN = 0.3;
 let ctx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
 let enabled = false;
 let ambientInterval: ReturnType<typeof setInterval> | null = null;
+let ambientWanted = false; // a screen asked for ambient; settings decide whether it actually plays
 
 function getCtx(): AudioContext | null {
   if (!ctx) {
     try {
       ctx = new AudioContext();
       masterGain = ctx.createGain();
-      masterGain.gain.value = 0.3;
+      masterGain.gain.value = BASE_GAIN * getSettings().masterVolume;
       masterGain.connect(ctx.destination);
     } catch {
       return null;
@@ -215,6 +219,7 @@ const SYNTH: Record<SoundName, (t: number) => void> = {
 export function enableAudio() {
   enabled = true;
   getCtx();
+  if (ambientWanted) runAmbient();
 }
 
 export function disableAudio() {
@@ -231,6 +236,8 @@ export function isAudioEnabled() {
 
 export function play(name: SoundName) {
   if (!enabled) return;
+  const st = getSettings();
+  if (name === 'ambient' ? !st.ambient : !st.sfx) return;
   const c = getCtx();
   if (!c || c.state === 'suspended') return;
   try {
@@ -240,20 +247,38 @@ export function play(name: SoundName) {
   }
 }
 
-export function startAmbient() {
-  if (!enabled || ambientInterval) return;
+function runAmbient() {
+  if (!enabled || ambientInterval || !getSettings().ambient) return;
   synthAmbientStep(now());
   ambientInterval = setInterval(() => {
-    if (enabled) synthAmbientStep(now());
+    if (enabled && getSettings().ambient) synthAmbientStep(now());
   }, 3000);
 }
 
-export function stopAmbient() {
+function haltAmbient() {
   if (ambientInterval) {
     clearInterval(ambientInterval);
     ambientInterval = null;
   }
 }
+
+export function startAmbient() {
+  ambientWanted = true;
+  runAmbient();
+}
+
+export function stopAmbient() {
+  ambientWanted = false;
+  haltAmbient();
+}
+
+// Settings changes apply live: volume on the master bus, ambient on/off.
+subscribeSettings(() => {
+  const st = getSettings();
+  if (ctx && masterGain) masterGain.gain.setTargetAtTime(BASE_GAIN * st.masterVolume, ctx.currentTime, 0.05);
+  if (!st.ambient) haltAmbient();
+  else if (ambientWanted) runAmbient();
+});
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  SFX PLAYER (for generated MP3 sound effects - planes, rockets, satellites)
@@ -280,10 +305,12 @@ function getSfx(src: string): HTMLAudioElement | null {
  */
 export function playSfx(src: string, volume = 0.2, allowOverlap = false) {
   if (!enabled) return;
+  const st = getSettings();
+  if (!st.sfx || st.masterVolume <= 0) return;
   if (!allowOverlap && sfxPlaying[src]) return;
   const audio = getSfx(src);
   if (!audio) return;
-  audio.volume = volume;
+  audio.volume = Math.max(0, Math.min(1, volume * st.masterVolume));
   audio.currentTime = 0;
   sfxPlaying[src] = true;
   audio.play().catch(() => {});
