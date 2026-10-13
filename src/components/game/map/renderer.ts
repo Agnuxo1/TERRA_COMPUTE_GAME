@@ -123,6 +123,8 @@ export class MapRenderer {
   private emitAcc = 0;
   bounds = { minX: 0, minY: 0, maxX: 1, maxY: 1 };
   onCameraChange?: () => void;
+  /** Audio hook for visual events: 'complete' | 'damage' | 'launch'. */
+  onFx?: (kind: 'complete' | 'damage' | 'launch') => void;
 
   private canvas: HTMLCanvasElement;
   private miniCanvas: HTMLCanvasElement | null;
@@ -551,9 +553,11 @@ export class MapRenderer {
       const [cx, cy] = tileCenter(t.col, t.row);
       if (before.progress < 1 && b.progress >= 1) {
         this.pings.push({ x: cx, y: cy, color: '#00E5A0', age: 0 });
+        this.onFx?.('complete');
         this.floaters.push({ x: cx, y: cy - 40, text: b.upgrading || b.level > 1 ? `▲ LEVEL ${b.level}` : '✔ ONLINE', color: '#00E5A0', age: 0 });
       } else if (before.progress >= 1 && b.progress < 1 && !b.upgrading && before.level === b.level) {
         this.pings.push({ x: cx, y: cy, color: '#FF477E', age: 0, label: 'DAMAGED' });
+        this.onFx?.('damage');
         this.burst(cx, cy - 20, '#FF7A3D', 26);
       }
     }
@@ -703,6 +707,7 @@ export class MapRenderer {
         if (!this.nextLaunch.has(id)) this.nextLaunch.set(id, due);
         if (this.time > due && !this.ui.reduceMotion) {
           this.rockets.push({ x: cx + 10, y: cy - size * 0.35, vy: -6, age: 0 });
+          this.onFx?.('launch');
           for (let i = 0; i < 26; i++) P(cx + 10 + (rnd() - 0.5) * 16, cy - size * 0.2, 'trail', 'rgba(220,220,225,0.85)', 3, 2.5, (rnd() - 0.5) * 40, -rnd() * 8);
           this.nextLaunch.set(id, this.time + 35 + rnd() * 40);
         }
