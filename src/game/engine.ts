@@ -425,7 +425,7 @@ export function computeEconomy(s: GameState): Economy {
     const def = buildingById[b.type];
     // Buildings under construction still cost upkeep of their first level.
     const lvl = operational(b) ? effLevel(b) : 0;
-    upkeep += def.upkeep * (lvl ? [0, 1, 1.8, 2.6][lvl] : 0.5);
+    upkeep += def.upkeep * (lvl ? [0, 1, 1.8, 2.6][lvl] : 0.5) * (b.type === 'datacenter' && s.modifiers.some(m => m.id === 'dotcom_bailout') ? 0.7 : 1);
     if (!lvl) continue;
     const lm = LEVEL_MULT[lvl];
     const pl = evaluatePlacement(s, t, b.type, true);
@@ -1258,7 +1258,7 @@ function applyEffect(s: GameState, effect: string) {
     case 'rp_4000': s.researchPoints += 4000; break;
     case 'cash_350': s.budget += 350; break;
     case 'peace_dividend': s.budget += 700; allRivals(10); break;
-    case 'dotcom_bailout': s.budget -= Math.max(0, s.budget) * 0.35; break;
+    case 'dotcom_bailout': s.budget -= Math.max(0, s.budget) * 0.35; addMod(s, { id: 'dotcom_bailout', label: 'Tech bailout', years: 5 }); break;
     case 'dotcom_burn': addMod(s, { id: 'dotcom_burn', label: 'Dot-com recession', years: 4, gdp: 0.9, approval: -5 }); break;
     case 'sec_state': s.alignment = clamp(s.alignment + 10, 0, 100); addMod(s, { id: 'sec_state', label: 'Security state', years: 6, approval: -6 }); break;
     case 'sec_liberty': addMod(s, { id: 'sec_liberty', label: 'Civil liberties', years: 6, approval: 5 }); break;
