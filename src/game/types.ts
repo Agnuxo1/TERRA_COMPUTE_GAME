@@ -16,6 +16,22 @@ export type BuildingId =
 
 export type BuildingCategory = 'people' | 'economy' | 'energy' | 'science' | 'compute' | 'safety';
 
+export type Difficulty = 'easy' | 'normal' | 'hard';
+
+export interface HistoryPoint {
+  year: number;
+  gdp: number;
+  budget: number;
+  population: number;
+  capability: number;
+  alignment: number;
+  approval: number;
+  planetHealth: number;
+  emissions: number;
+  rivalTop: number;
+  research: number;
+}
+
 export type AIStrategy = 'aggressive' | 'economic' | 'tech' | 'balanced' | 'defensive';
 
 export interface ContinentData {
@@ -50,6 +66,9 @@ export interface BuildingData {
   placement: string;
   requiresTech?: string;
   unique?: boolean;
+  steel?: number;       // construction cost in steel
+  chips?: number;       // construction cost in chips
+  chipUpkeep?: number;  // chips per year to keep the hardware running
 }
 
 export interface Tile {
@@ -209,6 +228,13 @@ export interface Economy {
   eduTarget: number;
   comfort: number;
   staffing: number;
+  steelProd: number;
+  steelUse: number;   // construction draw this year (informative)
+  chipProd: number;
+  chipUse: number;    // hardware upkeep per year
+  chipFactor: number; // 0..1 compute efficiency when chips run short
+  policyCost: number;
+  imports: number;    // $ per year spent auto-importing chips for upkeep
 }
 
 export interface GameState {
@@ -228,6 +254,8 @@ export interface GameState {
 
   // Stocks
   budget: number;
+  steel: number;
+  chips: number;
   population: number;
   education: number;
   researchPoints: number;
@@ -241,6 +269,13 @@ export interface GameState {
   legacy: { food: number; housing: number; jobs: number; energy: number; emissionsPerGW: number };
 
   eco: Economy;
+
+  // Policies & market
+  policies: string[];
+  policyCooldown: number;
+  priceMod: { steel: number; chips: number };
+  history: HistoryPoint[];
+  difficulty: Difficulty;
 
   // Tech
   unlockedTechs: string[];

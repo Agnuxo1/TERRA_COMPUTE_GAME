@@ -1,7 +1,7 @@
 // Scripted "reasonable player" used by the balance simulator (tools/sim) and the dev autoplay.
 import { buildingById } from './data.ts';
 import {
-  countBuildings, evaluatePlacement, gameReducer, has, isUnlocked, regionCost, scaledCost, upgradeCost,
+  buildQuote, countBuildings, evaluatePlacement, gameReducer, has, isUnlocked, policyAvailability, regionCost, upgradeQuote,
   TREATY_INFO, giftCost, covertCost, techAvailable, alignmentCap,
 } from './engine.ts';
 import type { BuildingId, GameState } from './types.ts';
@@ -21,8 +21,8 @@ function bestTile(s: GameState, type: BuildingId): number | null {
 
 function tryBuild(s: GameState, type: BuildingId, reserve = 0): GameState {
   if (!isUnlocked(s, type)) return s;
-  const cost = scaledCost(s, type);
-  if (s.budget - reserve < cost) return s;
+  const q = buildQuote(s, type);
+  if (!q.ok || s.budget - reserve < q.total) return s;
   const tile = bestTile(s, type);
   if (tile === null) return tryExpand(s) ;
   return gameReducer(s, { type: 'BUILD', tileId: tile, building: type });
@@ -35,7 +35,7 @@ function tryExpand(s: GameState): GameState {
 }
 
 function tryUpgrade(s: GameState, types: BuildingId[]): GameState {
-  const t = s.map!.tiles.find(t => t.building && types.includes(t.building.type) && t.building.level < 3 && t.building.progress >= 1 && !t.building.upgrading && upgradeCost(s, t) < s.budget);
+  const t = s.map!.tiles.find(t => t.building && types.includes(t.building.type) && t.building.level < 3 && t.building.progress >= 1 && !t.building.upgrading && upgradeQuote(s, t).ok);
   return t ? gameReducer(s, { type: 'UPGRADE', tileId: t.id }) : s;
 }
 
@@ -56,14 +56,16 @@ export function botDecide(s: GameState, strat: BotStrategy = 'balanced'): GameSt
     if (ev.minigame) s = gameReducer(s, { type: 'MINIGAME_DONE', minigame: ev.minigame, stars: 2 });
     else s = gameReducer(s, { type: 'RESOLVE_EVENT', choice: ev.choices.findIndex(c => !c.cost || c.cost < s.budget) });
   }
-  const reserve = Math.max(0, -e.netBudget * 2);
+  // Save up for the first AI Gigafactory: it is the only road to a YottaFLOP.
+  const savingForGiga = isUnlocked(s, 'aifactory') && countBuildings(s, 'aifactory') < 2;
+  const reserve = Math.max(0, -e.netBudget * 2) + (savingForGiga ? buildQuote(s, 'aifactory').total : 0);
   const fr = e.foodSupply / e.foodDemand;
   const pending = (t: BuildingId) => s.map!.tiles.some(x => x.building?.type === t && x.building.progress < 1);
   if (fr < 1.06 && !pending('farm')) s = tryBuild(s, 'farm');
   if (s.population > e.housingCap * 0.95 && !pending('housing')) s = tryBuild(s, 'housing');
   if (e.energySupply < e.energyDemand * 1.1 && !['coal','nuclear','solar','fusion'].some(t => pending(t as BuildingId))) {
     const clean: BuildingId[] = dirty ? ['coal'] : ['fusion', 'nuclear', 'solar', 'coal'];
-    const pick = clean.find(t => isUnlocked(s, t) && s.budget > scaledCost(s, t) && bestTile(s, t) !== null) ?? 'coal';
+    const pick = clean.find(t => isUnlocked(s, t) && buildQuote(s, t).ok && bestTile(s, t) !== null) ?? 'coal';
     s = tryBuild(s, pick);
   }
   if (e.unemployment > 0.07) s = tryBuild(s, countBuildings(s, 'factory') > countBuildings(s, 'market') * 2 ? 'market' : 'factory', reserve);
@@ -80,17 +82,30 @@ export function botDecide(s: GameState, strat: BotStrategy = 'balanced'): GameSt
   const comp: BuildingId[] = ['aifactory', 'gpucluster', 'datacenter', 'super', 'mainframe'];
   const top = comp.find(t => isUnlocked(s, t));
   if (top && e.energySupply > e.energyDemand + buildingById[top].energyUse * 0.8) {
-    if (bestTile(s, top) === null && s.budget > scaledCost(s, top) * 1.1) {
+    if (bestTile(s, top) === null && s.budget > buildQuote(s, top).total * 1.1) {
       // Map full: recycle the weakest compute building or a surplus farm.
       const order: BuildingId[] = ['mainframe', 'super', 'datacenter', 'gpucluster'];
       const victim = order.filter(t => t !== top).map(t => s.map!.tiles.find(x => x.building?.type === t && x.building.progress >= 1)).find(Boolean);
       if (victim) s = gameReducer(s, { type: 'DEMOLISH', tileId: victim.id });
     }
-    s = tryBuild(s, top, greedy ? 0 : reserve);
+    s = tryBuild(s, top, greedy ? 0 : Math.max(0, -e.netBudget * 2));
   }
   s = tryUpgrade(s, comp.filter(t => isUnlocked(s, t)).slice(0, 2));
   if (isUnlocked(s, 'chipfab') && countBuildings(s, 'chipfab') < 3 && s.year > 1985) s = tryBuild(s, 'chipfab', reserve);
   if (isUnlocked(s, 'seaport') && countBuildings(s, 'seaport') < 2) s = tryBuild(s, 'seaport', reserve);
+  // goods: own chip production once compute burns chips, steel when imports pile up
+  if (isUnlocked(s, 'chipfab') && e.chipUse > e.chipProd * 0.8 && countBuildings(s, 'chipfab') < 6) s = tryBuild(s, 'chipfab', reserve);
+  // policies
+  const wanted = strat === 'dirty' || strat === 'greedy'
+    ? ['five_year_plan', 'free_market', 'manhattan_ai', 'mass_housing', 'space_race']
+    : ['five_year_plan', 'education_drive', 'welfare', 'green_deal', 'safety_first', 'space_race'];
+  if (strat === 'nosafety') wanted.splice(wanted.indexOf('safety_first'), 1, 'manhattan_ai');
+  if (s.approval < 45 && !s.policies.includes('welfare') && s.policies.includes('five_year_plan') && policyAvailability(s, 'five_year_plan', false).ok) {
+    s = gameReducer(s, { type: 'SET_POLICY', policyId: 'five_year_plan', on: false });
+  }
+  for (const id of wanted) {
+    if (policyAvailability(s, id, true).ok) { s = gameReducer(s, { type: 'SET_POLICY', policyId: id, on: true }); break; }
+  }
   // upgrades when rich
   if (s.budget > 1.5 * (e.income)) s = tryUpgrade(s, ['lab', 'uni', 'farm', 'housing', 'factory', ...comp, 'nuclear', 'solar']);
   // expansion
