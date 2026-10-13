@@ -17,7 +17,7 @@ interface Step {
 const countType = (s: GameState, type: string) => s.map?.tiles.filter(t => t.building?.type === type).length ?? 0;
 
 const STEPS: Step[] = [
-  { title: 'Comrade Director', text: 'Your bloc starts the race to superintelligence in 1960. Grow a healthy nation, out-research six rivals and ignite a SAFE superintelligence — without cooking the planet.' },
+  { title: 'Comrade Director', text: 'Your bloc starts the race to superintelligence in 1960. Grow a healthy nation, out-research seven rivals and ignite a SAFE superintelligence — without cooking the planet.' },
   { title: 'The command map', text: 'Drag or use the arrow keys to move, scroll to zoom, double-click to focus. The sector map in the corner jumps the camera anywhere.', target: 'minimap' },
   { title: 'Construction', text: 'Open BUILD [B]. Every building is placed on a tile of your continent.', target: 'cmd-buildings', done: s => s.overlay === 'buildings' },
   { title: 'Feed the people', text: 'Choose Collective Farm → PLACE ON MAP. Green tiles give a bonus: river valleys +50%, next to other farms +10%. Click a green tile.', target: 'side', done: (s, start) => countType(s, 'farm') > countType(start, 'farm') },
