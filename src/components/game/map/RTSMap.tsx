@@ -5,7 +5,7 @@ import { buildQuote, evaluatePlacement, type Placement } from '../../../game/eng
 import { tileCenter } from '../../../game/mapgen';
 import type { GameState, Tile } from '../../../game/types';
 import { fmtMoney } from '../../../game/format';
-import { play } from '../../../hooks/useSound';
+import { play, playSfx } from '../../../hooks/useSound';
 import { MapRenderer } from './renderer';
 
 export interface MapOptions {
@@ -38,6 +38,11 @@ export default function RTSMap({ options = {} }: { options?: MapOptions }) {
     const canvas = canvasRef.current!;
     const r = new MapRenderer(canvas, miniRef.current);
     rendererRef.current = r;
+    r.onFx = kind => {
+      if (kind === 'complete') play('build');
+      else if (kind === 'damage') play('alert');
+      else playSfx('./assets/sounds/rocket-launch.mp3', 0.12);
+    };
     const wrap = wrapRef.current!;
     r.resize(wrap.clientWidth, wrap.clientHeight);
     r.start();
