@@ -52,7 +52,7 @@ You lose if:
 | Africa | +60% solar, cheaper land development |
 | South America | +25% farms & solar, forests absorb 2× CO₂ |
 | India | Education grows 40% faster, +15% research |
-| Oceania | Enemy operations −40%, +20% nuclear, rich uranium |
+| Oceania | Enemy operations −40%, +20% research and nuclear, rich uranium |
 
 ### 3. Build your continent (the central map)
 Your continent is generated from its real outline as an isometric tile map with **terrain** (plains, river valleys, forest, hills, desert, tundra, coast), **mineral deposits** (coal, uranium, silica) and **regions**. Only developed regions can be built on — click a dark region to **DEVELOP** it.
@@ -97,7 +97,19 @@ An animated isometric view in the spirit of classic RTS games: an automatic road
 - **Spy [S] / Covert [A]**: intelligence sweeps, research theft, cyber-sabotage, propaganda. Costs scale with your national income. Getting caught costs relations, and every operation puts the target **on alert**: the next one against the same bloc costs more and fails more often.
 - **Planet**: every bloc's emissions heat the world. Low planet health brings droughts, floods and heatwaves.
 
-### 7. History happens
+### 7. War Room — multiplayer for up to 8 heads of state
+Choose **WAR ROOM · MULTIPLAYER** on the title screen. One player establishes a room and shares its six-letter code (or the invite link); everyone claims a bloc, and the host launches the campaign. Blocs nobody claims are run by AI governments — anyone can still lose the race to them.
+
+- **No game server.** Browsers connect directly to each other (WebRTC). Free public relays only introduce the players, and the room code encrypts that handshake. As in any peer-to-peer game, players can see each other's IP address, and a few very strict networks block direct links.
+- **One shared world.** Every player runs their own nation; the host commands the clock and the AI blocs. The race, the planet and world tension are shared.
+- **Covert war.** Cyber-sabotage knocks a rival's data centre offline, a **grid attack** blacks out their power for a year, research theft and propaganda hurt in their own ways. A failed operation is exposed — the target is told, and the whole room hears about it.
+- **Defence.** AI Safety Institutes and **counter-intelligence sweeps** make enemy operations fail; every operation also puts its target on alert.
+- **DEFCON.** Every operation raises world tension. At **DEFCON 1** every nation loses two years of growth — and whoever pushed the world over the edge is blamed and pays most.
+- **World firsts.** The first bloc to reach a TeraFLOP, PetaFLOP, ExaFLOP and ZettaFLOP wins research and national pride. Second place gets nothing.
+- **Diplomacy between humans.** Aid is a real transfer of money; treaties are proposals the other head of state accepts or refuses. A room **hotline** carries every threat, bargain and betrayal.
+- **The clock never waits.** Decisions arrive as timed cards (25 s) instead of pausing the world; breakthrough exercises are credited automatically. If a player disconnects, an AI government takes over their bloc; if the host leaves, everyone else plays on offline.
+
+### 8. History happens
 Around 30 historical events (oil crisis, AI winters, dot-com crash, COVID, ChatGPT…) arrive as **decisions with trade-offs**. Between them, the nation throws its own dilemmas at you — brain drain, general strikes, defecting scientists, an Olympic bid, a reactor incident, leaked model weights, thirsty data centres, automation riots — and every eight years an **election** (or party congress) turns your approval into a mandate… or a crisis. Eight AI milestones open a **breakthrough exercise**: a short minigame whose stars grant research and bonuses. Exercises can always be skipped.
 
 | Exercise | Milestone | Game |

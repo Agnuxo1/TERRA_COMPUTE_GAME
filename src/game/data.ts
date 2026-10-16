@@ -8,7 +8,7 @@ export const continents: ContinentData[] = [
   { id: 'na', name: 'North America', color: '#3B82F6', gdp1960: 2700, energy1960: 2800, techLevel: 8, solarPotential: 0.6, basePopulation: 180, capital: 'na_eastern_us',
     description: 'Economic powerhouse with elite universities and deep capital markets.', specialBonus: '+25% Research' },
   { id: 'eu', name: 'Europe', color: '#6366F1', gdp1960: 1750, energy1960: 1600, techLevel: 8, solarPotential: 0.5, basePopulation: 420, capital: 'eu_western_eu',
-    description: 'Dense, educated and cooperative. Strong institutions and tech transfer.', specialBonus: 'Techs -15% cost, +20% approval stability' },
+    description: 'Dense, educated and cooperative. Strong institutions and tech transfer.', specialBonus: 'Techs -15% cost, +4 approval' },
   { id: 'su', name: 'Soviet Union', color: '#EF4444', gdp1960: 1250, energy1960: 1200, techLevel: 5, solarPotential: 0.2, basePopulation: 210, capital: 'as_ural',
     description: 'Vast territory, heavy industry and the richest mineral deposits.', specialBonus: '+30% Industry, extra coal & uranium' },
   { id: 'cn', name: 'China', color: '#F97316', gdp1960: 450, energy1960: 800, techLevel: 3, solarPotential: 0.4, basePopulation: 660, capital: 'as_china',
@@ -20,7 +20,7 @@ export const continents: ContinentData[] = [
   { id: 'in', name: 'India', color: '#EAB308', gdp1960: 275, energy1960: 150, techLevel: 2, solarPotential: 0.7, basePopulation: 450, capital: 'in_c',
     description: 'A huge, ambitious generation of engineers in the making.', specialBonus: 'Education grows 40% faster, +15% research' },
   { id: 'oc', name: 'Oceania', color: '#06B6D4', gdp1960: 250, energy1960: 60, techLevel: 5, solarPotential: 0.9, basePopulation: 15, capital: 'au_eastern',
-    description: 'Isolated, safe and sitting on uranium and endless sunshine.', specialBonus: 'Enemy ops -40%, +20% Nuclear, rich uranium' },
+    description: 'Isolated, safe and sitting on uranium and endless sunshine.', specialBonus: 'Enemy ops -40%, +20% research & nuclear, rich uranium' },
 ];
 
 export function continentById(id: string | null | undefined): ContinentData | undefined {
@@ -434,5 +434,5 @@ export const BONUS = {
   af: { solar: 1.6, regionCost: 0.6 },
   sa: { farms: 1.25, solar: 1.25, forestSink: 2 },
   in: { education: 1.4, research: 1.15 },
-  oc: { enemyOps: 0.6, nuclear: 1.2 },
+  oc: { enemyOps: 0.6, nuclear: 1.2, research: 1.2 },
 } as const;
