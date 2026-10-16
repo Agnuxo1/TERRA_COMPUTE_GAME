@@ -11,6 +11,7 @@ import NotificationFeed from '../components/game/NotificationFeed';
 import TechTreeOverlay from '../components/game/TechTreeOverlay';
 import Translator from '../components/game/Translator';
 import Tutorial from '../components/game/Tutorial';
+import MPHud from '../components/game/MPHud';
 import PauseMenu from '../components/meta/PauseMenu';
 import AutosaveToast from '../components/meta/AutosaveToast';
 import { useAutosave } from '../hooks/useAutosave';
@@ -31,11 +32,13 @@ export default function GameScreen() {
   const { justSaved, lastSavedYear } = useAutosave();
   const [settings] = useSettings();
 
-  // Simulation clock
+  // Simulation clock (multiplayer guests follow the host's clock instead)
+  const followsHost = state.mp?.role === 'guest' && !state.mp.offline;
   useEffect(() => {
+    if (followsHost) return;
     const id = setInterval(() => dispatch({ type: 'TICK' }), TICK_MS);
     return () => clearInterval(id);
-  }, [dispatch]);
+  }, [dispatch, followsHost]);
 
   useEffect(() => {
     startAmbient();
@@ -60,13 +63,19 @@ export default function GameScreen() {
         dispatch(state.overlay === OVERLAY_KEYS[k] ? { type: 'CLOSE_OVERLAY' } : { type: 'OPEN_OVERLAY', overlay: OVERLAY_KEYS[k] });
         return;
       }
-      if (k === ' ') { e.preventDefault(); dispatch({ type: 'TOGGLE_PAUSE' }); return; }
+      if (k === ' ') {
+        e.preventDefault();
+        if (followsHost) void import('../net/session').then(({ session }) => session.broadcast({ k: 'preq' }));
+        else dispatch({ type: 'TOGGLE_PAUSE' });
+        return;
+      }
+      if (followsHost && ['1', '2', '3'].includes(k)) return;
       if (k === 'm') { setMapView(v => (v === 'continent' ? 'world' : 'continent')); return; }
       if (['1', '2', '3'].includes(k)) dispatch({ type: 'SET_SPEED', speed: Number(k) });
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [dispatch, state.activeEvent, state.overlay, state.placing, state.selectedTile, menuOpen]);
+  }, [dispatch, state.activeEvent, state.overlay, state.placing, state.selectedTile, menuOpen, followsHost]);
 
   const side = state.overlay === 'buildings' ? <BuildPanel />
     : state.overlay === 'diplomacy' ? <DiplomacyPanel />
@@ -124,7 +133,8 @@ export default function GameScreen() {
 
       <CommandCard />
 
-      <Tutorial />
+      {!state.mp && <Tutorial />}
+      {state.mp && <MPHud />}
       <AutosaveToast visible={justSaved} year={lastSavedYear} />
       {menuOpen && <PauseMenu onClose={() => setMenuOpen(false)} />}
 

@@ -57,11 +57,15 @@ export default function TitleScreen() {
     dispatch({type:'LOAD_STATE',state:s});
     return true;
   };
+  // Invite links (?room=CODE) go straight to the war room.
+  useEffect(()=>{ if(new URLSearchParams(window.location.search).get('room')) dispatch({type:'SET_SCREEN',screen:'lobby'}); },[dispatch]);
+
 
   const buttons:Array<{label:string;action:()=>void;icon:string;sub?:string}>=[
     ...(latest?[{label:'CONTINUE',action:()=>{play('click');loadSlot(latest.slot);},icon:'↻',
       sub:`${slotLabel(latest.slot)} · ${latest.year}`}]:[]),
     {label:'NEW GAME',action:handleNewGame,icon:'▶'},
+    {label:'WAR ROOM · MULTIPLAYER',action:()=>{play('click');dispatch({type:'SET_SCREEN',screen:'lobby'});},icon:'☢',sub:'Up to 8 players · peer-to-peer'},
     {label:'LOAD GAME',action:()=>openPanel('load'),icon:'⇩'},
     {label:'HOW TO PLAY',action:()=>openPanel('howto'),icon:'?'},
     {label:'ACHIEVEMENTS',action:()=>openPanel('achievements'),icon:'♛'},

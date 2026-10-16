@@ -17,6 +17,7 @@ import { basePrice, PRICE_IMPACT, type Good } from './market.ts';
 import { POLICY_COOLDOWN, POLICY_GDP_COST, policyById, policySlots } from './policies.ts';
 import { mulberry32 } from './rng.ts';
 import { applyDynamic, leaderOf, projectEvent, rollDynamic, type DynHelpers } from './dynamic-events.ts';
+import { isHuman, isRemote, lagFor, outbox, playerName, type AIState, type MPMsg, type MPPlayer, type Snapshot } from './mp.ts';
 import type {
   AIStrategy, BuildingId, Difficulty, Economy, ForecastWarning, GameEvent, GameMode, GameState, LogEntry, MapData, Modifier,
   Notification, PlacedBuilding, Rival, Tile, TreatyId,
@@ -39,7 +40,7 @@ const nid = (p: string) => `${p}-${++uid}-${Math.floor(rand() * 1e6)}`;
 //  ACTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
-export type CovertOp = 'intel' | 'steal' | 'sabotage' | 'propaganda';
+export type CovertOp = 'intel' | 'steal' | 'sabotage' | 'propaganda' | 'blackout';
 
 export type Action =
   | { type: 'SET_MODE'; mode: GameMode }
@@ -66,7 +67,15 @@ export type Action =
   | { type: 'CLOSE_OVERLAY' }
   | { type: 'DISMISS_NOTIFICATION'; id: string }
   | { type: 'SET_SCREEN'; screen: GameState['screen'] }
-  | { type: 'LOAD_STATE'; state: GameState };
+  | { type: 'LOAD_STATE'; state: GameState }
+  | { type: 'COUNTER_INTEL' }
+  | { type: 'MP_RECV'; msg: MPMsg }
+  | { type: 'MP_SNAPSHOT'; snap: Snapshot }
+  | { type: 'MP_AI'; ai: AIState[] }
+  | { type: 'MP_CLOCK'; speed: number; paused: boolean }
+  | { type: 'MP_CLOCK_TENSION'; tension: number }
+  | { type: 'MP_PLAYERS'; players: MPPlayer[]; offline?: boolean }
+  | { type: 'MP_OUTBOX_CLEAR'; n: number };
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  INITIAL STATE
@@ -676,34 +685,38 @@ function tickRivals(s: GameState, dt: number) {
   }
   s.rivals = s.rivals.map(r0 => {
     const r = { ...r0, treaties: [...r0.treaties] };
-    const climateDrag = s.planetHealth < 40 ? 0.01 : 0;
-    const growth = 0.028 + (r.strategy === 'economic' ? 0.008 : 0) - (r.stability < 40 ? 0.015 : 0) - climateDrag;
-    r.gdp *= 1 + growth * dt;
-    r.population *= 1 + 0.012 * dt;
-    if (r.stability < 40) r.lag += 0.25 * dt;
-    if (r.treaties.includes('safety')) r.lag += 0.08 * dt;
-    r.capability = Math.max(r.capability, historicalCapability(year - r.lag));
-    r.stability = clamp(r.stability + 3 * dt, 0, 85);
+    const remote = isRemote(s, r.id);   // multiplayer: world values arrive from the network
+    const human = isHuman(s, r.id);
     if (r.heat) r.heat = Math.max(0, r.heat - 0.3 * dt);
-    // Alignment drift
-    if (year > 2012) r.alignment = clamp(r.alignment + (r.strategy === 'aggressive' ? -0.35 : 0.25) * dt + (r.treaties.includes('safety') ? 1.2 * dt : 0), 5, 95);
-    // Energy transition
-    const cleanTrend = 0.02 + Math.max(0, year - 1970) * (r.strategy === 'defensive' || r.strategy === 'balanced' ? 0.009 : r.strategy === 'aggressive' ? 0.005 : 0.007);
-    r.cleanShare = clamp(Math.max(r.cleanShare, cleanTrend + (r.treaties.includes('climate') ? 0.25 : 0)), 0, 0.92);
-    r.emissions = 34 * Math.pow(r.gdp / 1000, 0.75) * (1 - r.cleanShare);
+    if (!remote) {
+      const climateDrag = s.planetHealth < 40 ? 0.01 : 0;
+      const growth = 0.028 + (r.strategy === 'economic' ? 0.008 : 0) - (r.stability < 40 ? 0.015 : 0) - climateDrag;
+      r.gdp *= 1 + growth * dt;
+      r.population *= 1 + 0.012 * dt;
+      if (r.stability < 40) r.lag += 0.25 * dt;
+      if (r.treaties.includes('safety')) r.lag += 0.08 * dt;
+      r.capability = Math.max(r.capability, historicalCapability(year - r.lag));
+      r.stability = clamp(r.stability + 3 * dt, 0, 85);
+      // Alignment drift
+      if (year > 2012) r.alignment = clamp(r.alignment + (r.strategy === 'aggressive' ? -0.35 : 0.25) * dt + (r.treaties.includes('safety') ? 1.2 * dt : 0), 5, 95);
+      // Energy transition
+      const cleanTrend = 0.02 + Math.max(0, year - 1970) * (r.strategy === 'defensive' || r.strategy === 'balanced' ? 0.009 : r.strategy === 'aggressive' ? 0.005 : 0.007);
+      r.cleanShare = clamp(Math.max(r.cleanShare, cleanTrend + (r.treaties.includes('climate') ? 0.25 : 0)), 0, 0.92);
+      r.emissions = 34 * Math.pow(r.gdp / 1000, 0.75) * (1 - r.cleanShare);
+    }
     // Relations relax toward the cold-war baseline
     const base = affinity(s.playerContinent || '', r.id) - (feared && (r.strategy === 'aggressive' || r.strategy === 'tech') ? 25 : 0);
     r.relation = clamp(r.relation + (base - r.relation) * 0.04 * dt + (r.treaties.length ? 0.6 * dt : 0) - (pol(s, 'propaganda') ? dt : 0), -100, 100);
 
-    // Notable actions
+    // Notable actions (human players act for themselves)
     r.cooldown -= dt;
-    if (r.cooldown <= 0) {
+    if (r.cooldown <= 0 && !human) {
       r.cooldown = 2 + rand() * 3;
       rivalAction(s, r, pioneer);
     }
 
     // Final act: a rival close to ignition announces a crash project (one decision per rival).
-    if (!pioneer && r.project === undefined && year >= 2012 && s.gameMode !== 'logic') {
+    if (!pioneer && !remote && r.project === undefined && year >= 2012 && s.gameMode !== 'logic') {
       const eta = rivalEta(r);
       if (eta - year <= 4) {
         r.project = Math.floor(year);
@@ -713,9 +726,10 @@ function tickRivals(s: GameState, dt: number) {
     }
 
     // ASI launch
-    if (!pioneer && !r.asiLaunched && r.capability >= ASI_CAPABILITY && year >= 2027) {
+    if (!pioneer && !remote && !r.asiLaunched && r.capability >= ASI_CAPABILITY && year >= 2027) {
       r.asiLaunched = true;
       const rogue = rand() < Math.max(0, (SAFE_ALIGNMENT - r.alignment) / SAFE_ALIGNMENT);
+      outbox(s, { t: 'end', who: r.id, human: false, safe: !rogue, year: Math.floor(year) });
       s.outcome = rogue ? 'rogue_rival' : 'rival_asi';
       s.gameOverReason = rogue
         ? `${rivalName(r.id)} ignited an unaligned superintelligence in ${Math.floor(year)} (alignment ${Math.round(r.alignment)}%). It optimised the planet for its own goals. Humanity's story ended with a prompt.`
@@ -731,7 +745,9 @@ function rivalAction(s: GameState, r: Rival, pioneer: boolean) {
   const opsMult = bonus(s, 'enemyOps') ?? 1;
   if (!pioneer && r.relation < -20 && (r.strategy === 'aggressive' || r.relation < -50) && s.year > 1970 && chance(0.6)) {
     const powers = s.modifiers.some(m => m.id === 'emergency_powers') ? 0.7 : 1;
-    const success = clamp((0.55 - defense * 0.08) * opsMult * powers * (pol(s, 'security_state') ? 0.5 : 1), 0.05, 0.9);
+    const sweep = s.modifiers.some(m => m.id === 'counterintel') ? 0.6 : 1;
+    raiseTension(s, 3);
+    const success = clamp((0.55 - defense * 0.08) * opsMult * powers * sweep * (pol(s, 'security_state') ? 0.5 : 1), 0.05, 0.9);
     if (rand() < success) {
       if (s.capability > 12 && chance(0.5)) {
         const targets = s.map!.tiles.filter(t => t.building && isCompute(t.building.type) && t.building.progress >= 1);
@@ -784,6 +800,15 @@ function pushLog(s: GameState, who: string, text: string, tone: LogEntry['tone']
   s.log = [{ id: nid('l'), year: Math.floor(s.year), who, text, tone }, ...s.log].slice(0, 40);
 }
 function queueEvent(s: GameState, event: GameEvent) {
+  if (s.mp && event.minigame) {
+    // Exercises would stall a shared clock: in multiplayer they are credited automatically (one star).
+    const rp = Math.round(80 + 40 * Math.max(0, s.year - 1960));
+    s.researchPoints += rp;
+    MINIGAME_REWARD[event.minigame]?.(s, 1);
+    s.minigameResults = { ...s.minigameResults, [event.minigame]: Math.max(1, s.minigameResults[event.minigame] ?? 0) };
+    notify(s, `★ ${event.name}: breakthrough credited (+${rp} research).`, 'success');
+    return;
+  }
   s.eventQueue = [...s.eventQueue, { id: event.id, event }];
 }
 
@@ -938,6 +963,9 @@ export function startGame(state: GameState, continentId: string, seed = Date.now
     }
   }
   refreshObjectives(s, true);
+  s.tension = tensionBaseline(startYear);
+  const startTop = Math.max(s.capability, ...s.rivals.map(r => r.capability));
+  s.firsts = Object.fromEntries(FIRSTS.filter(f => startTop >= f.cap).map(f => [f.key, { who: 'history', year: startYear }]));
   notify(s, `${c.name}, ${startYear}. Click the map to build. Your directives are on the right.`, 'info');
   pushLog(s, c.name, `Government formed. Goal: safe superintelligence before any rival.`, 'info');
   return s;
@@ -948,7 +976,8 @@ export function startGame(state: GameState, continentId: string, seed = Date.now
 // ═══════════════════════════════════════════════════════════════════════════
 
 function tick(prev: GameState): GameState {
-  if (prev.paused || prev.activeEvent || prev.screen !== 'game') return prev;
+  // In multiplayer the shared clock never waits for one player's decision.
+  if (prev.paused || (prev.activeEvent && !prev.mp) || prev.screen !== 'game') return prev;
   const s: GameState = { ...prev, tickCount: prev.tickCount + 1 };
   const dt = YEARS_PER_TICK * s.speed;
   const lastYearInt = Math.floor(s.year);
@@ -1038,6 +1067,8 @@ function tick(prev: GameState): GameState {
 
   // 6. World: rivals, climate, doom clock
   tickRivals(s, dt);
+  if (!s.mp || s.mp.offline || s.mp.role === 'host') s.tension = (s.tension ?? 20) + (tensionBaseline(s.year) - (s.tension ?? 20)) * 0.15 * dt;
+  checkFirsts(s);
   const worldEmissions = eco.emissions + s.rivals.reduce((a, b) => a + b.emissions, 0);
   s.co2 += Math.max(0, worldEmissions - 120) * dt;
   s.temperature = (s.startYear === 1980 ? 0.45 : 0.3) + s.co2 * 6e-5 * DIFF_CLIMATE[s.difficulty ?? 'normal'];
@@ -1275,6 +1306,17 @@ export function choiceAvailable(s: GameState, requires?: string): boolean {
 
 function applyEffect(s: GameState, effect: string) {
   if (applyDynamic(s, effect, H)) return;
+  if (effect.startsWith('mp_accept:') || effect.startsWith('mp_decline:')) {
+    const [kind, from, treaty] = effect.split(':') as [string, string, TreatyId];
+    if (kind === 'mp_accept') {
+      signWithHuman(s, from, treaty);
+      outbox(s, { t: 'diplo', from: s.mp?.me ?? '', to: from, kind: 'accept', treaty });
+    } else {
+      s.rivals = s.rivals.map(r => r.id === from ? { ...r, relation: clamp(r.relation - 3, -100, 100) } : r);
+      outbox(s, { t: 'diplo', from: s.mp?.me ?? '', to: from, kind: 'decline', treaty });
+    }
+    return;
+  }
   const [id, arg] = effect.split(':');
   const allRivals = (d: number) => { s.rivals = s.rivals.map(r => ({ ...r, relation: clamp(r.relation + d, -100, 100) })); };
   const hospitals = countBuildings(s, 'hospital', true);
@@ -1375,20 +1417,83 @@ export function giftCost(s: GameState): number {
   return Math.round(60 * Math.pow(1.045, s.year - 1960));
 }
 
+// --- World tension (DEFCON) -------------------------------------------------
+/** Where world tension drifts back to: the Cold War, détente after 1991, then the AI race. */
+export function tensionBaseline(year: number): number {
+  return year < 1963 ? 45 : year < 1986 ? 35 : year < 1992 ? 25 : year < 2013 ? 15 : Math.min(45, 15 + (year - 2013) * 1.5);
+}
+export function defcon(tension = 20): number { return tension >= 90 ? 1 : tension >= 70 ? 2 : tension >= 50 ? 3 : tension >= 30 ? 4 : 5; }
+function raiseTension(s: GameState, d: number) {
+  const before = defcon(s.tension);
+  s.tension = clamp((s.tension ?? 20) + d, 0, 100);
+  const after = defcon(s.tension);
+  if (after < before && after <= 3) notify(s, `☢ DEFCON ${after}. ${after === 1 ? 'The world is at the brink.' : after === 2 ? 'One more provocation and the whole world pays for it.' : 'World tension is rising.'}`, after <= 2 ? 'danger' : 'warning');
+  if (s.tension >= 90 && (!s.mp || s.mp.offline || s.mp.role === 'host')) {
+    brinkCrisis(s);
+    outbox(s, { t: 'defcon1', year: Math.floor(s.year) });
+  }
+}
+/** DEFCON 1: everybody pays. */
+function brinkCrisis(s: GameState) {
+  s.tension = 55;
+  addMod(s, { id: 'brink', label: 'Brink of war', years: 2, gdp: 0.92, approval: -8 });
+  notify(s, '☢ DEFCON 1 — THE BRINK. Markets crash, bunkers fill, every nation loses two years of growth.', 'danger');
+  pushLog(s, 'World', 'DEFCON 1: the world came within minutes of war.', 'danger');
+}
+/** Our own counter-intelligence: what an enemy operation loses from its success chance. */
+export function ownDefense(s: GameState): number {
+  return Math.min(0.3, 0.06 * countBuildings(s, 'defense', true)) + (s.modifiers.some(m => m.id === 'counterintel') ? 0.2 : 0) + (pol(s, 'security_state') ? 0.1 : 0);
+}
+export function sweepCost(s: GameState): number { return Math.round(Math.max(60, 0.2 * (s.eco.income || 400)) / 5) * 5; }
+
+// --- World firsts ----------------------------------------------------------
+export const FIRSTS: Array<{ key: string; cap: number; label: string }> = [
+  { key: 'tera', cap: 12, label: 'TeraFLOP' }, { key: 'peta', cap: 15, label: 'PetaFLOP' },
+  { key: 'exa', cap: 18, label: 'ExaFLOP' }, { key: 'zetta', cap: 21, label: 'ZettaFLOP' },
+];
+const meId = (s: GameState) => s.mp?.me ?? s.playerContinent ?? '';
+function claimFirst(s: GameState, key: string, who: string, year: number, broadcast: boolean) {
+  if (s.firsts?.[key]) return;
+  s.firsts = { ...(s.firsts ?? {}), [key]: { who, year } };
+  const f = FIRSTS.find(x => x.key === key)!;
+  if (who === meId(s)) {
+    const rp = Math.round(1.5 * (80 + 40 * Math.max(0, s.year - 1960)));
+    s.researchPoints += rp;
+    addMod(s, { id: `first_${key}`, label: `World first: ${f.label}`, years: 4, approval: 5 });
+    notify(s, `🏆 WORLD FIRST: your bloc is the first to reach a ${f.label}! +${rp} research, national pride +5.`, 'success');
+    pushLog(s, 'World', `We are the first nation to reach a ${f.label}.`, 'success');
+  } else if (who !== 'history') {
+    const human = playerName(s, who);
+    notify(s, `🏁 ${rivalName(who)}${human ? ` (${human})` : ''} is the first to reach a ${f.label}.`, 'warning');
+    pushLog(s, rivalName(who), `First nation to reach a ${f.label}.`, 'warning');
+  }
+  if (broadcast && who !== 'history') outbox(s, { t: 'first', key, who, year });
+}
+function checkFirsts(s: GameState) {
+  for (const f of FIRSTS) {
+    if (s.firsts?.[f.key]) continue;
+    if (s.capability >= f.cap) { claimFirst(s, f.key, meId(s), Math.floor(s.year), true); continue; }
+    const r = s.rivals.find(x => !isRemote(s, x.id) && x.capability >= f.cap);
+    if (r) claimFirst(s, f.key, r.id, Math.floor(s.year), true);
+  }
+}
+
 /** Operations cost a share of the national income (so poorer blocs can afford them too), with a floor. */
 /** Each operation puts the target on alert: the next one against the same bloc costs more and fails more often. */
-export const COVERT_HEAT: Record<CovertOp, number> = { intel: 0.2, steal: 0.6, sabotage: 1, propaganda: 0.5 };
+export const COVERT_HEAT: Record<CovertOp, number> = { intel: 0.2, steal: 0.6, sabotage: 1, propaganda: 0.5, blackout: 1.2 };
+/** World tension each operation adds (x1.5 when exposed). */
+export const COVERT_TENSION: Record<CovertOp, number> = { intel: 2, steal: 4, sabotage: 8, propaganda: 4, blackout: 10 };
 export function covertCost(s: GameState, op: CovertOp, r?: Rival): number {
-  const floor = { intel: 25, steal: 50, sabotage: 90, propaganda: 65 }[op];
-  const share = { intel: 0.12, steal: 0.25, sabotage: 0.45, propaganda: 0.33 }[op];
+  const floor = { intel: 25, steal: 50, sabotage: 90, propaganda: 65, blackout: 100 }[op];
+  const share = { intel: 0.12, steal: 0.25, sabotage: 0.45, propaganda: 0.33, blackout: 0.55 }[op];
   const alert = 1 + 0.6 * (r?.heat ?? 0);
   return Math.round(Math.max(floor, share * (s.eco.income || 400)) * alert / 5) * 5;
 }
 
 export function covertChance(s: GameState, r: Rival, op: CovertOp): number {
   const sats = countBuildings(s, 'satellite', true);
-  const base = { intel: 0.8, steal: 0.6, sabotage: 0.45, propaganda: 0.55 }[op];
-  const def = r.strategy === 'defensive' ? 0.15 : 0;
+  const base = { intel: 0.8, steal: 0.6, sabotage: 0.45, propaganda: 0.55, blackout: 0.4 }[op];
+  const def = (r.strategy === 'defensive' ? 0.15 : 0) + (r.defense ?? 0);
   const quantum = s.modifiers.some(m => m.id === 'quantum_crypto') ? 0.25 : 0;
   const policy = (pol(s, 'security_state') ? 0.15 : 0) + (pol(s, 'space_race') ? 0.1 : 0);
   const cyber = s.modifiers.some(m => m.id === 'cyber_arms') ? 0.15 : 0;
@@ -1406,7 +1511,154 @@ function withTile(s: GameState, tileId: number, fn: (t: Tile) => Tile): GameStat
   return { ...s, map: { ...s.map!, tiles } };
 }
 
+const fmtMoneyB = (b: number) => (b >= 1000 ? `$${(b / 1000).toFixed(1)}T` : `$${Math.round(b)}B`);
+
+/** A treaty both humans agreed to: the same rewards on both sides. */
+function signWithHuman(s: GameState, who: string, tid: TreatyId) {
+  s.rivals = s.rivals.map(r => r.id === who && !r.treaties.includes(tid) ? { ...r, treaties: [...r.treaties, tid], relation: clamp(r.relation + 8, -100, 100) } : r);
+  if (tid === 'safety') s.alignment = clamp(s.alignment + 5, 0, 100);
+  if (tid === 'safety' || tid === 'climate') raiseTension(s, -5);
+  notify(s, `✍ ${TREATY_INFO[tid].name} signed with ${rivalName(who)}${playerName(s, who) ? ` (${playerName(s, who)})` : ''}.`, 'success');
+  pushLog(s, rivalName(who), `${TREATY_INFO[tid].name} signed.`, 'success');
+}
+
+/** Effects of another human's covert operation landing on us. */
+function sufferOperation(s: GameState, from: string, op: CovertOp, ok: boolean) {
+  const who = `${rivalName(from)}${playerName(s, from) ? ` (${playerName(s, from)})` : ''}`;
+  const rel = (d: number) => { s.rivals = s.rivals.map(r => r.id === from ? { ...r, relation: clamp(r.relation + d, -100, 100) } : r); };
+  if (!ok) {
+    rel(-10);
+    if (op !== 'intel') {
+      notify(s, `🛡 Counter-intelligence foiled an operation by ${who}.`, 'success');
+      pushLog(s, 'Intelligence', `Caught ${who} attempting ${op}.`, 'success');
+    }
+    return;
+  }
+  switch (op) {
+    case 'intel': return;   // silent: they simply see our numbers now
+    case 'steal':
+      s.researchPoints = Math.max(0, s.researchPoints * 0.85);
+      s.researchProgress = Math.max(0, s.researchProgress * 0.8);
+      notify(s, `⚠ ${who} stole research from your labs.`, 'danger');
+      break;
+    case 'sabotage': {
+      const targets = s.map!.tiles.filter(t => t.building && isCompute(t.building.type) && t.building.progress >= 1);
+      if (targets.length) {
+        const t = targets[Math.floor(rand() * targets.length)];
+        s.map = { ...s.map!, tiles: s.map!.tiles.map(x => x.id === t.id ? { ...x, building: { ...x.building!, progress: 0.4 } } : x) };
+        notify(s, `⚠ ${who} sabotaged your ${buildingById[t.building!.type].name}! Repairs underway.`, 'danger');
+      } else notify(s, `⚠ ${who} attempted to sabotage your compute — there was nothing to hit.`, 'warning');
+      break;
+    }
+    case 'propaganda':
+      addMod(s, { id: `propaganda_${from}`, label: `Propaganda from ${rivalName(from)}`, years: 3, approval: -6 });
+      notify(s, `⚠ ${who} floods your airwaves with propaganda. Approval −6 for 3 years.`, 'danger');
+      break;
+    case 'blackout':
+      addMod(s, { id: 'blackout', label: `Grid attack by ${rivalName(from)}`, years: 1, energySupply: 0.7 });
+      notify(s, `⚡ ${who} hacked your power grid: −30% supply for a year. Build defences!`, 'danger');
+      break;
+  }
+  rel(-6);
+  pushLog(s, rivalName(from), `Covert ${op} against us.`, 'danger');
+}
+
+/** Applies a message from another player. */
+function receive(state: GameState, m: MPMsg): GameState {
+  if (!state.mp) return state;
+  const me = state.mp.me;
+  const s: GameState = { ...state, rivals: state.rivals.map(r => ({ ...r, treaties: [...r.treaties] })) };
+  const host = s.mp!.role === 'host';
+  switch (m.t) {
+    case 'op':
+      if (host) raiseTension(s, m.tn);
+      if (m.to === me) sufferOperation(s, m.from, m.op, m.ok);
+      else if (!m.ok && m.op !== 'intel') {
+        notify(s, `🕵 ${rivalName(m.from)} was caught running a ${m.op} operation against ${rivalName(m.to)}.`, 'info');
+        s.rivals = s.rivals.map(r => r.id === m.from ? { ...r, relation: clamp(r.relation - 3, -100, 100) } : r);
+      }
+      if (host && !isHuman(s, m.to) && m.to !== me && m.ok) {
+        // An AI bloc hit by a guest: the host owns its world values.
+        s.rivals = s.rivals.map(r => r.id !== m.to ? r : m.op === 'sabotage' ? { ...r, lag: r.lag + 1.2, capability: historicalCapability(s.year - r.lag - 1.2) }
+          : m.op === 'propaganda' ? { ...r, stability: clamp(r.stability - 25, 0, 100) } : m.op === 'blackout' ? { ...r, lag: r.lag + 0.5, stability: clamp(r.stability - 15, 0, 100) } : r);
+      }
+      return s;
+    case 'diplo': {
+      if (m.to !== me) return s;
+      const who = `${rivalName(m.from)}${playerName(s, m.from) ? ` (${playerName(s, m.from)})` : ''}`;
+      if (m.kind === 'gift' && m.amount) {
+        s.budget += m.amount;
+        s.rivals = s.rivals.map(r => r.id === m.from ? { ...r, relation: clamp(r.relation + 12, -100, 100) } : r);
+        notify(s, `🎁 ${who} sent you ${fmtMoneyB(m.amount)} in aid.`, 'success');
+      } else if (m.kind === 'propose' && m.treaty) {
+        const info = TREATY_INFO[m.treaty];
+        queueEvent(s, {
+          id: nid('mpdiplo'), name: `${who} proposes: ${info.name}`, year: Math.floor(s.year), type: 'info',
+          description: `${info.text} The clock keeps running while you decide.`,
+          choices: [
+            { label: 'Sign it', detail: m.treaty === 'safety' ? 'Both sides: alignment +5 · world tension −5' : m.treaty === 'climate' ? 'World tension −5 · cooler planet diplomacy' : 'Relations +8 · the treaty bonus for both', effect: `mp_accept:${m.from}:${m.treaty}` },
+            { label: 'Refuse', detail: 'Relations −3', effect: `mp_decline:${m.from}:${m.treaty}` },
+          ],
+        });
+      } else if (m.kind === 'accept' && m.treaty) signWithHuman(s, m.from, m.treaty);
+      else if (m.kind === 'decline' && m.treaty) notify(s, `✖ ${who} refused the ${TREATY_INFO[m.treaty].name}.`, 'warning');
+      else if (m.kind === 'cancel' && m.treaty) {
+        s.rivals = s.rivals.map(r => r.id === m.from ? { ...r, treaties: r.treaties.filter(t => t !== m.treaty), relation: clamp(r.relation - 10, -100, 100) } : r);
+        notify(s, `✖ ${who} cancelled the ${TREATY_INFO[m.treaty].name}.`, 'danger');
+      }
+      return s;
+    }
+    case 'aiop':
+      if (!host) return s;
+      s.rivals = s.rivals.map(r => r.id !== m.to ? r : {
+        ...r, lag: r.lag + (m.lag ?? 0), alignment: clamp(r.alignment + (m.align ?? 0), 0, 100),
+        stability: clamp(r.stability + (m.stability ?? 0), 0, 100), cleanShare: clamp(r.cleanShare + (m.clean ?? 0), 0, 0.92),
+      });
+      return s;
+    case 'end': {
+      if (m.who === me || s.outcome) return s;
+      const who = `${rivalName(m.who)}${m.human && playerName(s, m.who) ? ` (${playerName(s, m.who)})` : ''}`;
+      s.outcome = m.safe ? 'rival_asi' : 'rogue_rival';
+      s.gameOverReason = m.safe
+        ? `${who} ignited a safe superintelligence in ${m.year}. The future is theirs to write — your bloc becomes a footnote.`
+        : `${who} ignited an unaligned superintelligence in ${m.year}. It optimised the planet for its own goals. Humanity's story ended with a prompt.`;
+      return endGame(s);
+    }
+    case 'first':
+      claimFirst(s, m.key, m.who, m.year, false);
+      return s;
+    case 'defcon1':
+      if (!host) brinkCrisis(s);
+      return s;
+    case 'chat':
+      s.chat = [...(s.chat ?? []), { from: m.from, text: m.text.slice(0, 160), year: Math.floor(s.year) }].slice(-40);
+      return s;
+  }
+  return s;
+}
+
+/** Guests do not own the AI blocs: whatever they changed locally (treaties, strikes, inspections…) goes to the host as deltas. */
+function forwardAIDeltas(prev: GameState, next: GameState) {
+  for (const r of next.rivals) {
+    if (isHuman(next, r.id)) continue;
+    const p = prev.rivals.find(x => x.id === r.id);
+    if (!p) continue;
+    const lag = r.lag - p.lag, align = r.alignment - p.alignment, stability = r.stability - p.stability, clean = r.cleanShare - p.cleanShare;
+    if (Math.abs(lag) > 1e-6 || Math.abs(align) > 1e-6 || Math.abs(stability) > 1e-6 || Math.abs(clean) > 1e-6) {
+      outbox(next, { t: 'aiop', from: next.mp!.me, to: r.id, lag, align, stability, clean });
+    }
+  }
+}
+
 export function gameReducer(state: GameState, action: Action): GameState {
+  const next = reduce(state, action);
+  if (next !== state && next.mp?.role === 'guest' && !next.mp.offline && (action.type === 'COVERT' || action.type === 'DIPLOMACY' || action.type === 'RESOLVE_EVENT')) {
+    forwardAIDeltas(state, next);
+  }
+  return next;
+}
+
+function reduce(state: GameState, action: Action): GameState {
   switch (action.type) {
     case 'SET_MODE':
       return { ...state, screen: action.mode === 'logic' ? 'logic' : 'select', gameMode: action.mode };
@@ -1518,6 +1770,32 @@ export function gameReducer(state: GameState, action: Action): GameState {
       const s = { ...state, rivals: state.rivals.map(x => ({ ...x, treaties: [...x.treaties] })) };
       const rv = s.rivals.find(x => x.id === action.rivalId)!;
       const name = rivalName(rv.id);
+      if (isHuman(s, rv.id)) {
+        // Another human decides: aid is a real transfer, treaties are proposals they accept or refuse.
+        const me = s.mp!.me;
+        if (action.action === 'gift') {
+          const cost = giftCost(s);
+          if (s.budget < cost) return state;
+          s.budget -= cost;
+          rv.relation = clamp(rv.relation + 12, -100, 100);
+          outbox(s, { t: 'diplo', from: me, to: rv.id, kind: 'gift', amount: cost });
+          notify(s, `🎁 ${fmtMoneyB(cost)} sent to ${name}. Relations +12.`, 'success');
+          return s;
+        }
+        if (action.action.startsWith('cancel_')) {
+          const tid = action.action.slice(7) as TreatyId;
+          rv.treaties = rv.treaties.filter(t => t !== tid);
+          rv.relation -= 15;
+          outbox(s, { t: 'diplo', from: me, to: rv.id, kind: 'cancel', treaty: tid });
+          notify(s, `${TREATY_INFO[tid].name} with ${name} cancelled.`, 'warning');
+          return s;
+        }
+        const tid = action.action as TreatyId;
+        if (rv.treaties.includes(tid) || (TREATY_INFO[tid].tech && !has(s, TREATY_INFO[tid].tech!))) return state;
+        outbox(s, { t: 'diplo', from: me, to: rv.id, kind: 'propose', treaty: tid });
+        notify(s, `✉ ${TREATY_INFO[tid].name} proposed to ${name}. Waiting for their answer…`, 'info');
+        return s;
+      }
       if (action.action === 'gift') {
         const cost = giftCost(s);
         if (s.budget < cost) return state;
@@ -1555,6 +1833,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
       }
       rv.treaties.push(tid);
       rv.relation = clamp(rv.relation + 8, -100, 100);
+      if (tid === 'safety' || tid === 'climate') raiseTension(s, -5);
       notify(s, `✍ ${info.name} signed with ${name}.`, 'success');
       pushLog(s, name, `${info.name} signed.`, 'success');
       return s;
@@ -1570,6 +1849,10 @@ export function gameReducer(state: GameState, action: Action): GameState {
       const name = rivalName(rv.id);
       const ok = rand() < covertChance(s, rv, action.op);
       rv.heat = (rv.heat ?? 0) + COVERT_HEAT[action.op];
+      const humanTarget = isHuman(s, rv.id);
+      const tn = COVERT_TENSION[action.op] * (ok ? 1 : 1.5);
+      raiseTension(s, tn);
+      if (s.mp) outbox(s, { t: 'op', from: s.mp.me, to: rv.id, op: action.op, ok, tn });
       if (!ok) {
         const hit = action.op === 'sabotage' ? 25 : action.op === 'intel' ? 8 : 15;
         rv.relation = clamp(rv.relation - hit, -100, 100);
@@ -1590,13 +1873,21 @@ export function gameReducer(state: GameState, action: Action): GameState {
           break;
         }
         case 'sabotage':
+          if (humanTarget) { notify(s, `💥 Sabotage succeeded: one of ${name}'s compute centres is down for repairs.`, 'success'); break; }
           rv.lag += 1.2;
           rv.capability = historicalCapability(s.year - rv.lag);
           notify(s, `💥 Sabotage succeeded: ${name}'s AI program set back ~1 year.`, 'success');
           break;
         case 'propaganda':
+          if (humanTarget) { notify(s, `📻 Propaganda floods ${name}: their approval will suffer for 3 years.`, 'success'); break; }
           rv.stability = clamp(rv.stability - 25, 0, 100);
           notify(s, `📻 Propaganda campaign destabilises ${name} (stability ${Math.round(rv.stability)}).`, 'success');
+          break;
+        case 'blackout':
+          if (humanTarget) { notify(s, `⚡ Grid attack succeeded: ${name} suffers rolling blackouts for a year.`, 'success'); break; }
+          rv.stability = clamp(rv.stability - 15, 0, 100);
+          rv.lag += 0.5;
+          notify(s, `⚡ Grid attack succeeded: ${name} goes dark — their programme slows.`, 'success');
           break;
       }
       pushLog(s, 'Intelligence', `Operation "${action.op}" against ${name} succeeded.`, 'success');
@@ -1643,6 +1934,7 @@ export function gameReducer(state: GameState, action: Action): GameState {
         s.outcome = 'safe_asi';
         s.gameOverReason = `Safe superintelligence achieved in ${Math.floor(s.year)}. Alignment ${Math.round(s.alignment)}%, planet health ${Math.round(s.planetHealth)}%. The machine's first gift: a plan to cool the Earth.`;
       }
+      if (s.mp) outbox(s, { t: 'end', who: s.mp.me, human: true, safe: s.outcome === 'safe_asi', year: Math.floor(s.year) });
       return endGame(s);
     }
 
@@ -1658,6 +1950,64 @@ export function gameReducer(state: GameState, action: Action): GameState {
       return { ...state, notifications: state.notifications.filter(n => n.id !== action.id) };
     case 'SET_SCREEN':
       return action.screen === 'title' ? { ...initialState } : { ...state, screen: action.screen };
+    case 'COUNTER_INTEL': {
+      const cost = sweepCost(state);
+      if (state.budget < cost || state.modifiers.some(m => m.id === 'counterintel')) return state;
+      const s = { ...state, budget: state.budget - cost };
+      addMod(s, { id: 'counterintel', label: 'Counter-intelligence sweep', years: 3 });
+      notify(s, '🛡 Counter-intelligence sweep: enemy operations −20% success for 3 years.', 'success');
+      return s;
+    }
+    case 'MP_RECV':
+      return receive(state, action.msg);
+    case 'MP_SNAPSHOT': {
+      if (!state.mp || action.snap.f === state.mp.me) return state;
+      const sn = action.snap;
+      return { ...state, rivals: state.rivals.map(r => r.id !== sn.f ? r : {
+        ...r, capability: sn.cap, alignment: sn.al, emissions: sn.em, gdp: sn.gdp, population: sn.pop, stability: sn.app, defense: sn.def,
+      }) };
+    }
+    case 'MP_AI': {
+      if (!state.mp || state.mp.role !== 'guest') return state;
+      const s: GameState = { ...state };
+      s.rivals = state.rivals.map(r => {
+        const a = action.ai.find(x => x.id === r.id);
+        if (!a || isHuman(state, r.id)) return r;
+        const merged = { ...r, ...a };
+        if (a.project !== undefined && r.project === undefined && state.gameMode !== 'pioneer') {
+          queueEvent(s, projectEvent(s, merged, rivalEta(merged), H));
+          pushLog(s, rivalName(r.id), `${leaderOf(r.id)} announced a national ASI project.`, 'danger');
+        }
+        return merged;
+      });
+      return s;
+    }
+    case 'MP_CLOCK':
+      if (!state.mp || state.mp.role !== 'guest') return state;
+      return { ...state, speed: action.speed, paused: action.paused };
+    case 'MP_PLAYERS': {
+      if (!state.mp) return state;
+      const s: GameState = { ...state, mp: { ...state.mp, players: action.players, offline: action.offline || state.mp.offline } };
+      const wasHuman = (id: string) => state.mp!.players.some(p => p.faction === id && p.online && id !== state.mp!.me);
+      // A human who left (or everyone, if the host left and we play on alone) becomes an AI bloc.
+      s.rivals = state.rivals.map(r => {
+        const handOver = (wasHuman(r.id) && !isHuman(s, r.id) && (s.mp!.role === 'host' || s.mp!.offline)) || (action.offline && !state.mp!.offline && s.mp!.role === 'guest');
+        if (!handOver) return r;
+        return { ...r, lag: lagFor(r.capability, s.year, historicalCapability) };
+      });
+      for (const p of state.mp.players) {
+        if (p.online && !action.players.find(x => x.peerId === p.peerId)?.online && p.faction !== state.mp.me) {
+          notify(s, `📡 ${p.name} (${rivalName(p.faction)}) disconnected — an AI government takes over.`, 'warning');
+        }
+      }
+      if (action.offline && !state.mp.offline) notify(s, '📡 The host left the war room. The game continues offline against AI governments.', 'warning');
+      return s;
+    }
+    case 'MP_CLOCK_TENSION':
+      return state.mp?.role === 'guest' ? { ...state, tension: action.tension } : state;
+    case 'MP_OUTBOX_CLEAR':
+      return { ...state, mpOutbox: (state.mpOutbox ?? []).slice(action.n) };
+
     case 'LOAD_STATE':
       return { ...action.state, selectedTile: null, placing: null };
     default:

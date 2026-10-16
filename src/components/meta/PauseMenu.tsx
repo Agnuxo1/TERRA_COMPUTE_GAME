@@ -40,7 +40,7 @@ export default function PauseMenu({ onClose }: { onClose: () => void }) {
 
   // Pause on open (only if the game was running).
   useEffect(() => {
-    if (pausedByMenu.current) return;
+    if (pausedByMenu.current || state.mp) return;   // the shared clock keeps running in multiplayer
     if (!pausedNow.current) {
       pausedByMenu.current = true;
       dispatch({ type: 'TOGGLE_PAUSE' });
@@ -88,8 +88,7 @@ export default function PauseMenu({ onClose }: { onClose: () => void }) {
 
   const items: Array<{ id: Tab | 'resume'; label: string; key: string }> = [
     { id: 'resume', label: 'RESUME', key: 'ESC' },
-    { id: 'save', label: 'SAVE GAME', key: '' },
-    { id: 'load', label: 'LOAD GAME', key: '' },
+    ...(state.mp ? [] : [{ id: 'save' as Tab, label: 'SAVE GAME', key: '' }, { id: 'load' as Tab, label: 'LOAD GAME', key: '' }]),
     { id: 'settings', label: 'SETTINGS', key: '' },
     { id: 'controls', label: 'CONTROLS', key: '' },
     { id: 'quit', label: 'QUIT TO MENU', key: '' },

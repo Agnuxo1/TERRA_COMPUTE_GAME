@@ -17,7 +17,7 @@ export function useAutosave(): { justSaved: boolean; lastSavedYear: number | nul
   const latest = useRef(state);
   latest.current = state;
 
-  const inGame = state.screen === 'game';
+  const inGame = state.screen === 'game' && !state.mp;
   const year = Math.floor(state.year);
   const every = settings.autosaveYears;
 

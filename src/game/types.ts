@@ -2,7 +2,7 @@
 // Everything here is plain data so the engine can run headless (tests, balance sims).
 
 export type GameMode = 'pioneer' | 'strategist' | 'complete' | 'logic';
-export type Screen = 'title' | 'mode' | 'select' | 'game' | 'logic' | 'gameover' | 'victory';
+export type Screen = 'title' | 'mode' | 'select' | 'game' | 'logic' | 'gameover' | 'victory' | 'lobby';
 
 export type Terrain = 'water' | 'plains' | 'fertile' | 'forest' | 'hills' | 'desert' | 'tundra';
 export type Deposit = 'coal' | 'uranium' | 'silicon';
@@ -168,6 +168,8 @@ export interface Rival {
   project?: number;
   /** Counter-intelligence alert from our recent operations (decays ~0.3/yr). */
   heat?: number;
+  /** Multiplayer: the human's own counter-intelligence (reported in their snapshot), lowers our success odds. */
+  defense?: number;
   lastAction: string;
   cooldown: number;       // years until next notable action
 }
@@ -301,6 +303,16 @@ export interface GameState {
   minigameResults: Record<string, number>;
   /** Dynamic-event bookkeeping (older saves lack it). */
   dyn?: { last: Record<string, number>; nextElection: number; lastAny: number };
+  /** Peer-to-peer multiplayer session (absent in single player). */
+  mp?: import('./mp').MPInfo | null;
+  /** Messages for other players, flushed by the network bridge. */
+  mpOutbox?: import('./mp').MPMsg[];
+  /** World tension 0..100 (DEFCON 5 -> 1). Covert operations raise it; treaties and time lower it. */
+  tension?: number;
+  /** World firsts ("first to reach a PetaFLOP"): who claimed each one, and when. */
+  firsts?: Record<string, { who: string; year: number }>;
+  /** Multiplayer room chat. */
+  chat?: Array<{ from: string; text: string; year: number }>;
   playerLaunchReady: boolean;
 
   // Messaging
