@@ -720,8 +720,12 @@ function tickRivals(s: GameState, dt: number) {
       const eta = rivalEta(r);
       if (eta - year <= 4) {
         r.project = Math.floor(year);
-        queueEvent(s, projectEvent(s, r, eta, H));
         pushLog(s, rivalName(r.id), `${leaderOf(r.id)} announced a national ASI project.`, 'danger');
+        // One crisis decision every two years at most; later projects are announced on the news.
+        if (year - (s.dyn?.lastProject ?? -99) >= 2) {
+          s.dyn = { ...(s.dyn ?? { last: {}, nextElection: s.startYear + 6, lastAny: 0 }), lastProject: year };
+          queueEvent(s, projectEvent(s, r, eta, H));
+        } else notify(s, `🚨 ${rivalName(r.id)} has also launched an ASI project.`, 'danger');
       }
     }
 
@@ -1296,6 +1300,7 @@ const H: DynHelpers = {
   count: (s, type) => countBuildings(s, type, true),
   rivalName, historicalCapability,
   sabotageChance: (s, r) => covertChance(s, r, 'sabotage'),
+  hasIntel: (s, r) => hasIntel(s, r),
 };
 
 export function choiceAvailable(s: GameState, requires?: string): boolean {

@@ -1,4 +1,5 @@
-import { createContext, lazy, Suspense, useContext, useEffect, useReducer } from 'react';
+import { createContext, Suspense, useContext, useEffect, useReducer } from 'react';
+import ChunkBoundary, { lazyRetry } from './components/ChunkBoundary';
 import TitleScreen from './pages/TitleScreen';
 import ModeSelect from './pages/ModeSelect';
 import ContinentSelect from './pages/ContinentSelect';
@@ -49,11 +50,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 }
 
 // Screens reached only at the end of a game (or from the menu) load on demand: they carry the chart library.
-const GameOverScreen = lazy(() => import('./pages/GameOverScreen'));
-const VictoryScreen = lazy(() => import('./pages/VictoryScreen'));
-const LogicModeScreen = lazy(() => import('./pages/LogicModeScreen'));
-const LobbyScreen = lazy(() => import('./pages/LobbyScreen'));
-const MPBridge = lazy(() => import('./net/MPBridge'));
+const GameOverScreen = lazyRetry(() => import('./pages/GameOverScreen'));
+const VictoryScreen = lazyRetry(() => import('./pages/VictoryScreen'));
+const LogicModeScreen = lazyRetry(() => import('./pages/LogicModeScreen'));
+const LobbyScreen = lazyRetry(() => import('./pages/LobbyScreen'));
+const MPBridge = lazyRetry(() => import('./net/MPBridge'));
 
 /** Network bridge for peer-to-peer games; closes the war room when the player returns to the menu. */
 function MultiplayerLink() {
@@ -85,9 +86,11 @@ export default function App() {
   return (
     <GameProvider>
       <div className="game-container crt">
-        <Suspense fallback={<div className="w-full h-full" style={{ background: 'var(--bg, #0A0A0F)' }} />}>
-          <Router />
-        </Suspense>
+        <ChunkBoundary>
+          <Suspense fallback={<div className="w-full h-full" style={{ background: 'var(--bg, #0A0A0F)' }} />}>
+            <Router />
+          </Suspense>
+        </ChunkBoundary>
         <MultiplayerLink />
       </div>
     </GameProvider>

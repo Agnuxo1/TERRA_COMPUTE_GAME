@@ -41,6 +41,25 @@ function tryUpgrade(s: GameState, types: BuildingId[]): GameState {
 
 const TECH_PRIORITY = ['transistor', 'mass_edu', 'ic', 'greenrev', 'nuclear', 'cybernetics', 'micro', 'container', 'envprot', 'vector', 'solar', 'space', 'litho', 'pc', 'internet', 'backprop', 'climate', 'web', 'gpu', 'dl', 'alignment', 'transformer', 'renew', 'scaling', 'interp', 'agentic', 'robotics', 'agi', 'fusion', 'asi'];
 
+/** A reasonable leader's pick: avoid helping rivals in the endgame, strike a project when the odds are good. */
+function pickChoice(s: GameState, choices: Array<{ effect: string; cost?: number }>): number {
+  const affordable = (i: number) => !choices[i].cost || choices[i].cost! < s.budget;
+  const find = (prefix: string) => choices.findIndex((c, i) => c.effect.startsWith(prefix) && affordable(i));
+  const prefer = (...ids: string[]) => { for (const id of ids) { const i = find(id); if (i >= 0) return i; } return -1; };
+  const strike = choices.find(c => c.effect.startsWith('proj_strike'));
+  const strikeOdds = strike ? Number(strike.effect.split(':')[3]) || 0 : 0;
+  const pick = prefer('leak_hunt', 'interp_keep');
+  if (pick >= 0) return pick;
+  if (choices.some(c => c.effect.startsWith('proj_'))) {
+    const inspectOk = choices.find(c => c.effect.startsWith('proj_inspect'));
+    const r = inspectOk ? s.rivals.find(x => x.id === inspectOk.effect.split(':')[1]) : undefined;
+    if (r && (r.relation >= 10 || r.treaties.includes('safety'))) return find('proj_inspect');
+    if (strikeOdds >= 50 && find('proj_strike') >= 0) return find('proj_strike');
+    return find('proj_race');
+  }
+  return choices.findIndex((_, i) => affordable(i));
+}
+
 export function botDecide(s: GameState, strat: BotStrategy = 'balanced'): GameState {
   const e = s.eco;
   const dirty = strat === 'dirty';
@@ -54,7 +73,7 @@ export function botDecide(s: GameState, strat: BotStrategy = 'balanced'): GameSt
   if (s.activeEvent) {
     const ev = s.activeEvent.event;
     if (ev.minigame) s = gameReducer(s, { type: 'MINIGAME_DONE', minigame: ev.minigame, stars: 2 });
-    else s = gameReducer(s, { type: 'RESOLVE_EVENT', choice: ev.choices.findIndex(c => !c.cost || c.cost < s.budget) });
+    else s = gameReducer(s, { type: 'RESOLVE_EVENT', choice: pickChoice(s, ev.choices) });
   }
   // Save up for the first AI Gigafactory: it is the only road to a YottaFLOP.
   const savingForGiga = isUnlocked(s, 'aifactory') && countBuildings(s, 'aifactory') < 2;

@@ -12,6 +12,7 @@ import TechTreeOverlay from '../components/game/TechTreeOverlay';
 import Translator from '../components/game/Translator';
 import Tutorial from '../components/game/Tutorial';
 import MPHud from '../components/game/MPHud';
+import { preloadMinigames } from '../components/minigames';
 import PauseMenu from '../components/meta/PauseMenu';
 import AutosaveToast from '../components/meta/AutosaveToast';
 import { useAutosave } from '../hooks/useAutosave';
@@ -39,6 +40,15 @@ export default function GameScreen() {
     const id = setInterval(() => dispatch({ type: 'TICK' }), TICK_MS);
     return () => clearInterval(id);
   }, [dispatch, followsHost]);
+
+  // Preload the screens a game ends on, and the exercises, while the player is busy.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      void Promise.allSettled([import('./VictoryScreen'), import('./GameOverScreen')]);
+      preloadMinigames();
+    }, 4000);
+    return () => clearTimeout(id);
+  }, []);
 
   useEffect(() => {
     startAmbient();
