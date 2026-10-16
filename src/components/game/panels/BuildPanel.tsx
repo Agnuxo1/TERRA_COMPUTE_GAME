@@ -29,7 +29,7 @@ export default function BuildPanel() {
           </button>
         ))}
       </div>
-      <div className="flex-1 overflow-auto p-2 flex flex-col gap-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="flex-1 overflow-auto p-2 flex flex-col gap-2 [&>*]:shrink-0" style={{ WebkitOverflowScrolling: 'touch' }}>
         {list.map(b => {
           const unlocked = isUnlocked(state, b.id);
           const q = buildQuote(state, b.id);
@@ -40,7 +40,7 @@ export default function BuildPanel() {
           const bestMult = best !== null ? evaluatePlacement(state, state.map!.tiles[best], b.id).mult : 0;
           const owned = countBuildings(state, b.id);
           return (
-            <div key={b.id} className="rounded overflow-hidden transition-all"
+            <div key={b.id} className="shrink-0 rounded overflow-hidden transition-all"
               style={{ border: `1px solid ${active ? tone : 'var(--border-light)'}`, boxShadow: active ? `0 0 14px ${tone}55` : 'none', opacity: unlocked ? 1 : 0.55 }}>
               <button
                 disabled={!unlocked}

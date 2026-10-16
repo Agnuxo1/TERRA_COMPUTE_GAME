@@ -166,6 +166,8 @@ export interface Rival {
   asiLaunched: boolean;
   /** Year the rival announced its ASI crash project (final act), if any. */
   project?: number;
+  /** Counter-intelligence alert from our recent operations (decays ~0.3/yr). */
+  heat?: number;
   lastAction: string;
   cooldown: number;       // years until next notable action
 }

@@ -30,7 +30,7 @@ export default function IntelPanel({ mode }: { mode: 'spy' | 'attack' }) {
           ? 'Without intelligence, rival numbers are rough guesses. Space Centers raise every success chance.'
           : 'Slow down the reckless front-runner — a rogue superintelligence anywhere ends the game for everyone. Getting caught ruins relations.'}
       </div>
-      <div className="flex-1 overflow-auto p-2 flex flex-col gap-2">
+      <div className="flex-1 overflow-auto p-2 flex flex-col gap-2 [&>*]:shrink-0">
         {rivals.map(r => {
           const c = continentById(r.id)!;
           const intel = hasIntel(state, r);
@@ -47,9 +47,14 @@ export default function IntelPanel({ mode }: { mode: 'spy' | 'attack' }) {
                   ASI ETA ~{Math.round(rivalEta(r))} · stability {Math.round(r.stability)} · intel until {Math.floor(r.intelUntil)}
                 </div>
               )}
+              {(r.heat ?? 0) >= 0.5 && (
+                <div className="font-mono-data text-[9px]" style={{ color: 'var(--amber)' }} title="Every operation puts them on alert: the next one costs more and succeeds less often. Alert fades over a few years.">
+                  ⚠ ON ALERT ×{(1 + 0.6 * (r.heat ?? 0)).toFixed(1)} cost · −{Math.round(8 * (r.heat ?? 0))}% success
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-1 mt-1.5">
                 {ops.map(o => {
-                  const cost = covertCost(state, o.op);
+                  const cost = covertCost(state, o.op, r);
                   const ch = covertChance(state, r, o.op);
                   const ok = state.budget >= cost;
                   return (

@@ -10,6 +10,12 @@ import VideoPlayer from './VideoPlayer';
 
 const TYPE_COLOR = { info: '#00F0FF', warning: '#FFB84D', danger: '#FF477E' } as const;
 
+// Space is the pause key: it must never pick a decision by accident (Enter still does).
+const NO_SPACE = {
+  onKeyDown: (e: React.KeyboardEvent) => { if (e.key === ' ') e.preventDefault(); },
+  onKeyUp: (e: React.KeyboardEvent) => { if (e.key === ' ') e.preventDefault(); },
+};
+
 export default function EventModal() {
   const { state, dispatch } = useGame();
   const pending = state.activeEvent;
@@ -110,7 +116,7 @@ export default function EventModal() {
                   {state.minigameResults[mg.meta.id] !== undefined ? ` · best ${'★'.repeat(state.minigameResults[mg.meta.id])}` : ''}
                 </div>
               </div>
-              <button autoFocus onClick={() => { play('click'); setPhase('minigame'); }}
+              <button autoFocus {...NO_SPACE} onClick={() => { play('click'); setPhase('minigame'); }}
                 className="w-full py-2.5 rounded font-orbitron text-sm font-bold tracking-wider hover:brightness-125"
                 style={{ background: `${mg.meta.accent}22`, color: mg.meta.accent, border: `2px solid ${mg.meta.accent}` }}>
                 BEGIN EXERCISE ▶
@@ -127,7 +133,7 @@ export default function EventModal() {
                 const costOk = !c.cost || state.budget >= c.cost;
                 const ok = reqOk && costOk;
                 return (
-                  <button key={i} disabled={!ok} autoFocus={i === 0} onClick={() => choose(i)}
+                  <button key={i} disabled={!ok} autoFocus={i === 0} {...NO_SPACE} onClick={() => choose(i)}
                     className={`text-left rounded px-3 py-2 transition-all ${ok ? 'hover:brightness-125 hover:translate-x-0.5' : 'opacity-40 cursor-not-allowed'}`}
                     style={{ border: `1px solid ${color}88`, background: `${color}0F` }}>
                     <div className="font-rajdhani text-[15px] font-bold" style={{ color: '#FFF4C2' }}>{String.fromCharCode(65 + i)}. {c.label}</div>
@@ -138,7 +144,7 @@ export default function EventModal() {
                 );
               })}
               {choices.length === 0 && (
-                <button autoFocus onClick={() => choose(0)} className="w-full py-2.5 rounded font-orbitron text-sm font-bold tracking-wider hover:brightness-125"
+                <button autoFocus {...NO_SPACE} onClick={() => choose(0)} className="w-full py-2.5 rounded font-orbitron text-sm font-bold tracking-wider hover:brightness-125"
                   style={{ background: `${color}22`, color, border: `2px solid ${color}` }}>ACKNOWLEDGE</button>
               )}
               <div className="font-mono-data text-[9px] text-center" style={{ color: 'var(--text-tertiary)' }}>The simulation is paused until you decide.</div>

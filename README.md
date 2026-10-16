@@ -90,13 +90,15 @@ An animated isometric view in the spirit of classic RTS games: an automatic road
 30 technologies in 5 eras, with prerequisites. You may research up to 10 years ahead of history, at +10% cost per year early.
 
 ### 6. The world
-- **Rivals** race along their own compute curves. Without intelligence you only see rough estimates.
+- **Rivals** are led by characters with their own doctrine (General Secretary Volkov's *Iron doctrine*, President Hale's *Frontier doctrine*…) and race along their own compute curves. Without intelligence you only see rough estimates.
+- **Leading is dangerous**: once you pull ahead, hawkish blocs turn hostile and go after your compute — AI Safety Institutes defend it.
+- **The final act**: a rival within a few years of ignition announces a national **ASI project**. Demand inspections (needs good relations or a Safety Treaty), order a covert strike on their data centres, or launch your own crash programme.
 - **Diplomacy [D]**: aid raises relations; treaties need minimum relations — *Trade*, *Research Pact*, *Climate Accord* (cuts their emissions), *AI Safety Treaty* (makes them safer and slower).
-- **Spy [S] / Covert [A]**: intelligence sweeps, research theft, cyber-sabotage, propaganda. Getting caught costs relations.
+- **Spy [S] / Covert [A]**: intelligence sweeps, research theft, cyber-sabotage, propaganda. Costs scale with your national income. Getting caught costs relations, and every operation puts the target **on alert**: the next one against the same bloc costs more and fails more often.
 - **Planet**: every bloc's emissions heat the world. Low planet health brings droughts, floods and heatwaves.
 
 ### 7. History happens
-Around 30 historical events (oil crisis, AI winters, dot-com crash, COVID, ChatGPT…) arrive as **decisions with trade-offs**. Eight AI milestones open a **breakthrough exercise**: a short minigame whose stars grant research and bonuses. Exercises can always be skipped.
+Around 30 historical events (oil crisis, AI winters, dot-com crash, COVID, ChatGPT…) arrive as **decisions with trade-offs**. Between them, the nation throws its own dilemmas at you — brain drain, general strikes, defecting scientists, an Olympic bid, a reactor incident, leaked model weights, thirsty data centres, automation riots — and every eight years an **election** (or party congress) turns your approval into a mandate… or a crisis. Eight AI milestones open a **breakthrough exercise**: a short minigame whose stars grant research and bonuses. Exercises can always be skipped.
 
 | Exercise | Milestone | Game |
 |----------|-----------|------|
@@ -113,7 +115,7 @@ Around 30 historical events (oil crisis, AI winters, dot-com crash, COVID, ChatG
 `B` build · `T` tech · `D` diplomacy · `S` spy · `A` covert · `E` economy · `M` continent/world view · `Space` pause · `1–3` speed · `Esc` cancel / game menu · arrows, screen edge, drag and mouse wheel move the camera · `Home` fits the map · double-click focuses a tile.
 
 ### A complete game
-Interactive tutorial, three difficulty levels (easy / normal / hard), save games in three slots plus autosave, settings (volume, scrolling, day–night, reduced motion), 15 achievements and an end-of-game report with charts of your whole run.
+Interactive tutorial, three difficulty levels (easy / normal / hard), save games in three slots plus autosave, settings (volume, scrolling, day–night, reduced motion), 15 achievements and an end-of-game report with charts of your whole run, a **final score and rank (S–D)** and a record for every faction.
 
 ---
 

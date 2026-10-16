@@ -684,6 +684,7 @@ function tickRivals(s: GameState, dt: number) {
     if (r.treaties.includes('safety')) r.lag += 0.08 * dt;
     r.capability = Math.max(r.capability, historicalCapability(year - r.lag));
     r.stability = clamp(r.stability + 3 * dt, 0, 85);
+    if (r.heat) r.heat = Math.max(0, r.heat - 0.3 * dt);
     // Alignment drift
     if (year > 2012) r.alignment = clamp(r.alignment + (r.strategy === 'aggressive' ? -0.35 : 0.25) * dt + (r.treaties.includes('safety') ? 1.2 * dt : 0), 5, 95);
     // Energy transition
@@ -1374,9 +1375,14 @@ export function giftCost(s: GameState): number {
   return Math.round(60 * Math.pow(1.045, s.year - 1960));
 }
 
-export function covertCost(s: GameState, op: CovertOp): number {
-  const base = { intel: 60, steal: 120, sabotage: 200, propaganda: 150 }[op];
-  return Math.round(base * Math.pow(1.045, s.year - 1960));
+/** Operations cost a share of the national income (so poorer blocs can afford them too), with a floor. */
+/** Each operation puts the target on alert: the next one against the same bloc costs more and fails more often. */
+export const COVERT_HEAT: Record<CovertOp, number> = { intel: 0.2, steal: 0.6, sabotage: 1, propaganda: 0.5 };
+export function covertCost(s: GameState, op: CovertOp, r?: Rival): number {
+  const floor = { intel: 25, steal: 50, sabotage: 90, propaganda: 65 }[op];
+  const share = { intel: 0.12, steal: 0.25, sabotage: 0.45, propaganda: 0.33 }[op];
+  const alert = 1 + 0.6 * (r?.heat ?? 0);
+  return Math.round(Math.max(floor, share * (s.eco.income || 400)) * alert / 5) * 5;
 }
 
 export function covertChance(s: GameState, r: Rival, op: CovertOp): number {
@@ -1386,7 +1392,8 @@ export function covertChance(s: GameState, r: Rival, op: CovertOp): number {
   const quantum = s.modifiers.some(m => m.id === 'quantum_crypto') ? 0.25 : 0;
   const policy = (pol(s, 'security_state') ? 0.15 : 0) + (pol(s, 'space_race') ? 0.1 : 0);
   const cyber = s.modifiers.some(m => m.id === 'cyber_arms') ? 0.15 : 0;
-  return clamp(base + Math.min(0.3, sats * 0.1) + quantum + policy + cyber - def, 0.05, 0.95);
+  const alert = 0.08 * (r.heat ?? 0);
+  return clamp(base + Math.min(0.3, sats * 0.1) + quantum + policy + cyber - def - alert, 0.05, 0.95);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1556,12 +1563,13 @@ export function gameReducer(state: GameState, action: Action): GameState {
     case 'COVERT': {
       const r = state.rivals.find(x => x.id === action.rivalId);
       if (!r) return state;
-      const cost = covertCost(state, action.op);
+      const cost = covertCost(state, action.op, r);
       if (state.budget < cost) return state;
       const s = { ...state, budget: state.budget - cost, rivals: state.rivals.map(x => ({ ...x })) };
       const rv = s.rivals.find(x => x.id === action.rivalId)!;
       const name = rivalName(rv.id);
       const ok = rand() < covertChance(s, rv, action.op);
+      rv.heat = (rv.heat ?? 0) + COVERT_HEAT[action.op];
       if (!ok) {
         const hit = action.op === 'sabotage' ? 25 : action.op === 'intel' ? 8 : 15;
         rv.relation = clamp(rv.relation - hit, -100, 100);
