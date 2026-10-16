@@ -302,7 +302,7 @@ export interface GameState {
   modifiers: Modifier[];
   minigameResults: Record<string, number>;
   /** Dynamic-event bookkeeping (older saves lack it). */
-  dyn?: { last: Record<string, number>; nextElection: number; lastAny: number };
+  dyn?: { last: Record<string, number>; nextElection: number; lastAny: number; lastProject?: number };
   /** Peer-to-peer multiplayer session (absent in single player). */
   mp?: import('./mp').MPInfo | null;
   /** Messages for other players, flushed by the network bridge. */

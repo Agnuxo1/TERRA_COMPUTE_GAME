@@ -7,6 +7,7 @@ import { getVideoUrl, isVideoPlayed, markVideoPlayed } from '../../hooks/useVide
 import { minigameById } from '../minigames';
 import type { MinigameDifficulty } from '../minigames/types';
 import VideoPlayer from './VideoPlayer';
+import ChunkBoundary from '../ChunkBoundary';
 
 const TYPE_COLOR = { info: '#00F0FF', warning: '#FFB84D', danger: '#FF477E' } as const;
 
@@ -75,12 +76,14 @@ export default function EventModal() {
   if (phase === 'minigame' && mg) {
     const Game = mg.Component;
     return (
+      <ChunkBoundary skipLabel="SKIP EXERCISE" onSkip={() => dispatch({ type: 'MINIGAME_DONE', minigame: mg.meta.id, stars: 0 })}>
       <Suspense fallback={<div className="fixed inset-0 z-[90] flex items-center justify-center font-mono-data text-[11px] tracking-[0.3em]" style={{ background: '#07080C', color: 'var(--text-tertiary)' }}>LOADING EXERCISE…</div>}>
         <Game
           difficulty={difficulty}
           onComplete={result => dispatch({ type: 'MINIGAME_DONE', minigame: mg.meta.id, stars: result.stars })}
         />
       </Suspense>
+      </ChunkBoundary>
     );
   }
 
