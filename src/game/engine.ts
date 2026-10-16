@@ -16,6 +16,7 @@ import { generateContinentMap, neighbourTiles } from './mapgen.ts';
 import { basePrice, PRICE_IMPACT, type Good } from './market.ts';
 import { POLICY_COOLDOWN, POLICY_GDP_COST, policyById, policySlots } from './policies.ts';
 import { mulberry32 } from './rng.ts';
+import { applyDynamic, leaderOf, projectEvent, rollDynamic, type DynHelpers } from './dynamic-events.ts';
 import type {
   AIStrategy, BuildingId, Difficulty, Economy, ForecastWarning, GameEvent, GameMode, GameState, LogEntry, MapData, Modifier,
   Notification, PlacedBuilding, Rival, Tile, TreatyId,
@@ -665,6 +666,14 @@ function rivalName(id: string) { return continentById(id)?.name ?? id; }
 function tickRivals(s: GameState, dt: number) {
   const year = s.year;
   const pioneer = s.gameMode === 'pioneer';
+  // A clear lead frightens the hawks: aggressive and tech-first blocs turn hostile and target your compute.
+  const lead = s.capability - Math.max(...s.rivals.map(r => r.capability));
+  const feared = !pioneer && lead > 0.6 && year > 1965;
+  if (feared && !s.firedEvents.includes('lead-fear')) {
+    s.firedEvents = [...s.firedEvents, 'lead-fear'];
+    notify(s, '⚠ Your lead in the race alarms the world. Hawkish rivals will turn on your compute — AI Safety Institutes defend it.', 'warning');
+    pushLog(s, 'World', 'Your bloc now leads the race to superintelligence.', 'warning');
+  }
   s.rivals = s.rivals.map(r0 => {
     const r = { ...r0, treaties: [...r0.treaties] };
     const climateDrag = s.planetHealth < 40 ? 0.01 : 0;
@@ -682,7 +691,7 @@ function tickRivals(s: GameState, dt: number) {
     r.cleanShare = clamp(Math.max(r.cleanShare, cleanTrend + (r.treaties.includes('climate') ? 0.25 : 0)), 0, 0.92);
     r.emissions = 34 * Math.pow(r.gdp / 1000, 0.75) * (1 - r.cleanShare);
     // Relations relax toward the cold-war baseline
-    const base = affinity(s.playerContinent || '', r.id);
+    const base = affinity(s.playerContinent || '', r.id) - (feared && (r.strategy === 'aggressive' || r.strategy === 'tech') ? 25 : 0);
     r.relation = clamp(r.relation + (base - r.relation) * 0.04 * dt + (r.treaties.length ? 0.6 * dt : 0) - (pol(s, 'propaganda') ? dt : 0), -100, 100);
 
     // Notable actions
@@ -690,6 +699,16 @@ function tickRivals(s: GameState, dt: number) {
     if (r.cooldown <= 0) {
       r.cooldown = 2 + rand() * 3;
       rivalAction(s, r, pioneer);
+    }
+
+    // Final act: a rival close to ignition announces a crash project (one decision per rival).
+    if (!pioneer && r.project === undefined && year >= 2012 && s.gameMode !== 'logic') {
+      const eta = rivalEta(r);
+      if (eta - year <= 4) {
+        r.project = Math.floor(year);
+        queueEvent(s, projectEvent(s, r, eta, H));
+        pushLog(s, rivalName(r.id), `${leaderOf(r.id)} announced a national ASI project.`, 'danger');
+      }
     }
 
     // ASI launch
@@ -710,7 +729,8 @@ function rivalAction(s: GameState, r: Rival, pioneer: boolean) {
   const defense = countBuildings(s, 'defense', true);
   const opsMult = bonus(s, 'enemyOps') ?? 1;
   if (!pioneer && r.relation < -20 && (r.strategy === 'aggressive' || r.relation < -50) && s.year > 1970 && chance(0.6)) {
-    const success = clamp((0.55 - defense * 0.08) * opsMult * (pol(s, 'security_state') ? 0.5 : 1), 0.05, 0.9);
+    const powers = s.modifiers.some(m => m.id === 'emergency_powers') ? 0.7 : 1;
+    const success = clamp((0.55 - defense * 0.08) * opsMult * powers * (pol(s, 'security_state') ? 0.5 : 1), 0.05, 0.9);
     if (rand() < success) {
       if (s.capability > 12 && chance(0.5)) {
         const targets = s.map!.tiles.filter(t => t.building && isCompute(t.building.type) && t.building.progress >= 1);
@@ -777,7 +797,7 @@ const OBJECTIVES: ObjectiveDef[] = [
   { id: 'transistor', text: 'Research the Transistor', hint: 'Open TECH [T] and pick Transistor.', reward: 60, check: s => has(s, 'transistor') },
   { id: 'lab', text: 'Open a Research Institute', hint: 'Institutes produce research. Cluster them for bonuses.', reward: 80, check: s => countBuildings(s, 'lab', true) >= 1 },
   { id: 'region', text: 'Develop a new region', hint: 'Click a dark region on the map and press DEVELOP.', reward: 100, check: s => s.ownedRegions.length >= 3 },
-  { id: 'mainframe', text: 'Build a Mainframe Center', hint: 'Needs Integrated Circuits. Compute is the road to ASI.', reward: 150, check: s => countBuildings(s, 'mainframe', true) >= 1 },
+  { id: 'mainframe', text: 'Build a Mainframe Center', hint: 'Needs Integrated Circuits. Compute is the road to ASI.', reward: 150, check: s => COMPUTE_TYPES.some(t => countBuildings(s, t, true) >= 1) },
   { id: 'edu40', text: 'Reach education 40', hint: 'Schools raise the ceiling; universities push it past 70.', reward: 150, check: s => s.education >= 40 },
   { id: 'decree', text: 'Sign your first decree', hint: 'Open ECONOMY [E] and adopt a policy. Every decree has a price.', reward: 80, check: s => s.policies.length > 0 },
   { id: 'steel', text: 'Stockpile 100 steel', hint: 'Kombinats produce steel; importing it costs money every time.', reward: 120, check: s => s.steel >= 100 },
@@ -794,7 +814,11 @@ const OBJECTIVES: ObjectiveDef[] = [
   { id: 'asi', text: 'Research Superintelligence Theory', hint: 'Final tech. Then reach 1 YottaFLOP and IGNITE.', reward: 10000, check: s => has(s, 'asi') },
 ];
 
-function refreshObjectives(s: GameState) {
+/** `atStart`: directives the starting nation already meets are retired silently (no reward, not shown). */
+function refreshObjectives(s: GameState, atStart = false) {
+  if (atStart) {
+    s.objectives = OBJECTIVES.filter(d => d.check(s)).map(d => ({ id: d.id, text: d.text, hint: d.hint, reward: 0, done: true }));
+  }
   const done = new Set(s.objectives.filter(o => o.done).map(o => o.id));
   for (const o of s.objectives) {
     if (o.done) continue;
@@ -912,7 +936,7 @@ export function startGame(state: GameState, continentId: string, seed = Date.now
       if (ev) s.firedEvents = s.firedEvents.filter(f => f !== ev.id);
     }
   }
-  refreshObjectives(s);
+  refreshObjectives(s, true);
   notify(s, `${c.name}, ${startYear}. Click the map to build. Your directives are on the right.`, 'info');
   pushLog(s, c.name, `Government formed. Goal: safe superintelligence before any rival.`, 'info');
   return s;
@@ -1123,6 +1147,10 @@ function yearly(s: GameState, year: number, pioneer: boolean) {
   if (!s.eventQueue.length) {
     if (s.planetHealth < 60 && chance(s.planetHealth < 35 ? 0.35 : 0.18)) queueEvent(s, climateEvent(s));
     else if (s.capability >= 15 && s.alignment < 45 && chance(0.3)) queueEvent(s, aiIncident(s));
+    else {
+      const d = rollDynamic(s, H);
+      if (d) queueEvent(s, d);
+    }
   }
   // Crises
   const eco = s.eco;
@@ -1231,6 +1259,13 @@ function addMod(s: GameState, m: Omit<Modifier, 'until'> & { years: number }) {
   s.modifiers = [...s.modifiers.filter(x => x.id !== rest.id), { ...rest, until: s.year + years }];
 }
 
+const H: DynHelpers = {
+  rand: () => rand(), addMod, notify, pushLog,
+  count: (s, type) => countBuildings(s, type, true),
+  rivalName, historicalCapability,
+  sabotageChance: (s, r) => covertChance(s, r, 'sabotage'),
+};
+
 export function choiceAvailable(s: GameState, requires?: string): boolean {
   if (!requires) return true;
   if (requires === 'has_nuclear') return countBuildings(s, 'nuclear', true) > 0;
@@ -1238,6 +1273,7 @@ export function choiceAvailable(s: GameState, requires?: string): boolean {
 }
 
 function applyEffect(s: GameState, effect: string) {
+  if (applyDynamic(s, effect, H)) return;
   const [id, arg] = effect.split(':');
   const allRivals = (d: number) => { s.rivals = s.rivals.map(r => ({ ...r, relation: clamp(r.relation + d, -100, 100) })); };
   const hospitals = countBuildings(s, 'hospital', true);
@@ -1349,7 +1385,8 @@ export function covertChance(s: GameState, r: Rival, op: CovertOp): number {
   const def = r.strategy === 'defensive' ? 0.15 : 0;
   const quantum = s.modifiers.some(m => m.id === 'quantum_crypto') ? 0.25 : 0;
   const policy = (pol(s, 'security_state') ? 0.15 : 0) + (pol(s, 'space_race') ? 0.1 : 0);
-  return clamp(base + Math.min(0.3, sats * 0.1) + quantum + policy - def, 0.05, 0.95);
+  const cyber = s.modifiers.some(m => m.id === 'cyber_arms') ? 0.15 : 0;
+  return clamp(base + Math.min(0.3, sats * 0.1) + quantum + policy + cyber - def, 0.05, 0.95);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

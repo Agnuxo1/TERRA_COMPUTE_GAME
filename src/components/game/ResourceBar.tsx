@@ -97,7 +97,7 @@ export default function ResourceBar() {
       detail: <><Row k="Era" v={ERA_NAMES[era]} /><Row k="Hard deadline" v="2040" /><Tip>Each year lasts 15 seconds at 1×. Rivals typically reach superintelligence in the early 2030s.</Tip></>,
     },
     {
-      label: 'BUDGET', value: fmtMoney(state.budget), sub: `${fmtSigned(e.netBudget)}/yr`, percent: clampPercent(50 + e.netBudget / Math.max(1, e.income) * 100),
+      label: 'BUDGET', value: fmtMoney(state.budget), sub: `${fmtSigned(e.netBudget)}B/yr`, percent: clampPercent(50 + e.netBudget / Math.max(1, e.income) * 100),
       color: state.budget < 0 ? '#FF477E' : e.netBudget >= 0 ? '#00E5A0' : '#FFB84D', pulse: state.budget < 0,
       detail: (
         <>

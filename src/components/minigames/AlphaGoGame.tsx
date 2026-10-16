@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { play } from '../../hooks/useSound';
 import { MinigameShell, MinigameResultCard } from './MinigameShell';
-import type { MinigameMeta, MinigameProps, MinigameResult } from './types';
+import type { MinigameProps, MinigameResult } from './types';
 import { mulberry32 } from './logic/rng.ts';
 import {
   BLACK, WHITE, EMPTY, newGame, applyGameMove, aiMove, atariGroups, libertySum, other,
@@ -10,22 +10,9 @@ import {
 } from './logic/go.ts';
 import type { GameState, GoOutcome } from './logic/go.ts';
 
-export const meta: MinigameMeta = {
-  id: 'alphago',
-  eventId: 'alphago',
-  year: 2016,
-  title: 'ATARI GO VS. PROTO-ALPHAGO',
-  subtitle: 'First capture wins',
-  accent: '#FFD166',
-  background: './assets/puzzles/alphago/bg_alphago.png',
-  howTo: [
-    'You are Black and move first. Click an intersection to place a stone.',
-    'A group of stones needs empty neighbouring points, its liberties. A group with no liberties is captured.',
-    'The first player to capture any stone wins. A group with one liberty is in ATARI and glows: attack the white ones, save the black ones.',
-    'You have 2 lives. If the board fills with no capture, the side with more total liberties wins (ties go to you).',
-  ],
-  rewardLabel: 'AI capability',
-};
+import { alphago as meta } from './meta';
+
+export { meta };
 
 const ACCENT = meta.accent;
 const LIVES = 2;

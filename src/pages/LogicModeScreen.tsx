@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useGame } from '../App';
 import { MINIGAMES, type MinigameEntry } from '../components/minigames';
 import { StarRow } from '../components/minigames/MinigameShell';
@@ -32,6 +32,7 @@ export default function LogicModeScreen() {
   if (active) {
     const Game = active.entry.Component;
     return (
+      <Suspense fallback={<div className="fixed inset-0 z-[90] flex items-center justify-center font-mono-data text-[11px] tracking-[0.3em]" style={{ background: '#07080C', color: 'var(--text-tertiary)' }}>LOADING EXERCISE…</div>}>
       <Game
         key={`${active.entry.meta.id}-${active.difficulty}`}
         difficulty={active.difficulty}
@@ -43,6 +44,7 @@ export default function LogicModeScreen() {
           setActive(null);
         }}
       />
+      </Suspense>
     );
   }
 

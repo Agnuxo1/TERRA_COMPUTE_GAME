@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useGame } from '../App';
 import { play } from '../hooks/useSound';
 import EndStats from '../components/meta/EndStats';
+import ScoreCard from '../components/meta/ScoreCard';
 
 const OUTCOME_TITLE: Record<string, string> = {
   rival_asi: 'RACE LOST',
@@ -145,6 +146,8 @@ export default function GameOverScreen() {
             </div>
           </div>
         </div>
+
+        <ScoreCard state={state} />
 
         <EndStats state={state} accent="var(--rose)" />
 

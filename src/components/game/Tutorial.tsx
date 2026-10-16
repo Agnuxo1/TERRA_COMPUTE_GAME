@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useGame } from '../../App';
 import type { GameState } from '../../game/types';
 import { play } from '../../hooks/useSound';
+import { continentById } from '../../game/data';
 
 const DONE_KEY = 'terra_compute_tutorial_done';
 
@@ -16,8 +17,18 @@ interface Step {
 
 const countType = (s: GameState, type: string) => s.map?.tiles.filter(t => t.building?.type === type).length ?? 0;
 
+function intro(s: GameState): Step {
+  const name = continentById(s.playerContinent ?? '')?.name ?? 'Your bloc';
+  return {
+    title: GREETING[s.playerContinent ?? ''] ?? 'Director',
+    text: `${name} enters the race to superintelligence in ${s.startYear}. Grow a healthy nation, out-research seven rivals and ignite a SAFE superintelligence — without cooking the planet. The clock is paused while you read.`,
+  };
+}
+
+const GREETING: Record<string, string> = { su: 'Comrade Director', cn: 'Comrade Director', na: 'President', eu: 'Director-General' };
+
 const STEPS: Step[] = [
-  { title: 'Comrade Director', text: 'Your bloc starts the race to superintelligence in 1960. Grow a healthy nation, out-research seven rivals and ignite a SAFE superintelligence — without cooking the planet.' },
+  { title: 'Director', text: '' },   // filled in by intro() with the faction and start year
   { title: 'The command map', text: 'Drag or use the arrow keys to move, scroll to zoom, double-click to focus. The sector map in the corner jumps the camera anywhere.', target: 'minimap' },
   { title: 'Construction', text: 'Open BUILD [B]. Every building is placed on a tile of your continent.', target: 'cmd-buildings', done: s => s.overlay === 'buildings' },
   { title: 'Feed the people', text: 'Choose Collective Farm → PLACE ON MAP. Green tiles give a bonus: river valleys +50%, next to other farms +10%. Click a green tile.', target: 'side', done: (s, start) => countType(s, 'farm') > countType(start, 'farm') },
@@ -25,21 +36,29 @@ const STEPS: Step[] = [
   { title: 'Decrees', text: 'Open ECONOMY [E] and adopt your first decree. Each one has a real price — and slots are scarce.', target: 'cmd-economy', done: s => s.policies.length > 0 },
   { title: 'Read the gauges', text: 'Every gauge explains itself: hover it to see what raises or lowers it. Food, housing, jobs and power keep approval up.', target: 'hud' },
   { title: 'Directives & the race', text: 'The right panel tracks the race, the planet and your directives — each pays a cash bonus. Steel and chips feed your industry: produce them or pay import prices.', target: 'side' },
-  { title: 'Good luck', text: 'Press SPACE to pause any time, Esc for the menu. History will interrupt you with decisions and breakthrough exercises. The clock is running.' },
+  { title: 'Good luck', text: 'Press SPACE to pause any time, Esc for the menu. History will interrupt you with decisions and breakthrough exercises. Press START and the clock begins to run.' },
 ];
 
 export default function Tutorial() {
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
   const [step, setStep] = useState(0);
   const [hidden, setHidden] = useState(() => {
     try { return localStorage.getItem(DONE_KEY) === '1'; } catch { return false; }
   });
   const start = useRef<GameState>(state);
   const [rect, setRect] = useState<DOMRect | null>(null);
-  const cur = STEPS[step];
+  const first = useMemo(() => intro(state), [state.playerContinent, state.startYear]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cur = step === 0 ? first : STEPS[step];
+
+  // Start paused so the first lessons can be read calmly; START resumes the clock.
+  useEffect(() => {
+    if (!hidden && !state.paused) dispatch({ type: 'TOGGLE_PAUSE' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const finish = () => {
     setHidden(true);
+    if (state.paused) dispatch({ type: 'TOGGLE_PAUSE' });
     try { localStorage.setItem(DONE_KEY, '1'); } catch { /* storage unavailable */ }
   };
 

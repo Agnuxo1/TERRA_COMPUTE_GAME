@@ -164,6 +164,8 @@ export interface Rival {
   treaties: TreatyId[];
   intelUntil: number;     // year until which exact numbers are visible
   asiLaunched: boolean;
+  /** Year the rival announced its ASI crash project (final act), if any. */
+  project?: number;
   lastAction: string;
   cooldown: number;       // years until next notable action
 }
@@ -295,6 +297,8 @@ export interface GameState {
   activeEvent: PendingEvent | null;
   modifiers: Modifier[];
   minigameResults: Record<string, number>;
+  /** Dynamic-event bookkeeping (older saves lack it). */
+  dyn?: { last: Record<string, number>; nextElection: number; lastAny: number };
   playerLaunchReady: boolean;
 
   // Messaging

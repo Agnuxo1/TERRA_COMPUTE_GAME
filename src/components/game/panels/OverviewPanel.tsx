@@ -13,11 +13,11 @@ export default function OverviewPanel() {
   const target = asiThreshold(state);
   const req = requiredAlignment(state);
   const rows = [
-    { id: me.id, name: me.name, color: me.color, c: state.capability, a: state.alignment, intel: true, me: true, eta: 0 },
+    { id: me.id, name: me.name, color: me.color, c: state.capability, a: state.alignment, intel: true, me: true, eta: 0, project: false },
     ...state.rivals.map(r => {
       const c = continentById(r.id)!;
       const intel = hasIntel(state, r);
-      return { id: r.id, name: c.name, color: c.color, c: r.capability, a: r.alignment, intel, me: false, eta: rivalEta(r) };
+      return { id: r.id, name: c.name, color: c.color, c: r.capability, a: r.alignment, intel, me: false, eta: rivalEta(r), project: r.project !== undefined };
     }),
   ].sort((a, b) => b.c - a.c);
   const risk = rogueRisk(state);
@@ -34,7 +34,10 @@ export default function OverviewPanel() {
           {rows.map(r => (
             <div key={r.id} title={r.me ? 'Your bloc' : r.intel ? `Estimated ASI year: ${Math.round(r.eta)}` : 'No intelligence: numbers are rough estimates. Run a SPY operation.'}>
               <div className="flex items-center justify-between font-mono-data text-[9.5px]">
-                <span style={{ color: r.me ? '#FFF4C2' : r.color, fontWeight: r.me ? 700 : 400 }}>{r.me ? '► ' : ''}{r.name}</span>
+                <span style={{ color: r.me ? '#FFF4C2' : r.color, fontWeight: r.me ? 700 : 400 }}>
+                  {r.me ? '► ' : ''}{r.name}
+                  {r.project && <span className="ml-1 px-1 rounded animate-pulse" style={{ color: '#050508', background: 'var(--rose)', fontSize: '8px', fontWeight: 700 }} title="This bloc has launched a crash programme to ignite superintelligence.">ASI PROJECT</span>}
+                </span>
                 <span style={{ color: 'var(--text-secondary)' }}>
                   {r.intel ? `${capabilityLabel(r.c)} ${r.c.toFixed(1)}` : `≈${capabilityLabel(Math.round(r.c))}`}
                   <span style={{ color: r.intel ? (r.a >= 70 ? 'var(--green)' : r.a >= 45 ? 'var(--amber)' : 'var(--rose)') : 'var(--text-tertiary)' }}>
@@ -45,7 +48,10 @@ export default function OverviewPanel() {
               <div style={{ opacity: r.intel ? 1 : 0.55 }}>
                 <Bar value={r.c - 6} max={target - 6} color={r.me ? '#FFF4C2' : r.color} height={r.me ? 6 : 4} />
               </div>
-              {!r.me && r.intel && r.c > 19 && state.gameMode !== 'pioneer' && (
+              {!r.me && !r.intel && r.project && state.gameMode !== 'pioneer' && (
+                <div className="font-mono-data text-[8.5px]" style={{ color: 'var(--rose)' }}>Ignition date unknown — run INTEL [S] to see it</div>
+              )}
+              {!r.me && r.intel && (r.c > 19 || r.project) && state.gameMode !== 'pioneer' && (
                 <div className="font-mono-data text-[8.5px]" style={{ color: r.eta - state.year < 4 ? 'var(--rose)' : 'var(--text-tertiary)' }}>
                   ASI ETA ~{Math.round(r.eta)} · {r.a < 60 ? 'RECKLESS: rogue AI risk' : 'likely aligned'}
                 </div>
@@ -112,7 +118,7 @@ export default function OverviewPanel() {
       {/* ─── Directives ─── */}
       <Section title="DIRECTIVES" accent="var(--amber)">
         <div className="flex flex-col gap-1.5">
-          {[...state.objectives.filter(o => o.done).slice(-2), ...state.objectives.filter(o => !o.done)].map(o => (
+          {[...state.objectives.filter(o => o.done && o.reward > 0).slice(-2), ...state.objectives.filter(o => !o.done)].map(o => (
             <div key={o.id} className="flex gap-2" style={{ opacity: o.done ? 0.45 : 1 }}>
               <span className="font-mono-data text-[11px]" style={{ color: o.done ? 'var(--green)' : 'var(--amber)' }}>{o.done ? '✔' : '☐'}</span>
               <div className="min-w-0">

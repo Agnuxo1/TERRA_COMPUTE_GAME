@@ -7,6 +7,7 @@ import { inspectAttr } from 'plugin-inspect-react-code'
 export default defineConfig({
   base: './',
   plugins: [inspectAttr(), react()],
+  build: { chunkSizeWarningLimit: 700 },
   server: {
     port: 3000,
   },

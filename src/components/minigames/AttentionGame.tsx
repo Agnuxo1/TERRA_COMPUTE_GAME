@@ -1,28 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { play } from '../../hooks/useSound';
 import { MinigameShell, MinigameResultCard } from './MinigameShell';
-import type { MinigameMeta, MinigameProps, MinigameResult } from './types';
+import type { MinigameProps, MinigameResult } from './types';
 import { mulberry32 } from './logic/rng.ts';
 import {
   drawItems, attentionWeights, streakMultiplier, secondsPerItem, scoreAttention,
 } from './logic/attention.ts';
 
-export const meta: MinigameMeta = {
-  id: 'attention',
-  eventId: 'transformers',
-  year: 2017,
-  title: 'ATTENTION IS ALL YOU NEED',
-  subtitle: 'Point the query at the right word',
-  accent: '#B388FF',
-  background: './assets/AGI_Nexus_Final/game_dashboard.png',
-  howTo: [
-    'Each round shows a sentence split into tokens. One token is the QUERY, usually a pronoun such as "it" or "they".',
-    'Click the token the query refers to, using common sense: who or what does the sentence mean?',
-    'After you answer, the attention arcs show how strongly the query "looks at" every token.',
-    'Answer before the timer runs out. Chains of correct answers build a score multiplier. 8 sentences per game.',
-  ],
-  rewardLabel: 'Algorithmic efficiency',
-};
+import { attention as meta } from './meta';
+
+export { meta };
 
 const ACCENT = meta.accent;
 const ROUNDS = 8;

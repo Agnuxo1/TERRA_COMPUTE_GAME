@@ -1,29 +1,22 @@
-import type { ComponentType } from 'react';
+import { lazy, type ComponentType } from 'react';
 import type { MinigameMeta, MinigameProps } from './types';
-import TuringGame, { meta as turing } from './TuringGame';
-import PerceptronGame, { meta as perceptron } from './PerceptronGame';
-import LispGame, { meta as lisp } from './LispGame';
-import SamuelGame, { meta as samuel } from './SamuelGame';
-import MooreGame, { meta as moore } from './MooreGame';
-import DeepBlueGame, { meta as deepblue } from './DeepBlueGame';
-import AlphaGoGame, { meta as alphago } from './AlphaGoGame';
-import AttentionGame, { meta as attention } from './AttentionGame';
+import { alphago, attention, deepblue, lisp, moore, perceptron, samuel, turing } from './meta';
 
 export interface MinigameEntry {
   meta: MinigameMeta;
   Component: ComponentType<MinigameProps>;
 }
 
-/** Chronological list of every breakthrough exercise. */
+/** Chronological list of every breakthrough exercise. Each game's code is fetched the first time it opens. */
 export const MINIGAMES: MinigameEntry[] = [
-  { meta: turing, Component: TuringGame },
-  { meta: perceptron, Component: PerceptronGame },
-  { meta: lisp, Component: LispGame },
-  { meta: samuel, Component: SamuelGame },
-  { meta: moore, Component: MooreGame },
-  { meta: deepblue, Component: DeepBlueGame },
-  { meta: alphago, Component: AlphaGoGame },
-  { meta: attention, Component: AttentionGame },
+  { meta: turing, Component: lazy(() => import('./TuringGame')) },
+  { meta: perceptron, Component: lazy(() => import('./PerceptronGame')) },
+  { meta: lisp, Component: lazy(() => import('./LispGame')) },
+  { meta: samuel, Component: lazy(() => import('./SamuelGame')) },
+  { meta: moore, Component: lazy(() => import('./MooreGame')) },
+  { meta: deepblue, Component: lazy(() => import('./DeepBlueGame')) },
+  { meta: alphago, Component: lazy(() => import('./AlphaGoGame')) },
+  { meta: attention, Component: lazy(() => import('./AttentionGame')) },
 ];
 
 export function minigameById(id: string): MinigameEntry | undefined {
