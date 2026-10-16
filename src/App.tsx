@@ -52,6 +52,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 const GameOverScreen = lazy(() => import('./pages/GameOverScreen'));
 const VictoryScreen = lazy(() => import('./pages/VictoryScreen'));
 const LogicModeScreen = lazy(() => import('./pages/LogicModeScreen'));
+const LobbyScreen = lazy(() => import('./pages/LobbyScreen'));
+const MPBridge = lazy(() => import('./net/MPBridge'));
+
+/** Network bridge for peer-to-peer games; closes the war room when the player returns to the menu. */
+function MultiplayerLink() {
+  const { state } = useGame();
+  useEffect(() => {
+    if (state.screen !== 'title') return;
+    void import('./net/session').then(({ session }) => { if (session.room) void session.leave(); });
+  }, [state.screen]);
+  if (!state.mp) return null;
+  return <Suspense fallback={null}><MPBridge /></Suspense>;
+}
 
 function Router() {
   const { state } = useGame();
@@ -61,6 +74,7 @@ function Router() {
     case 'select': return <ContinentSelect />;
     case 'game': return <GameScreen />;
     case 'logic': return <LogicModeScreen />;
+    case 'lobby': return <LobbyScreen />;
     case 'gameover': return <GameOverScreen />;
     case 'victory': return <VictoryScreen />;
     default: return <TitleScreen />;
@@ -74,6 +88,7 @@ export default function App() {
         <Suspense fallback={<div className="w-full h-full" style={{ background: 'var(--bg, #0A0A0F)' }} />}>
           <Router />
         </Suspense>
+        <MultiplayerLink />
       </div>
     </GameProvider>
   );
