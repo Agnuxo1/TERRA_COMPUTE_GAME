@@ -49,6 +49,9 @@ class Session {
   hostGone = false;
   /** Peer that announced itself as the host (guests accept lobby updates only from it). */
   private hostPeer = '';
+  /** Guests repeat their greeting and claim until the host's lobby reflects them (a first message can be lost while links settle). */
+  private pendingClaim: string | null | undefined = undefined;
+  private retry: ReturnType<typeof setInterval> | null = null;
   private send: ((w: Wire, target?: string | string[]) => void) | null = null;
   private listeners = new Set<Listener>();
   private wireListeners = new Set<WireListener>();
@@ -102,6 +105,15 @@ class Session {
         this.lobby = null;
       }
       this.status = 'open';
+      if (!host) {
+        this.retry = setInterval(() => {
+          const l = this.lobby;
+          if (!this.send || l?.started) return;
+          const mine = l?.players.find(p => p.peerId === this.selfId);
+          if (!mine) this.send({ k: 'hi', name: this.name, host: false }, this.hostPeer || undefined);
+          else if (this.pendingClaim !== undefined && mine.faction !== this.pendingClaim) this.send({ k: 'claim', faction: this.pendingClaim }, this.hostPeer || undefined);
+        }, 2000);
+      }
     } catch (e) {
       this.status = 'error';
       this.error = e instanceof Error ? e.message : String(e);
@@ -111,6 +123,8 @@ class Session {
 
   async leave() {
     const r = this.room;
+    if (this.retry) { clearInterval(this.retry); this.retry = null; }
+    this.pendingClaim = undefined;
     this.room = null; this.send = null; this.peers.clear(); this.lobby = null; this.status = 'idle'; this.hostGone = false;
     if (r) { try { await r.leave(); } catch { /* already closed */ } }
     this.changed();
@@ -129,8 +143,8 @@ class Session {
         if (this.isHost && this.lobby && !this.lobby.started && !this.lobby.players.some(p => p.peerId === from)) {
           if (this.lobby.players.length >= 8) { this.send?.({ k: 'lobby', lobby: { ...this.lobby, started: true } }, from); return; }
           this.setLobby({ ...this.lobby, players: [...this.lobby.players, { peerId: from, name: w.name.slice(0, 18) || 'Comrade', faction: null, online: true }] });
-        } else if (this.isHost && this.lobby?.started) {
-          this.send?.({ k: 'lobby', lobby: this.lobby }, from);
+        } else if (this.isHost && this.lobby) {
+          this.send?.({ k: 'lobby', lobby: this.lobby }, from);   // a repeated greeting: resend the current lobby
         }
         break;
       case 'lobby':
@@ -160,7 +174,7 @@ class Session {
 
   claim(faction: string | null) {
     if (this.isHost) this.applyClaim(this.selfId, faction);
-    else this.send?.({ k: 'claim', faction });
+    else { this.pendingClaim = faction; this.send?.({ k: 'claim', faction }); }
   }
 
   setOptions(o: Partial<Pick<LobbyState, 'mode' | 'difficulty'>>) {
