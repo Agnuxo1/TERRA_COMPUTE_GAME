@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useGame } from '../../App';
 import { choiceAvailable } from '../../game/engine';
 import { fmtMoney } from '../../game/format';
@@ -69,10 +69,12 @@ export default function EventModal() {
   if (phase === 'minigame' && mg) {
     const Game = mg.Component;
     return (
-      <Game
-        difficulty={difficulty}
-        onComplete={result => dispatch({ type: 'MINIGAME_DONE', minigame: mg.meta.id, stars: result.stars })}
-      />
+      <Suspense fallback={<div className="fixed inset-0 z-[90] flex items-center justify-center font-mono-data text-[11px] tracking-[0.3em]" style={{ background: '#07080C', color: 'var(--text-tertiary)' }}>LOADING EXERCISE…</div>}>
+        <Game
+          difficulty={difficulty}
+          onComplete={result => dispatch({ type: 'MINIGAME_DONE', minigame: mg.meta.id, stars: result.stars })}
+        />
+      </Suspense>
     );
   }
 

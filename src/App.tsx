@@ -1,11 +1,8 @@
-import { createContext, useContext, useEffect, useReducer } from 'react';
+import { createContext, lazy, Suspense, useContext, useEffect, useReducer } from 'react';
 import TitleScreen from './pages/TitleScreen';
 import ModeSelect from './pages/ModeSelect';
 import ContinentSelect from './pages/ContinentSelect';
 import GameScreen from './pages/GameScreen';
-import GameOverScreen from './pages/GameOverScreen';
-import VictoryScreen from './pages/VictoryScreen';
-import LogicModeScreen from './pages/LogicModeScreen';
 import { gameReducer, initialState, type Action } from './game/engine';
 import type { GameMode, GameState } from './game/types';
 import { botDecide } from './game/bot';
@@ -44,8 +41,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
     dispatch({ type: 'LOAD_STATE', state: s });
   }, []);
+  // Dev-only test hook (headless QA scripts drive the game through it).
+  useEffect(() => {
+    if (import.meta.env.DEV) (window as unknown as { __terra: unknown }).__terra = { state, dispatch };
+  }, [state]);
   return <GameContext.Provider value={{ state, dispatch }}>{children}</GameContext.Provider>;
 }
+
+// Screens reached only at the end of a game (or from the menu) load on demand: they carry the chart library.
+const GameOverScreen = lazy(() => import('./pages/GameOverScreen'));
+const VictoryScreen = lazy(() => import('./pages/VictoryScreen'));
+const LogicModeScreen = lazy(() => import('./pages/LogicModeScreen'));
 
 function Router() {
   const { state } = useGame();
@@ -65,7 +71,9 @@ export default function App() {
   return (
     <GameProvider>
       <div className="game-container crt">
-        <Router />
+        <Suspense fallback={<div className="w-full h-full" style={{ background: 'var(--bg, #0A0A0F)' }} />}>
+          <Router />
+        </Suspense>
       </div>
     </GameProvider>
   );

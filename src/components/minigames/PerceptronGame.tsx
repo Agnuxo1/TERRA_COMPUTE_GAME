@@ -1,29 +1,16 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { play } from '../../hooks/useSound';
 import { MinigameResultCard, MinigameShell, RetroButton, StarRow } from './MinigameShell';
-import type { MinigameMeta, MinigameProps, MinigameResult, Stars } from './types';
+import type { MinigameProps, MinigameResult, Stars } from './types';
 import {
   ACTION_BUDGET, B_MAX, B_MIN, B_STEP, DOMAIN, ENERGY, ROUNDS, W_MAX, W_MIN, W_STEP,
   clipHalfPlane, finalStars, generateDataset, lineSegment, misclassified, perceptronConfig, starsForActions, trainStep,
   type Params,
 } from './logic/perceptron.ts';
 
-export const meta: MinigameMeta = {
-  id: 'perceptron',
-  eventId: 'perceptron',
-  year: 1957,
-  title: 'PERCEPTRON TRAINER',
-  subtitle: 'Rosenblatt weight board - teach the machine to tell the two signals apart',
-  accent: '#33FF33',
-  background: './assets/puzzles/perceptron-weight-board.png',
-  rewardLabel: 'Compute efficiency',
-  howTo: [
-    'Red and cyan signals are scattered on the plot. Draw a line that puts all red on one side and all cyan on the other.',
-    'The line is w1·x + w2·y + b = 0. The weights w1, w2 tilt it, the bias b slides it. Red must be on the red-shaded side.',
-    'Points that are on the wrong side blink. Fix them all to clear the round. 3 rounds per exercise.',
-    'TRAIN STEP runs one real Rosenblatt update on the first wrong point (costs 1 energy). Thinking first beats trial and error: fewer adjustments = more stars.',
-  ],
-};
+import { perceptron as meta } from './meta';
+
+export { meta };
 
 const ACCENT = meta.accent;
 const RED = '#FF477E';

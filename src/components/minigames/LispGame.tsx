@@ -1,28 +1,15 @@
 import { useCallback, useMemo, useRef, useState, type DragEvent } from 'react';
 import { play } from '../../hooks/useSound';
 import { MinigameResultCard, MinigameShell, RetroButton } from './MinigameShell';
-import type { MinigameMeta, MinigameProps, MinigameResult } from './types';
+import type { MinigameProps, MinigameResult } from './types';
 import {
   LEVELS, MAX_WRONG_EVALS, atomLabel, evalStages, finalStars, generateLevel, levelPoints, listText, opDef, sameList,
   type Atom,
 } from './logic/lisp.ts';
 
-export const meta: MinigameMeta = {
-  id: 'lisp',
-  eventId: 'lisp',
-  year: 1958,
-  title: 'LISP PIPELINE',
-  subtitle: 'Dartmouth lab - compose list functions to reach the target',
-  accent: '#00F0FF',
-  background: './assets/puzzles/lisp-dartmouth-lab.png',
-  rewardLabel: 'Research points',
-  howTo: [
-    'Turn the INPUT list into the TARGET list by filling the pipeline slots with function cards.',
-    'Cards run left to right. Under each slot you see the list after that step, so you can watch it change.',
-    'Click a card to drop it in the next empty slot (or drag it onto a slot). Click a filled slot to remove its card. Empty slots do nothing.',
-    'In this lab CAR and LAST return a one-element list, not a bare atom. Press EVAL when the last step matches the target. Fewer cards and fewer wrong EVALs = more stars.',
-  ],
-};
+import { lisp as meta } from './meta';
+
+export { meta };
 
 const ACCENT = meta.accent;
 const CREAM = '#E9DFB8';

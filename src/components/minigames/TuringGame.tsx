@@ -1,28 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { play } from '../../hooks/useSound';
 import { MinigameResultCard, MinigameShell, RetroButton } from './MinigameShell';
-import type { MinigameMeta, MinigameProps, MinigameResult } from './types';
+import type { MinigameProps, MinigameResult } from './types';
 import {
   CODE_LEN, generateSecret, isValidGuess, scoreGuess, starsForAttempts, symbolLabel, turingConfig,
   type GuessRecord,
 } from './logic/turing.ts';
 
-export const meta: MinigameMeta = {
-  id: 'turing',
-  eventId: 'turing',
-  year: 1950,
-  title: 'BOMBE CODEBREAKER',
-  subtitle: 'Turing machine room - find the day\'s rotor setting',
-  accent: '#FFB84D',
-  background: './assets/puzzles/turing-bombe-background.png',
-  rewardLabel: 'Research + Education',
-  howTo: [
-    'The enemy machine is set to a secret of 4 rotor letters. Find it.',
-    'Set the 4 rotors (click, arrow keys or type letters) and press TEST.',
-    'Green lamp = right letter on the right rotor. Amber lamp = right letter on the wrong rotor.',
-    'Use the lamps to deduce the secret. Cross out letters you rule out on the note pad. Fewer tests = more stars.',
-  ],
-};
+import { turing as meta } from './meta';
+
+export { meta };
 
 const ACCENT = meta.accent;
 

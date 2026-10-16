@@ -1,27 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { play } from '../../hooks/useSound';
 import { MinigameResultCard, MinigameShell, RetroButton } from './MinigameShell';
-import type { MinigameMeta, MinigameProps, MinigameResult } from './types';
+import type { MinigameProps, MinigameResult } from './types';
 import {
   E, N, S, W, chipTiles, currentMask, generatePuzzle, isSolved, powered, starsForMoves,
 } from './logic/moore.ts';
 
-export const meta: MinigameMeta = {
-  id: 'moore',
-  eventId: 'moore',
-  year: 1965,
-  title: 'INTEGRATED CIRCUIT ROUTER',
-  subtitle: 'Moore\'s law fab - route power to every chip on the die',
-  accent: '#00E5A0',
-  background: './assets/puzzles/moore-logic-machine.png',
-  rewardLabel: 'Compute + Materials',
-  howTo: [
-    'Every tile is a piece of circuit trace. Rotate tiles until power reaches every tile and no trace is left dangling.',
-    'Click a tile to rotate it clockwise. Right-click or Shift-click rotates it back.',
-    'Power flows out of the POWER tile (amber core). Traces that are live glow green; chips light up when powered.',
-    'The board is always solvable. Start from the dead ends at the edges. LOCK mode pins tiles you are sure about. Fewer rotations = more stars.',
-  ],
-};
+import { moore as meta } from './meta';
+
+export { meta };
 
 const ACCENT = meta.accent;
 const ARMS: [number, number, number][] = [[N, 50, 0], [E, 100, 50], [S, 50, 100], [W, 0, 50]];

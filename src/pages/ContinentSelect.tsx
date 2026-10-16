@@ -4,6 +4,7 @@ import { play } from '../hooks/useSound';
 import { isVideoPlayed, markVideoPlayed, getVideoUrl } from '../hooks/useVideo';
 import VideoPlayer from '../components/game/VideoPlayer';
 import type { Difficulty } from '../game/types';
+import { loadBest } from '../game/score';
 
 const DIFF_KEY = 'terra_compute_difficulty';
 const DIFFICULTIES: Array<{ id: Difficulty; label: string; color: string; text: string }> = [
@@ -93,6 +94,7 @@ export default function ContinentSelect() {
   const [selected, setSelected] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [best] = useState(loadBest);
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [pendingContinent, setPendingContinent] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty>(loadDifficulty);
@@ -304,7 +306,7 @@ export default function ContinentSelect() {
                   className="absolute inset-0 transition-opacity duration-300"
                   style={{
                     background: isSelected
-                      ? `linear-gradient(180deg, transparent 0%, ${c.color}33 30%, ${c.color}66 100%)`
+                      ? `linear-gradient(180deg, transparent 0%, ${c.color}26 30%, rgba(10,10,15,0.9) 68%, rgba(10,10,15,0.96) 100%)`
                       : isHovered
                         ? `linear-gradient(180deg, transparent 0%, rgba(10,10,15,0.7) 40%, rgba(10,10,15,0.85) 100%)`
                         : 'linear-gradient(180deg, transparent 0%, rgba(10,10,15,0.8) 50%, rgba(10,10,15,0.95) 100%)',
@@ -406,6 +408,12 @@ export default function ContinentSelect() {
                       {c.specialBonus}
                     </span>
                   </div>
+                  {best[c.id] && (
+                    <div className="font-mono-data text-[8px] mt-0.5" style={{ color: best[c.id].won ? '#FFD700' : 'var(--text-tertiary)' }}
+                      title={`Best result with ${c.name}: ${best[c.id].score} points`}>
+                      ★ BEST {best[c.id].rank} · {best[c.id].score.toLocaleString('en-US')} · {best[c.id].won ? `won ${best[c.id].year}` : 'lost'}
+                    </div>
+                  )}
                 </div>
 
                 {/* ── Selection indicator (corner check) ── */}
@@ -457,8 +465,9 @@ export default function ContinentSelect() {
           </div>
         )}
 
-        {/* ─── Difficulty + Begin ─── */}
-        <div className="flex flex-wrap justify-center items-center gap-3">
+        {/* ─── Difficulty + Begin (stays in view on short screens) ─── */}
+        <div className="sticky bottom-0 z-20 w-full flex flex-wrap justify-center items-center gap-3 py-2"
+          style={{ background: 'linear-gradient(180deg, transparent, rgba(10,10,15,0.92) 30%)' }}>
           <div className="flex flex-col items-center gap-1" role="radiogroup" aria-label="Difficulty">
             <div className="flex rounded overflow-hidden" style={{ border: '1px solid var(--border-light)' }}>
               {DIFFICULTIES.map(d => {

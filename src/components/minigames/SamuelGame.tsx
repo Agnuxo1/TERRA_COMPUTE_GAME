@@ -2,28 +2,15 @@ import { useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { play } from '../../hooks/useSound';
 import { MinigameShell, MinigameResultCard, RetroButton } from './MinigameShell';
-import type { MinigameMeta, MinigameProps, MinigameResult } from './types';
+import type { MinigameProps, MinigameResult } from './types';
 import {
   SIZE, isDark, jumpsFrom, applyJump, generateGame, scoreSamuel,
 } from './logic/samuel.ts';
 import type { Jump, Piece, PuzzleOutcome } from './logic/samuel.ts';
 
-export const meta: MinigameMeta = {
-  id: 'samuel',
-  eventId: 'ml',
-  year: 1959,
-  title: "SAMUEL'S CHECKERS",
-  subtitle: 'Find the winning combination',
-  accent: '#FF477E',
-  background: './assets/puzzles/samuel/samuel-1959-lab.png',
-  howTo: [
-    'You are Red and move up the board. Each puzzle shows a target, for example "Capture 3".',
-    'Click one of your glowing pieces, then click the glowing dots to jump over enemy pieces one after another.',
-    'You must keep jumping while a capture is available. Kings (crowned) may jump backwards too.',
-    'Reach the target count in one turn. A wrong or short chain costs a try: you have 2 tries per puzzle.',
-  ],
-  rewardLabel: 'Education + Research',
-};
+import { samuel as meta } from './meta';
+
+export { meta };
 
 const MAX_TRIES = 2;
 const TOTAL = 3;

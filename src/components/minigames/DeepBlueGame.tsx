@@ -1,29 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { play } from '../../hooks/useSound';
 import { MinigameShell, MinigameResultCard } from './MinigameShell';
-import type { MinigameMeta, MinigameProps, MinigameResult } from './types';
+import type { MinigameProps, MinigameResult } from './types';
 import {
   parseFen, legalMoves, applyMove, isCheckmate, isInCheck, kingSquare, colorOf,
   mateInOneMoves, mateInTwoFirstMoves, bestDefense, moveText, pickPuzzles, scoreChess,
 } from './logic/chess.ts';
 import type { Move, Position } from './logic/chess.ts';
 
-export const meta: MinigameMeta = {
-  id: 'deepblue',
-  eventId: 'deepblue',
-  year: 1997,
-  title: 'DEEP BLUE',
-  subtitle: 'Mate the champion',
-  accent: '#00F0FF',
-  background: './assets/puzzles/deepblue/deep_blue.png',
-  howTo: [
-    'You play White (cream pieces, moving up). In every puzzle you must deliver checkmate.',
-    'Click one of your pieces, then click a highlighted square to move it.',
-    '"Mate in 1" means one move ends the game. In "mate in 2" you move, Black answers with its best defence, then you mate.',
-    'A wrong move costs a mistake and the position resets. Three mistakes on one puzzle reveals the solution.',
-  ],
-  rewardLabel: 'Compute + Research',
-};
+import { deepblue as meta } from './meta';
+
+export { meta };
 
 const ACCENT = meta.accent;
 const MAX_MISTAKES = 3;

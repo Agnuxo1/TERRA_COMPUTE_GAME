@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useGame } from '../App';
 import { play } from '../hooks/useSound';
 import EndStats from '../components/meta/EndStats';
+import ScoreCard from '../components/meta/ScoreCard';
 
 function fmtNumber(n: number): string {
   if (n >= 1e24) return (n / 1e24).toFixed(1) + 'Y';
@@ -137,6 +138,8 @@ export default function VictoryScreen() {
             </div>
           </div>
         </div>
+
+        <ScoreCard state={state} />
 
         <EndStats state={state} accent="#FFD700" />
 

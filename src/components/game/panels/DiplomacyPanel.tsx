@@ -2,6 +2,7 @@ import { useGame } from '../../../App';
 import { continentById, techById } from '../../../game/data';
 import { TREATY_INFO, giftCost, has, hasIntel } from '../../../game/engine';
 import { fmtMoney } from '../../../game/format';
+import { RIVAL_LEADERS } from '../../../game/dynamic-events';
 import type { TreatyId } from '../../../game/types';
 import { play } from '../../../hooks/useSound';
 import { Bar, PanelHeader } from './common';
@@ -32,12 +33,16 @@ export default function DiplomacyPanel() {
           return (
             <div key={r.id} className="rounded p-2" style={{ border: `1px solid ${c.color}55`, background: 'rgba(255,255,255,0.02)' }}>
               <div className="flex items-center justify-between">
-                <span className="font-rajdhani text-[14px] font-bold" style={{ color: c.color }}>{c.name}</span>
+                <span className="font-rajdhani text-[14px] font-bold" style={{ color: c.color }}>
+                  {c.name}
+                  {RIVAL_LEADERS[r.id] && <span className="font-mono-data text-[9px] font-normal ml-1.5" style={{ color: 'var(--text-secondary)' }}>{RIVAL_LEADERS[r.id].title} {RIVAL_LEADERS[r.id].name}</span>}
+                  {r.project !== undefined && <span className="font-mono-data text-[8px] ml-1.5 px-1 rounded" style={{ color: '#050508', background: 'var(--rose)' }}>ASI PROJECT</span>}
+                </span>
                 <span className="font-mono-data text-[10px]" style={{ color: relColor }}>{r.relation >= 30 ? 'FRIENDLY' : r.relation >= 0 ? 'NEUTRAL' : r.relation > -50 ? 'HOSTILE' : 'ENEMY'} {Math.round(r.relation)}</span>
               </div>
               <div className="my-1"><Bar value={r.relation + 100} max={200} color={relColor} height={4} marker={100} /></div>
               <div className="font-mono-data text-[9px] mb-1.5" style={{ color: 'var(--text-tertiary)' }}>
-                {STRATEGY_TEXT[r.strategy]}{intel ? ` · emissions ${Math.round(r.emissions)} Mt · clean ${Math.round(r.cleanShare * 100)}%` : ''}
+                <span title={RIVAL_LEADERS[r.id]?.doctrine}>{STRATEGY_TEXT[r.strategy]}</span>{RIVAL_LEADERS[r.id] && <span style={{ color: 'var(--text-secondary)' }}> · {RIVAL_LEADERS[r.id].doctrine}</span>}{intel ? ` · emissions ${Math.round(r.emissions)} Mt · clean ${Math.round(r.cleanShare * 100)}%` : ''}
               </div>
               <div className="grid grid-cols-2 gap-1">
                 <button onClick={() => { play('coin'); dispatch({ type: 'DIPLOMACY', rivalId: r.id, action: 'gift' }); }} disabled={state.budget < gift}
