@@ -125,7 +125,7 @@ export function botDecide(s: GameState, strat: BotStrategy = 'balanced'): GameSt
   // sabotage the front-runner late game
   if (strat === 'balanced' && s.year > 2022) {
     const lead = [...s.rivals].sort((a, b) => b.capability - a.capability)[0];
-    if (lead.capability > s.capability - 0.5 && s.budget > covertCost(s, 'sabotage') * 3) s = gameReducer(s, { type: 'COVERT', rivalId: lead.id, op: 'sabotage' });
+    if (lead.capability > s.capability - 0.5 && s.budget - reserve > covertCost(s, 'sabotage', lead) * 3) s = gameReducer(s, { type: 'COVERT', rivalId: lead.id, op: 'sabotage' });
   }
   // tax
   if (e.netBudget < 0 && s.taxRate < 0.3) s = gameReducer(s, { type: 'SET_TAX', rate: s.taxRate + 0.01 });

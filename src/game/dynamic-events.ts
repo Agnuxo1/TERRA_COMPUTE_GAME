@@ -257,7 +257,7 @@ export function applyDynamic(s: GameState, effect: string, h: DynHelpers): boole
       const cost = Number(a2) || 0, p = (Number(a3) || 40) / 100;
       s.budget -= cost;
       if (h.rand() < p) {
-        rivalMap(x => x.id === a1 ? { ...x, lag: x.lag + 2.5, capability: Math.min(x.capability, h.historicalCapability(s.year - x.lag - 2.5)) } : x);
+        rivalMap(x => x.id === a1 ? { ...x, heat: (x.heat ?? 0) + 1, lag: x.lag + 2.5, capability: Math.min(x.capability, h.historicalCapability(s.year - x.lag - 2.5)) } : x);
         h.notify(s, `💥 Strike succeeded: ${h.rivalName(a1)}'s ASI project set back ~2.5 years.`, 'success');
         h.pushLog(s, 'Intelligence', `Covert strike crippled ${h.rivalName(a1)}'s ASI project.`, 'success');
       } else {

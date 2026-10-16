@@ -25,7 +25,7 @@ export default function DiplomacyPanel() {
       <div className="px-3 py-2 font-rajdhani text-[12px] leading-snug shrink-0" style={{ color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border)' }}>
         Aid raises relations. Treaties need a minimum relation and sometimes a technology. Climate Accords cool the planet; AI Safety Treaties make rivals safer and slower.
       </div>
-      <div className="flex-1 overflow-auto p-2 flex flex-col gap-2">
+      <div className="flex-1 overflow-auto p-2 flex flex-col gap-2 [&>*]:shrink-0">
         {[...state.rivals].sort((a, b) => b.relation - a.relation).map(r => {
           const c = continentById(r.id)!;
           const relColor = r.relation >= 30 ? '#00E5A0' : r.relation >= 0 ? '#FFB84D' : '#FF477E';
