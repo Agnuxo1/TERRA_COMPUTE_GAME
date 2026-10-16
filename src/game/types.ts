@@ -300,7 +300,7 @@ export interface GameState {
   modifiers: Modifier[];
   minigameResults: Record<string, number>;
   /** Dynamic-event bookkeeping (older saves lack it). */
-  dyn?: { last: Record<string, number>; nextElection: number; lastAny: number };
+  dyn?: { last: Record<string, number>; nextElection: number; lastAny: number; lastProject?: number };
   playerLaunchReady: boolean;
 
   // Messaging

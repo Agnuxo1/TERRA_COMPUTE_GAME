@@ -36,7 +36,7 @@ export default function DiplomacyPanel() {
                 <span className="font-rajdhani text-[14px] font-bold" style={{ color: c.color }}>
                   {c.name}
                   {RIVAL_LEADERS[r.id] && <span className="font-mono-data text-[9px] font-normal ml-1.5" style={{ color: 'var(--text-secondary)' }}>{RIVAL_LEADERS[r.id].title} {RIVAL_LEADERS[r.id].name}</span>}
-                  {r.project !== undefined && <span className="font-mono-data text-[8px] ml-1.5 px-1 rounded" style={{ color: '#050508', background: 'var(--rose)' }}>ASI PROJECT</span>}
+                  {r.project !== undefined && <span className="font-mono-data text-[8px] ml-1.5 px-1 rounded whitespace-nowrap" style={{ color: '#050508', background: 'var(--rose)' }}>ASI PROJECT</span>}
                 </span>
                 <span className="font-mono-data text-[10px]" style={{ color: relColor }}>{r.relation >= 30 ? 'FRIENDLY' : r.relation >= 0 ? 'NEUTRAL' : r.relation > -50 ? 'HOSTILE' : 'ENEMY'} {Math.round(r.relation)}</span>
               </div>
