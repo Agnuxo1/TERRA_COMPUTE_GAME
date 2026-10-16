@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { GameState } from '../../game/types';
 import { finalScore, loadBest, recordBest } from '../../game/score';
+import { continentById } from '../../game/data';
+import { capabilityLabel } from '../../game/format';
 
 const RANK_COLOR: Record<string, string> = { S: '#FFD700', A: '#00E5A0', B: '#00F0FF', C: '#FFB84D', D: '#FF477E' };
 
@@ -15,7 +17,13 @@ export default function ScoreCard({ state }: { state: GameState }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const color = RANK_COLOR[sc.rank];
+  const standings = state.mp ? state.mp.players.map(p => {
+    const mine = p.faction === state.mp!.me;
+    const cap = mine ? state.capability : state.rivals.find(r => r.id === p.faction)?.capability ?? 0;
+    return { ...p, mine, cap };
+  }).sort((a, b) => b.cap - a.cap) : [];
   return (
+    <>
     <div className="panel-elevated px-4 py-2.5 flex flex-wrap items-center justify-center gap-x-6 gap-y-2" style={{ maxWidth: 720, width: '100%' }}>
       <div className="flex items-center gap-3">
         <span className="font-orbitron font-black" style={{ fontSize: 44, lineHeight: 1, color, textShadow: `0 0 18px ${color}88` }}>{sc.rank}</span>
@@ -34,5 +42,20 @@ export default function ScoreCard({ state }: { state: GameState }) {
         {sc.mult !== 1 && <div className="flex justify-between gap-3"><span>Mode × difficulty</span><span style={{ color: '#FFF4C2' }}>×{sc.mult.toFixed(2)}</span></div>}
       </div>
     </div>
+    {standings.length > 1 && (
+      <div className="panel-elevated px-4 py-2 flex flex-col gap-1" style={{ maxWidth: 720, width: '100%' }}>
+        <span className="font-mono-data text-[9px] tracking-[0.3em]" style={{ color: '#FF3B3B' }}>WAR ROOM {state.mp!.room} · FINAL STANDINGS</span>
+        {standings.map((p, i) => {
+          const c = continentById(p.faction);
+          return (
+            <div key={p.peerId} className="flex items-center justify-between font-mono-data text-[11px]" style={{ color: p.mine ? '#FFF4C2' : 'var(--text-secondary)' }}>
+              <span><span style={{ color: i === 0 ? '#FFD700' : 'var(--text-tertiary)' }}>{i + 1}.</span> <span style={{ color: c?.color }}>{c?.name}</span> · {p.name}{p.mine ? ' (you)' : ''}{p.online ? '' : ' · disconnected'}</span>
+              <span>{capabilityLabel(p.cap)} 10^{p.cap.toFixed(1)}</span>
+            </div>
+          );
+        })}
+      </div>
+    )}
+    </>
   );
 }
