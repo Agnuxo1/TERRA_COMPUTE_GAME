@@ -1,6 +1,7 @@
 import { useGame } from '../../../App';
 import { continentById } from '../../../game/data';
-import { covertChance, covertCost, hasIntel, rivalEta, type CovertOp } from '../../../game/engine';
+import { covertChance, covertCost, defcon, hasIntel, rivalEta, sweepCost, COVERT_TENSION, type CovertOp } from '../../../game/engine';
+import { isHuman, playerName } from '../../../game/mp';
 import { capabilityLabel, fmtMoney } from '../../../game/format';
 import { play } from '../../../hooks/useSound';
 import { PanelHeader } from './common';
@@ -12,7 +13,8 @@ const OPS: Record<'spy' | 'attack', Array<{ op: CovertOp; label: string; text: s
   ],
   attack: [
     { op: 'sabotage', label: 'CYBER SABOTAGE', text: 'Set their AI program back ~1 year. If exposed: all treaties torn up.' },
-    { op: 'propaganda', label: 'PROPAGANDA', text: 'Destabilise them: unrest slows their progress.' },
+    { op: 'propaganda', label: 'PROPAGANDA', text: 'Destabilise them: unrest slows their progress (against a human: their approval −6 for 3 years).' },
+    { op: 'blackout', label: 'GRID ATTACK', text: 'Black out their power grid: −30% supply for a year against a human, a slower programme for an AI bloc. The loudest operation of all.' },
   ],
 };
 
@@ -29,6 +31,25 @@ export default function IntelPanel({ mode }: { mode: 'spy' | 'attack' }) {
         {mode === 'spy'
           ? 'Without intelligence, rival numbers are rough guesses. Space Centers raise every success chance.'
           : 'Slow down the reckless front-runner — a rogue superintelligence anywhere ends the game for everyone. Getting caught ruins relations.'}
+        <div className="mt-1 font-mono-data text-[9.5px]" style={{ color: defcon(state.tension) <= 2 ? 'var(--rose)' : 'var(--text-secondary)' }}>
+          ☢ DEFCON {defcon(state.tension)} · tension {Math.round(state.tension ?? 0)}/100 — every operation raises it; at DEFCON 1 every nation loses two years of growth.
+        </div>
+        {mode === 'spy' && (() => {
+          const cost = sweepCost(state);
+          const active = state.modifiers.find(m => m.id === 'counterintel');
+          return (
+            <button disabled={!!active || state.budget < cost}
+              onClick={() => { play('click'); dispatch({ type: 'COUNTER_INTEL' }); }}
+              className={`mt-1.5 w-full rounded px-2 py-1.5 text-left ${active || state.budget < cost ? 'opacity-50 cursor-not-allowed' : 'hover:brightness-125'}`}
+              style={{ border: '1px solid var(--green)', background: 'rgba(0,229,160,0.06)' }}
+              title="Enemy operations against you fail more often (−20% success) for 3 years. Stacks with AI Safety Institutes.">
+              <div className="font-mono-data text-[9.5px]" style={{ color: 'var(--green)' }}>🛡 COUNTER-INTELLIGENCE SWEEP</div>
+              <div className="font-mono-data text-[8.5px]" style={{ color: 'var(--text-secondary)' }}>
+                {active ? `Active until ${Math.floor(active.until)}` : `${fmtMoney(cost)} · enemy operations −20% success for 3 years`}
+              </div>
+            </button>
+          );
+        })()}
       </div>
       <div className="flex-1 overflow-auto p-2 flex flex-col gap-2 [&>*]:shrink-0">
         {rivals.map(r => {
@@ -37,7 +58,9 @@ export default function IntelPanel({ mode }: { mode: 'spy' | 'attack' }) {
           return (
             <div key={r.id} className="rounded p-2" style={{ border: `1px solid ${c.color}55`, background: 'rgba(255,255,255,0.02)' }}>
               <div className="flex items-center justify-between">
-                <span className="font-rajdhani text-[14px] font-bold" style={{ color: c.color }}>{c.name}</span>
+                <span className="font-rajdhani text-[14px] font-bold" style={{ color: c.color }}>
+                  {c.name}{isHuman(state, r.id) && <span className="font-mono-data text-[9px] font-normal ml-1" style={{ color: '#F2E9DC' }}>👤 {playerName(state, r.id)}</span>}
+                </span>
                 <span className="font-mono-data text-[9.5px]" style={{ color: 'var(--text-secondary)' }}>
                   {intel ? `${capabilityLabel(r.capability)} ${r.capability.toFixed(1)} · align ${Math.round(r.alignment)}%` : `≈${capabilityLabel(Math.round(r.capability))} · align ?`}
                 </span>
@@ -62,7 +85,7 @@ export default function IntelPanel({ mode }: { mode: 'spy' | 'attack' }) {
                       onClick={() => { play('alert'); dispatch({ type: 'COVERT', rivalId: r.id, op: o.op }); }}
                       className={`rounded px-1.5 py-1 text-left ${ok ? 'hover:brightness-125' : 'opacity-40 cursor-not-allowed'}`}
                       style={{ border: `1px solid ${accent}88`, background: `${accent}10` }}
-                      title={o.text}>
+                      title={`${o.text} World tension +${COVERT_TENSION[o.op]} (+${COVERT_TENSION[o.op] * 1.5} if exposed).`}>
                       <div className="font-mono-data text-[9px]" style={{ color: accent }}>{o.label}</div>
                       <div className="font-mono-data text-[8.5px]" style={{ color: 'var(--text-secondary)' }}>{fmtMoney(cost)} · {Math.round(ch * 100)}% success</div>
                     </button>

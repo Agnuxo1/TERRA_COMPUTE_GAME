@@ -45,6 +45,7 @@ export default function PauseMenu({ onClose }: { onClose: () => void }) {
       pausedByMenu.current = true;
       dispatch({ type: 'TOGGLE_PAUSE' });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
 
   const resume = useCallback(() => {

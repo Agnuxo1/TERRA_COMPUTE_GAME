@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useGame } from '../../../App';
 import { continentById } from '../../../game/data';
-import { asiThreshold, has, hasIntel, requiredAlignment, rivalEta, rogueRisk } from '../../../game/engine';
+import { asiThreshold, defcon, FIRSTS, has, hasIntel, requiredAlignment, rivalEta, rogueRisk } from '../../../game/engine';
+import { isHuman, playerName } from '../../../game/mp';
 import { capabilityLabel } from '../../../game/format';
 import { play } from '../../../hooks/useSound';
 import { ActionButton, Bar, KV, Section } from './common';
@@ -13,11 +14,11 @@ export default function OverviewPanel() {
   const target = asiThreshold(state);
   const req = requiredAlignment(state);
   const rows = [
-    { id: me.id, name: me.name, color: me.color, c: state.capability, a: state.alignment, intel: true, me: true, eta: 0, project: false },
+    { id: me.id, name: me.name, color: me.color, c: state.capability, a: state.alignment, intel: true, me: true, eta: 0, project: false, human: undefined as string | undefined },
     ...state.rivals.map(r => {
       const c = continentById(r.id)!;
       const intel = hasIntel(state, r);
-      return { id: r.id, name: c.name, color: c.color, c: r.capability, a: r.alignment, intel, me: false, eta: rivalEta(r), project: r.project !== undefined };
+      return { id: r.id, name: c.name, color: c.color, c: r.capability, a: r.alignment, intel, me: false, eta: rivalEta(r), project: r.project !== undefined, human: isHuman(state, r.id) ? playerName(state, r.id) : undefined };
     }),
   ].sort((a, b) => b.c - a.c);
   const risk = rogueRisk(state);
@@ -35,7 +36,7 @@ export default function OverviewPanel() {
             <div key={r.id} title={r.me ? 'Your bloc' : r.intel ? `Estimated ASI year: ${Math.round(r.eta)}` : 'No intelligence: numbers are rough estimates. Run a SPY operation.'}>
               <div className="flex items-center justify-between font-mono-data text-[9.5px]">
                 <span style={{ color: r.me ? '#FFF4C2' : r.color, fontWeight: r.me ? 700 : 400 }}>
-                  {r.me ? '► ' : ''}{r.name}
+                  {r.me ? '► ' : ''}{r.name}{r.human && <span style={{ color: '#F2E9DC' }}> 👤{r.human}</span>}
                   {r.project && <span className="ml-1 px-1 rounded animate-pulse" style={{ color: '#050508', background: 'var(--rose)', fontSize: '8px', fontWeight: 700 }} title="This bloc has launched a crash programme to ignite superintelligence.">ASI PROJECT</span>}
                 </span>
                 <span style={{ color: 'var(--text-secondary)' }}>
@@ -89,6 +90,22 @@ export default function OverviewPanel() {
       </Section>
 
       {/* ─── Planet ─── */}
+      <Section title="WORLD FIRSTS" accent="#FFD700">
+        <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+          {FIRSTS.map(f => {
+            const w = state.firsts?.[f.key];
+            const mine = w?.who === (state.mp?.me ?? state.playerContinent);
+            const who = w ? (w.who === 'history' ? 'before your time' : `${mine ? 'YOU' : (continentById(w.who)?.name ?? w.who)} ${w.year}`) : 'unclaimed';
+            return (
+              <div key={f.key} className="font-mono-data text-[9px] flex justify-between gap-1" title={w ? '' : `First bloc to reach a ${f.label} wins a research bonus and national pride.`}>
+                <span style={{ color: w ? (mine ? '#FFD700' : 'var(--text-tertiary)') : 'var(--text-secondary)' }}>{w ? (mine ? '🏆' : '✔') : '○'} {f.label}</span>
+                <span style={{ color: mine ? '#FFD700' : 'var(--text-tertiary)' }}>{who}</span>
+              </div>
+            );
+          })}
+        </div>
+      </Section>
+
       <Section title="PLANET" accent={planetColor}>
         <KV k="Planet health" v={`${Math.round(state.planetHealth)}%`} tone={state.planetHealth > 60 ? 'good' : state.planetHealth > 30 ? 'warn' : 'bad'} />
         <Bar value={state.planetHealth} color={planetColor} />
@@ -97,6 +114,7 @@ export default function OverviewPanel() {
         <KV k="World emissions" v={`${Math.round(worldEm)} Mt/yr`} />
         <KV k="Your share" v={`${Math.round(share * 100)}%`} tone={share > 0.2 ? 'warn' : 'dim'} />
         <KV k="AI doom clock" v={<span style={{ color: doomColor }}>{state.doomClock.toFixed(1)} min to midnight</span>} />
+        <KV k="World tension" v={<span title="Covert operations raise it, treaties and time lower it. DEFCON 1: every nation loses two years of growth." style={{ color: ['', '#FF2D2D', '#FF7A2D', '#FFB84D', '#00F0FF', '#00E5A0'][defcon(state.tension)] }}>DEFCON {defcon(state.tension)} · {Math.round(state.tension ?? 0)}</span>} />
         <div className="font-rajdhani text-[11.5px] leading-snug mt-1" style={{ color: 'var(--text-tertiary)' }}>
           At 0% the planet collapses and everyone loses. Clean energy, forests and Climate Accords slow warming.
         </div>

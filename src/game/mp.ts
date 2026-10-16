@@ -32,7 +32,7 @@ export type MPMsg =
   | { t: 'end'; who: string; human: boolean; safe: boolean; year: number }
   | { t: 'chat'; from: string; text: string }
   | { t: 'first'; key: string; who: string; year: number }
-  | { t: 'defcon1'; year: number };
+  | { t: 'defcon1'; year: number; culprit?: string };
 
 export const isHuman = (s: GameState, id: string) =>
   !!s.mp && !s.mp.offline && id !== s.mp.me && s.mp.players.some(p => p.faction === id && p.online);

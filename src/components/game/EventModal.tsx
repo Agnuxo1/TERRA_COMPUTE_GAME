@@ -11,6 +11,52 @@ import ChunkBoundary from '../ChunkBoundary';
 
 const TYPE_COLOR = { info: '#00F0FF', warning: '#FFB84D', danger: '#FF477E' } as const;
 
+const MP_DECISION_SECONDS = 25;
+
+/** Docked, non-blocking decision card for multiplayer, with a countdown that picks the cautious (last) option. */
+function LiveDecision({ state, color, choices, left, onChoose }: {
+  state: ReturnType<typeof useGame>['state']; color: string; choices: NonNullable<ReturnType<typeof useGame>['state']['activeEvent']>['event']['choices']; left: number; onChoose: (i: number) => void;
+}) {
+  const ev = state.activeEvent!.event;
+  const okAt = (i: number) => choiceAvailable(state, choices[i].requires) && (!choices[i].cost || state.budget >= choices[i].cost!);
+  const fallback = (() => { for (let i = choices.length - 1; i >= 0; i--) if (okAt(i)) return i; return 0; })();
+  const fired = useRef<string | null>(null);
+  useEffect(() => {
+    if (left > 0 || fired.current === state.activeEvent!.id) return;
+    fired.current = state.activeEvent!.id;
+    onChoose(fallback);
+  }, [left, fallback, onChoose, state.activeEvent]);
+  return (
+    <div className="absolute z-[60] left-3 bottom-[236px] w-[min(430px,calc(100vw-24px))] rounded-lg p-3 flex flex-col gap-2 animate-fade-up"
+      style={{ background: 'rgba(10,11,16,0.97)', border: `2px solid ${color}`, boxShadow: `0 0 30px ${color}33, 0 14px 40px rgba(0,0,0,0.7)` }}>
+      <div className="flex items-center justify-between">
+        <span className="font-mono-data text-[10px] tracking-[0.25em]" style={{ color }}>{ev.type === 'danger' ? 'CRISIS' : ev.type === 'warning' ? 'WARNING' : 'DECISION'} · {ev.year}</span>
+        <span className={`font-orbitron text-[12px] font-bold ${left <= 8 ? 'animate-pulse' : ''}`} style={{ color: left <= 8 ? 'var(--rose)' : '#FFF4C2' }}>{left}s</span>
+      </div>
+      <div className="h-1 rounded overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+        <div className="h-full transition-all duration-300" style={{ width: `${(left / MP_DECISION_SECONDS) * 100}%`, background: left <= 8 ? 'var(--rose)' : color }} />
+      </div>
+      <h2 className="font-orbitron text-[15px] font-bold leading-tight" style={{ color: '#FFF4C2' }}>{ev.name}</h2>
+      <p className="font-rajdhani text-[13px] leading-snug" style={{ color: 'var(--text-secondary)' }}>{ev.description}</p>
+      <div className="flex flex-col gap-1.5">
+        {choices.map((c, i) => {
+          const ok = okAt(i);
+          return (
+            <button key={i} disabled={!ok} {...NO_SPACE} onClick={() => onChoose(i)}
+              className={`text-left rounded px-2.5 py-1.5 ${ok ? 'hover:brightness-125' : 'opacity-40 cursor-not-allowed'}`}
+              style={{ border: `1px solid ${color}88`, background: i === fallback ? `${color}1A` : `${color}0A` }}>
+              <div className="font-rajdhani text-[13.5px] font-bold" style={{ color: '#FFF4C2' }}>{String.fromCharCode(65 + i)}. {c.label}{i === fallback ? <span className="font-mono-data text-[8.5px] font-normal" style={{ color: 'var(--text-tertiary)' }}> · default</span> : null}</div>
+              <div className="font-mono-data text-[9.5px]" style={{ color: 'var(--text-secondary)' }}>{c.detail}</div>
+            </button>
+          );
+        })}
+        {choices.length === 0 && <button {...NO_SPACE} onClick={() => onChoose(0)} className="w-full py-1.5 rounded font-mono-data text-[11px]" style={{ color, border: `1px solid ${color}` }}>ACKNOWLEDGE</button>}
+      </div>
+      <div className="font-mono-data text-[8.5px]" style={{ color: 'var(--text-tertiary)' }}>The world does not wait: when the timer runs out the default is chosen.</div>
+    </div>
+  );
+}
+
 // Space is the pause key: it must never pick a decision by accident (Enter still does).
 const NO_SPACE = {
   onKeyDown: (e: React.KeyboardEvent) => { if (e.key === ' ') e.preventDefault(); },
@@ -30,7 +76,7 @@ export default function EventModal() {
     lastId.current = pending.id;
     play('alert');
     const videoId = pending.event.card?.match(/cards\/(event-[a-z0-9]+)\.png/)?.[1];
-    if (videoId && !isVideoPlayed(videoId)) {
+    if (videoId && !isVideoPlayed(videoId) && !state.mp) {   // no cinematics on a shared clock
       markVideoPlayed(videoId);
       setVideo(getVideoUrl(videoId));
       setPhase('video');
@@ -38,7 +84,19 @@ export default function EventModal() {
       setVideo(null);
       setPhase('card');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pending]);
+
+  // Multiplayer: the shared clock keeps running, so decisions are timed and never block the map.
+  const live = !!state.mp && !state.mp.offline;
+  const [left, setLeft] = useState(MP_DECISION_SECONDS);
+  useEffect(() => {
+    if (!live || !pending) return;
+    const end = Date.now() + MP_DECISION_SECONDS * 1000;
+    setLeft(MP_DECISION_SECONDS);
+    const id = setInterval(() => setLeft(Math.max(0, Math.ceil((end - Date.now()) / 1000))), 250);
+    return () => clearInterval(id);
+  }, [live, pending]);
 
   const mg = ev?.minigame ? minigameById(ev.minigame) : undefined;
   const difficulty: MinigameDifficulty = state.gameMode === 'pioneer' ? 1 : state.gameMode === 'complete' && (ev?.year ?? 0) >= 1995 ? 3 : 2;
@@ -89,6 +147,7 @@ export default function EventModal() {
 
   const color = TYPE_COLOR[ev.type];
   const choices = ev.choices.length ? ev.choices : [];
+  if (live && !mg) return <LiveDecision state={state} color={color} choices={choices} left={left} onChoose={choose} />;
   return (
     <div className="absolute inset-0 z-[60] flex items-center justify-center p-3" style={{ background: 'rgba(8,8,12,0.86)', backdropFilter: 'blur(4px)' }}>
       <div className="animate-fade-up flex w-full max-w-[860px] max-h-full overflow-hidden rounded-lg"
