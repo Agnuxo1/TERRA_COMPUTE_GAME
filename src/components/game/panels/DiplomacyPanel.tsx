@@ -3,6 +3,7 @@ import { continentById, techById } from '../../../game/data';
 import { TREATY_INFO, giftCost, has, hasIntel } from '../../../game/engine';
 import { fmtMoney } from '../../../game/format';
 import { RIVAL_LEADERS } from '../../../game/dynamic-events';
+import { isHuman, playerName } from '../../../game/mp';
 import type { TreatyId } from '../../../game/types';
 import { play } from '../../../hooks/useSound';
 import { Bar, PanelHeader } from './common';
@@ -24,6 +25,7 @@ export default function DiplomacyPanel() {
       <PanelHeader title="DIPLOMACY" accent="#7B61FF" onClose={() => dispatch({ type: 'CLOSE_OVERLAY' })} />
       <div className="px-3 py-2 font-rajdhani text-[12px] leading-snug shrink-0" style={{ color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border)' }}>
         Aid raises relations. Treaties need a minimum relation and sometimes a technology. Climate Accords cool the planet; AI Safety Treaties make rivals safer and slower.
+        {state.mp && <span style={{ color: '#F2E9DC' }}> 👤 Human heads of state receive your aid as real money and must accept your treaties.</span>}
       </div>
       <div className="flex-1 overflow-auto p-2 flex flex-col gap-2 [&>*]:shrink-0">
         {[...state.rivals].sort((a, b) => b.relation - a.relation).map(r => {
@@ -35,7 +37,9 @@ export default function DiplomacyPanel() {
               <div className="flex items-center justify-between">
                 <span className="font-rajdhani text-[14px] font-bold" style={{ color: c.color }}>
                   {c.name}
-                  {RIVAL_LEADERS[r.id] && <span className="font-mono-data text-[9px] font-normal ml-1.5" style={{ color: 'var(--text-secondary)' }}>{RIVAL_LEADERS[r.id].title} {RIVAL_LEADERS[r.id].name}</span>}
+                  {isHuman(state, r.id)
+                    ? <span className="font-mono-data text-[9px] font-normal ml-1.5 px-1 rounded" style={{ color: '#050508', background: '#F2E9DC' }}>👤 {playerName(state, r.id)}</span>
+                    : RIVAL_LEADERS[r.id] && <span className="font-mono-data text-[9px] font-normal ml-1.5" style={{ color: 'var(--text-secondary)' }}>{RIVAL_LEADERS[r.id].title} {RIVAL_LEADERS[r.id].name}</span>}
                   {r.project !== undefined && <span className="font-mono-data text-[8px] ml-1.5 px-1 rounded whitespace-nowrap" style={{ color: '#050508', background: 'var(--rose)' }}>ASI PROJECT</span>}
                 </span>
                 <span className="font-mono-data text-[10px]" style={{ color: relColor }}>{r.relation >= 30 ? 'FRIENDLY' : r.relation >= 0 ? 'NEUTRAL' : r.relation > -50 ? 'HOSTILE' : 'ENEMY'} {Math.round(r.relation)}</span>

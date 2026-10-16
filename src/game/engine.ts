@@ -1428,21 +1428,29 @@ export function tensionBaseline(year: number): number {
   return year < 1963 ? 45 : year < 1986 ? 35 : year < 1992 ? 25 : year < 2013 ? 15 : Math.min(45, 15 + (year - 2013) * 1.5);
 }
 export function defcon(tension = 20): number { return tension >= 90 ? 1 : tension >= 70 ? 2 : tension >= 50 ? 3 : tension >= 30 ? 4 : 5; }
-function raiseTension(s: GameState, d: number) {
+function raiseTension(s: GameState, d: number, culprit?: string) {
   const before = defcon(s.tension);
   s.tension = clamp((s.tension ?? 20) + d, 0, 100);
   const after = defcon(s.tension);
   if (after < before && after <= 3) notify(s, `☢ DEFCON ${after}. ${after === 1 ? 'The world is at the brink.' : after === 2 ? 'One more provocation and the whole world pays for it.' : 'World tension is rising.'}`, after <= 2 ? 'danger' : 'warning');
   if (s.tension >= 90 && (!s.mp || s.mp.offline || s.mp.role === 'host')) {
-    brinkCrisis(s);
-    outbox(s, { t: 'defcon1', year: Math.floor(s.year) });
+    brinkCrisis(s, culprit);
+    outbox(s, { t: 'defcon1', year: Math.floor(s.year), culprit });
   }
 }
 /** DEFCON 1: everybody pays. */
-function brinkCrisis(s: GameState) {
+function brinkCrisis(s: GameState, culprit?: string) {
   s.tension = 55;
   addMod(s, { id: 'brink', label: 'Brink of war', years: 2, gdp: 0.92, approval: -8 });
-  notify(s, '☢ DEFCON 1 — THE BRINK. Markets crash, bunkers fill, every nation loses two years of growth.', 'danger');
+  notify(s, `☢ DEFCON 1 — THE BRINK. Markets crash, bunkers fill, every nation loses two years of growth.${culprit && culprit !== meId(s) ? ` The world blames ${rivalName(culprit)}.` : ''}`, 'danger');
+  if (culprit && culprit === meId(s)) {
+    // Whoever pushes the world over the edge pays most (Twilight Struggle's DEFCON rule).
+    addMod(s, { id: 'brink_blame', label: 'Blamed for the brink', years: 3, gdp: 0.9, approval: -10 });
+    s.rivals = s.rivals.map(r => ({ ...r, relation: clamp(r.relation - 20, -100, 100) }));
+    notify(s, '☢ The world blames YOU for the crisis: GDP −10% and approval −10 for 3 years, every relation −20.', 'danger');
+  } else if (culprit) {
+    s.rivals = s.rivals.map(r => r.id === culprit ? { ...r, relation: clamp(r.relation - 20, -100, 100) } : r);
+  }
   pushLog(s, 'World', 'DEFCON 1: the world came within minutes of war.', 'danger');
 }
 /** Our own counter-intelligence: what an enemy operation loses from its success chance. */
@@ -1576,7 +1584,7 @@ function receive(state: GameState, m: MPMsg): GameState {
   const host = s.mp!.role === 'host';
   switch (m.t) {
     case 'op':
-      if (host) raiseTension(s, m.tn);
+      if (host) raiseTension(s, m.tn, m.from);
       if (m.to === me) sufferOperation(s, m.from, m.op, m.ok);
       else if (!m.ok && m.op !== 'intel') {
         notify(s, `🕵 ${rivalName(m.from)} was caught running a ${m.op} operation against ${rivalName(m.to)}.`, 'info');
@@ -1633,7 +1641,7 @@ function receive(state: GameState, m: MPMsg): GameState {
       claimFirst(s, m.key, m.who, m.year, false);
       return s;
     case 'defcon1':
-      if (!host) brinkCrisis(s);
+      if (!host) brinkCrisis(s, m.culprit);
       return s;
     case 'chat':
       s.chat = [...(s.chat ?? []), { from: m.from, text: m.text.slice(0, 160), year: Math.floor(s.year) }].slice(-40);
@@ -1856,7 +1864,7 @@ function reduce(state: GameState, action: Action): GameState {
       rv.heat = (rv.heat ?? 0) + COVERT_HEAT[action.op];
       const humanTarget = isHuman(s, rv.id);
       const tn = COVERT_TENSION[action.op] * (ok ? 1 : 1.5);
-      raiseTension(s, tn);
+      raiseTension(s, tn, meId(s));
       if (s.mp) outbox(s, { t: 'op', from: s.mp.me, to: rv.id, op: action.op, ok, tn });
       if (!ok) {
         const hit = action.op === 'sabotage' ? 25 : action.op === 'intel' ? 8 : 15;
