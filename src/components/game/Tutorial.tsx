@@ -93,7 +93,7 @@ export default function Tutorial() {
         <div className="fixed pointer-events-none z-[70] rounded-lg animate-pulse-glow"
           style={{ left: rect.left - 6, top: rect.top - 6, width: rect.width + 12, height: rect.height + 12, border: '2px solid #FFD166', boxShadow: '0 0 0 4000px rgba(0,0,0,0.25), 0 0 24px #FFD16688' }} />
       )}
-      <div className="absolute z-[71] left-1/2 -translate-x-1/2 bottom-[86px] w-[min(520px,92%)] rounded-lg p-3 animate-fade-up"
+      <div className="absolute z-[71] left-[calc(50%-150px)] max-[900px]:left-1/2 -translate-x-1/2 bottom-[86px] w-[min(520px,92%)] rounded-lg p-3 animate-fade-up"
         style={{ background: 'rgba(10,11,16,0.96)', border: '1px solid #FFD166', boxShadow: '0 12px 40px rgba(0,0,0,0.7)' }}>
         <div className="flex items-center justify-between mb-1">
           <span className="font-mono-data text-[10px] tracking-[0.25em]" style={{ color: '#FFD166' }}>ADVISOR · {progress}</span>

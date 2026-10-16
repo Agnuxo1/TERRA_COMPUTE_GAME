@@ -12,6 +12,7 @@ export interface DynHelpers {
   rivalName: (id: string) => string;
   sabotageChance: (s: GameState, r: Rival) => number;
   historicalCapability: (year: number) => number;
+  hasIntel: (s: GameState, r: Rival) => boolean;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -32,7 +33,13 @@ export const leaderOf = (id: string) => { const l = RIVAL_LEADERS[id]; return l 
 // ─── Money scale ───────────────────────────────────────────────────────────
 /** A "noticeable" sum for this moment of the game: a share of yearly income. */
 const sum = (s: GameState, share: number) => Math.max(20, Math.round((s.eco.income || 300) * share / 10) * 10);
+const money = (b: number) => (b >= 1000 ? `$${(b / 1000).toFixed(1)}T` : `$${Math.round(b)}B`);
 const rpScale = (s: GameState, k: number) => Math.round(k * (80 + 40 * Math.max(0, s.year - 1960)));
+
+/** Peace-time dilemmas stop once the endgame begins: the last years belong to the race. */
+const calm = (s: GameState) => s.year < 2028 && !s.rivals.some(r => r.project !== undefined);
+/** An event with a price is only offered when the treasury could pay it. */
+const affords = (s: GameState, share: number) => s.budget >= sum(s, share);
 
 interface DynEvent {
   key: string;
@@ -50,25 +57,25 @@ const hostileRival = (s: GameState) => [...s.rivals].filter(r => r.relation < -1
 const computeCount = (s: GameState, h: DynHelpers) => h.count(s, 'mainframe') + h.count(s, 'super') + h.count(s, 'datacenter') + h.count(s, 'gpucluster') + h.count(s, 'aifactory');
 
 const DECK: DynEvent[] = [
-  { key: 'brain_drain', every: 12, when: s => s.year >= 1965 && s.education >= 50 && s.approval < 62,
+  { key: 'brain_drain', every: 12, when: s => calm(s) && s.year >= 1965 && s.education >= 50 && s.approval < 62 && affords(s, 0.25),
     build: (s, h) => { const r = richestRival(s); return ev(s, 'brain_drain', 'Brain Drain', 'warning',
       `Your best scientists are being courted by laboratories in ${r ? h.rivalName(r.id) : 'richer countries'} with double salaries.`, [
-        { label: 'Match the offers', detail: `−$${sum(s, 0.25)}B · research +10% for 6 years`, cost: sum(s, 0.25), effect: `brain_keep:${sum(s, 0.25)}` },
+        { label: 'Match the offers', detail: `−${money(sum(s, 0.25))} · research +10% for 6 years`, cost: sum(s, 0.25), effect: `brain_keep:${sum(s, 0.25)}` },
         { label: 'Let them go', detail: 'Research −10% for 4 years · relations with them +8', effect: `brain_go:${r?.id ?? ''}` },
       ]); } },
 
-  { key: 'rare_earth', every: 20, when: s => s.year >= 1968 && s.ownedRegions.length >= 2,
+  { key: 'rare_earth', every: 20, when: s => calm(s) && s.year >= 1968 && s.ownedRegions.length >= 2,
     build: s => { const reg = s.map?.regions.find(r => r.id === s.ownedRegions[Math.floor(s.ownedRegions.length / 2)])?.name ?? 'the interior';
       return ev(s, 'rare_earth', `Rare Earths Found in ${reg}`, 'info', `Geologists report silica and rare-earth seams under protected valleys in ${reg}.`, [
         { label: 'Open-pit mining', detail: '+60 chips, +40 steel now · approval −4 for 4 years', effect: 'rare_mine' },
-        { label: 'Protect the valleys', detail: 'Approval +3 for 5 years · forests keep absorbing CO₂', effect: 'rare_protect' },
+        { label: 'Protect the valleys', detail: 'Approval +3 for 5 years', effect: 'rare_protect' },
       ]); } },
 
-  { key: 'strike', every: 10, when: (s, h) => h.count(s, 'factory') >= 3 && s.approval < 64 && s.eco.unemployment < 0.07,
+  { key: 'strike', every: 10, when: (s, h) => calm(s) && h.count(s, 'factory') >= 3 && s.approval < 64 && s.eco.unemployment < 0.07,
     build: s => ev(s, 'strike', 'General Strike in the Kombinats', 'warning', 'Steelworkers walk out demanding a share of the boom. The furnaces are cooling.', [
-      { label: 'Raise wages', detail: `−$${sum(s, 0.2)}B · approval +6 for 4 years`, cost: sum(s, 0.2), effect: `strike_pay:${sum(s, 0.2)}` },
+      { label: 'Raise wages', detail: `−${money(sum(s, 0.2))} · approval +6 for 4 years`, cost: sum(s, 0.2), effect: `strike_pay:${sum(s, 0.2)}` },
       { label: 'Break the strike', detail: 'Approval −9 for 3 years', effect: 'strike_break' },
-      { label: 'Wait it out', detail: 'GDP −6% for 2 years · no steel this year', effect: 'strike_wait' },
+      { label: 'Wait it out', detail: '−30 steel from the stockpile · GDP −6% for 2 years', effect: 'strike_wait' },
     ]) },
 
   { key: 'defector', every: 9, when: s => s.year >= 1962 && !!hostileRival(s),
@@ -79,22 +86,22 @@ const DECK: DynEvent[] = [
           { label: 'Send her back', detail: 'Relations with them +12 · approval −2 for 2 years', effect: `defect_return:${r.id}` },
         ]); } },
 
-  { key: 'olympics', every: 16, when: s => s.year >= 1964 && s.year <= 2032 && s.approval >= 48,
+  { key: 'olympics', every: 16, when: s => calm(s) && s.year >= 1964 && s.approval >= 48 && affords(s, 0.35),
     build: s => ev(s, 'olympics', 'Host the Olympic Games?', 'info', 'The committee is choosing the next host city. A glittering showcase — and a very large bill.', [
-      { label: 'Bid to host', detail: `−$${sum(s, 0.35)}B · approval +8 for 3 years · all relations +6`, cost: sum(s, 0.35), effect: `olympics_host:${sum(s, 0.35)}` },
+      { label: 'Bid to host', detail: `−${money(sum(s, 0.35))} · approval +8 for 3 years · all relations +6`, cost: sum(s, 0.35), effect: `olympics_host:${sum(s, 0.35)}` },
       { label: 'Let another city have it', detail: 'Nothing happens', effect: 'none' },
     ]) },
 
-  { key: 'harvest', every: 8, when: s => s.eco.foodSupply >= s.eco.foodDemand * 1.18,
+  { key: 'harvest', every: 8, when: s => calm(s) && s.eco.foodSupply >= s.eco.foodDemand * 1.18,
     build: s => ev(s, 'harvest', 'Record Harvest', 'info', 'Granaries overflow after a perfect season. What do we do with the surplus?', [
-      { label: 'Export the grain', detail: `+$${sum(s, 0.18)}B · all relations +3`, effect: `harvest_sell:${sum(s, 0.18)}` },
-      { label: 'Fill the strategic reserve', detail: 'Approval +4 for 4 years · cushions the next famine', effect: 'harvest_keep' },
+      { label: 'Export the grain', detail: `+${money(sum(s, 0.18))} · all relations +3`, effect: `harvest_sell:${sum(s, 0.18)}` },
+      { label: 'Fill the strategic reserve', detail: 'Approval +4 and farm output +5% for 4 years', effect: 'harvest_keep' },
     ]) },
 
-  { key: 'startups', every: 14, when: s => s.year >= 1994 && s.education >= 65,
+  { key: 'startups', every: 14, when: s => calm(s) && s.year >= 1994 && s.education >= 65 && affords(s, 0.15),
     build: s => ev(s, 'startups', 'Garage Start-ups Everywhere', 'info', 'Young founders want cheap capital and light rules. Venture money is pouring in.', [
-      { label: 'Tax holiday for founders', detail: `−$${sum(s, 0.15)}B · GDP +6% for 6 years`, cost: sum(s, 0.15), effect: `startup_free:${sum(s, 0.15)}` },
-      { label: 'Tax the windfall', detail: `+$${sum(s, 0.2)}B now`, effect: `startup_tax:${sum(s, 0.2)}` },
+      { label: 'Tax holiday for founders', detail: `−${money(sum(s, 0.15))} · GDP +6% for 6 years`, cost: sum(s, 0.15), effect: `startup_free:${sum(s, 0.15)}` },
+      { label: 'Tax the windfall', detail: `+${money(sum(s, 0.2))} now`, effect: `startup_tax:${sum(s, 0.2)}` },
     ]) },
 
   { key: 'reactor', every: 18, when: (s, h) => h.count(s, 'nuclear') >= 2,
@@ -105,21 +112,21 @@ const DECK: DynEvent[] = [
 
   { key: 'automation', every: 10, when: (s, h) => (s.year >= 2012 || h.count(s, 'robot') > 0) && s.eco.unemployment > 0.07,
     build: s => ev(s, 'automation', 'Automation Riots', 'danger', `Robots and software agents have taken ${Math.round(s.eco.unemployment * 100)}% of jobs. Warehouses are burning.`, [
-      { label: 'Universal dividend', detail: `−$${sum(s, 0.3)}B · approval +8 for 4 years`, cost: sum(s, 0.3), effect: `auto_dividend:${sum(s, 0.3)}` },
-      { label: 'Retraining programme', detail: `−$${sum(s, 0.15)}B · education +5`, cost: sum(s, 0.15), effect: `auto_retrain:${sum(s, 0.15)}` },
+      { label: 'Universal dividend', detail: `−${money(sum(s, 0.3))} · approval +8 for 4 years`, cost: sum(s, 0.3), effect: `auto_dividend:${sum(s, 0.3)}` },
+      { label: 'Retraining programme', detail: `−${money(sum(s, 0.15))} · education +5`, cost: sum(s, 0.15), effect: `auto_retrain:${sum(s, 0.15)}` },
       { label: 'Restore order', detail: 'Approval −8 for 3 years', effect: 'auto_ignore' },
     ]) },
 
-  { key: 'water', every: 12, when: (s, h) => s.year >= 2005 && h.count(s, 'datacenter') + h.count(s, 'gpucluster') + h.count(s, 'aifactory') >= 2,
+  { key: 'water', every: 12, when: (s, h) => calm(s) && affords(s, 0.25) && s.year >= 2005 && h.count(s, 'datacenter') + h.count(s, 'gpucluster') + h.count(s, 'aifactory') >= 2,
     build: s => ev(s, 'water', 'Data Centres Drink the Rivers', 'warning', 'Farmers block the gates of your server farms: the cooling towers took their irrigation water.', [
-      { label: 'Closed-loop cooling', detail: `−$${sum(s, 0.25)}B`, cost: sum(s, 0.25), effect: `water_fix:${sum(s, 0.25)}` },
+      { label: 'Closed-loop cooling', detail: `−${money(sum(s, 0.25))}`, cost: sum(s, 0.25), effect: `water_fix:${sum(s, 0.25)}` },
       { label: 'Farms can wait', detail: 'Approval −5 and farms −10% for 4 years', effect: 'water_ignore' },
     ]) },
 
   { key: 'leak', every: Infinity, when: s => s.capability >= 17.5,
     build: s => ev(s, 'leak', 'Frontier Model Leaked', 'danger', 'The weights of your best model appeared on a public file server. Every lab on Earth is downloading them.', [
       { label: 'Open-source it officially', detail: `+${rpScale(s, 2)} research from the community · every rival catches up ~1 year · relations +8 · alignment −4`, effect: 'leak_open' },
-      { label: 'Hunt the leakers', detail: `−$${sum(s, 0.2)}B · alignment +5 · approval −4 for 3 years`, cost: sum(s, 0.2), effect: `leak_hunt:${sum(s, 0.2)}` },
+      { label: 'Hunt the leakers', detail: `−${money(sum(s, 0.2))} · alignment +5 · approval −4 for 3 years`, cost: sum(s, 0.2), effect: `leak_hunt:${sum(s, 0.2)}` },
     ]) },
 
   { key: 'interp', every: Infinity, when: (s, h) => s.year >= 2000 && h.count(s, 'defense') >= 2 && s.alignment >= 60,
@@ -130,7 +137,7 @@ const DECK: DynEvent[] = [
 
   { key: 'cyber_arms', every: Infinity, when: (s, h) => s.year >= 1995 && computeCount(s, h) >= 3,
     build: s => ev(s, 'cyber_arms', 'Offensive Cyber Programme', 'warning', 'The defence ministry wants to turn part of your compute into a cyber-weapons programme.', [
-      { label: 'Approve it', detail: 'Your covert operations succeed far more often · alignment −5 · relations −6', effect: 'cyber_yes' },
+      { label: 'Approve it', detail: 'Covert operations +15% success for the rest of the game · alignment −5 · relations −6', effect: 'cyber_yes' },
       { label: 'Refuse', detail: 'Alignment +3', effect: 'cyber_no' },
     ]) },
 ];
@@ -143,7 +150,7 @@ function election(s: GameState): GameEvent {
   const name = congress ? 'Party Congress' : 'General Election';
   if (won) {
     return ev(s, 'election', `${name}: Mandate Renewed`, 'info', `With ${a}% approval the government is confirmed. How will you spend the mandate?`, [
-      { label: 'Bold reforms', detail: 'Decree changes are free again now · GDP +5% for 4 years · approval −3', effect: 'elect_bold' },
+      { label: 'Bold reforms', detail: 'Decrees can be changed right away · GDP +5% for 4 years · approval −3', effect: 'elect_bold' },
       { label: 'Steady hands', detail: 'Approval +5 for 4 years', effect: 'elect_steady' },
     ]);
   }
@@ -160,7 +167,7 @@ export function rollDynamic(s: GameState, h: DynHelpers): GameEvent | null {
   const meta = s.dyn ?? { last: {}, nextElection: s.startYear + 6, lastAny: 0 };
   s.dyn = meta;
   if (y >= meta.nextElection) {
-    meta.nextElection = y + 8;
+    meta.nextElection = y + 7 + Math.floor(h.rand() * 3);   // terms of 7–9 years
     meta.lastAny = y;
     return election(s);
   }
@@ -186,10 +193,12 @@ export function projectEvent(s: GameState, r: Rival, eta: number, h: DynHelpers)
   const inspect = r.relation >= 10 || r.treaties.includes('safety');
   return {
     id: `project-${r.id}`, name: `${name} Launches an ASI Project`, year: Math.floor(s.year), type: 'danger',
-    description: `${leader} has ordered a crash programme to ignite superintelligence. Our analysts expect ignition around ${Math.round(eta)}${r.alignment < 60 ? ' — and their safety record is poor' : ''}. This is the final act of the race.`,
+    description: h.hasIntel(s, r)
+      ? `${leader} has ordered a crash programme to ignite superintelligence. Our agents expect ignition around ${Math.round(eta)}${r.alignment < 60 ? ' — and their safety record is poor' : ''}. This is the final act of the race.`
+      : `${leader} has ordered a crash programme to ignite superintelligence. Without agents inside we cannot say when it will be ready — an intelligence sweep would tell us. This is the final act of the race.`,
     choices: [
       { label: 'Demand international inspections', detail: inspect ? 'Their project slows ~1.5 years · their alignment +10' : `They refuse (relations ${Math.round(r.relation)} < 10): relations −8`, effect: `proj_inspect:${r.id}` },
-      { label: 'Covert strike on their data centres', detail: `−$${strikeCost}B · ${strikeChance}% success: set back ~2.5 years · failure: relations −40 and they accelerate`, cost: strikeCost, effect: `proj_strike:${r.id}:${strikeCost}:${strikeChance}` },
+      { label: 'Covert strike on their data centres', detail: `−${money(strikeCost)} · ${strikeChance}% success: set back ~2.5 years · failure: relations −40, treaties torn up and they accelerate`, cost: strikeCost, effect: `proj_strike:${r.id}:${strikeCost}:${strikeChance}` },
       { label: 'Out-race them', detail: 'National crash programme: research +20% for 4 years · approval −5 · alignment −3', effect: 'proj_race' },
     ],
   };
