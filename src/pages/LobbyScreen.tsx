@@ -50,8 +50,8 @@ export default function LobbyScreen() {
   const saveName = (v: string) => { setName(v); try { localStorage.setItem(NAME_KEY, v); } catch { /* storage unavailable */ } };
 
   // Everyone (host included) enters the game when the host starts it.
-  useEffect(() => session.onWire(w => {
-    if (w.k !== 'start' || startedRef.current) return;
+  useEffect(() => session.onWire((w, from) => {
+    if (w.k !== 'start' || startedRef.current || from !== session.lobby?.hostId) return;
     const s = startMultiplayer(w.lobby, session.selfId);
     if (s) { startedRef.current = true; play('alert'); dispatch({ type: 'LOAD_STATE', state: s }); }
   }), [dispatch]);
@@ -74,8 +74,11 @@ export default function LobbyScreen() {
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: '#07080B' }}>
       {/* Situation-room backdrop */}
-      <div className="absolute inset-0" style={{ backgroundImage: 'url(./assets/map-1980.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'grayscale(0.6) brightness(0.22) contrast(1.2)' }} />
-      <div className="absolute inset-0 pointer-events-none" style={{ background: 'repeating-linear-gradient(0deg, rgba(255,59,59,0.035) 0 1px, transparent 1px 4px), radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.85) 100%)' }} />
+      {/* The war table: a 1943 military survey map under red plotting light */}
+      <div className="absolute inset-0" style={{ backgroundImage: 'url(./assets/map-1940.jpg)', backgroundSize: 'cover', backgroundPosition: 'center', filter: 'sepia(0.5) saturate(0.7) brightness(0.3) contrast(1.25)' }} />
+      <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(rgba(255,59,59,0.06) 1px, transparent 1px) 0 0 / 64px 64px, linear-gradient(90deg, rgba(255,59,59,0.06) 1px, transparent 1px) 0 0 / 64px 64px, repeating-linear-gradient(0deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 25%, rgba(0,0,0,0.88) 100%), linear-gradient(180deg, rgba(7,8,11,0.96) 0, rgba(7,8,11,0.7) 9%, transparent 20%)' }} />
+      <div className="absolute pointer-events-none rounded-full" style={{ width: 'min(70vw, 760px)', aspectRatio: '1', left: '50%', top: '55%', transform: 'translate(-50%, -50%)', border: '1px solid rgba(255,59,59,0.12)', boxShadow: 'inset 0 0 0 80px rgba(255,59,59,0.015), 0 0 0 1px rgba(255,59,59,0.04)', background: 'conic-gradient(from 0deg, rgba(255,59,59,0.10), transparent 18%)', animation: 'warroom-sweep 6s linear infinite' }} />
+      <style>{'@keyframes warroom-sweep { to { transform: translate(-50%, -50%) rotate(360deg); } } @media (prefers-reduced-motion: reduce) { [style*="warroom-sweep"] { animation: none !important; } }'}</style>
       <div className="absolute inset-0 overflow-auto">
         <div className="min-h-full w-full max-w-[1180px] mx-auto px-4 py-5 flex flex-col gap-4">
           {/* Header */}

@@ -47,6 +47,8 @@ class Session {
   peers = new Set<string>();
   lobbyChat: Array<{ name: string; text: string }> = [];
   hostGone = false;
+  /** Peer that announced itself as the host (guests accept lobby updates only from it). */
+  private hostPeer = '';
   private send: ((w: Wire, target?: string | string[]) => void) | null = null;
   private listeners = new Set<Listener>();
   private wireListeners = new Set<WireListener>();
@@ -59,7 +61,7 @@ class Session {
 
   async open(code: string, name: string, host: boolean) {
     await this.leave();
-    this.status = 'connecting'; this.error = ''; this.isHost = host; this.name = name; this.hostGone = false; this.lobbyChat = [];
+    this.status = 'connecting'; this.error = ''; this.isHost = host; this.name = name; this.hostGone = false; this.lobbyChat = []; this.hostPeer = '';
     this.changed();
     try {
       const { joinRoom, selfId } = await import('trystero');
@@ -123,6 +125,7 @@ class Session {
   private handle(w: Wire, from: string) {
     switch (w.k) {
       case 'hi':
+        if (w.host && !this.isHost && !this.hostPeer) this.hostPeer = from;
         if (this.isHost && this.lobby && !this.lobby.started && !this.lobby.players.some(p => p.peerId === from)) {
           if (this.lobby.players.length >= 8) { this.send?.({ k: 'lobby', lobby: { ...this.lobby, started: true } }, from); return; }
           this.setLobby({ ...this.lobby, players: [...this.lobby.players, { peerId: from, name: w.name.slice(0, 18) || 'Comrade', faction: null, online: true }] });
@@ -131,7 +134,10 @@ class Session {
         }
         break;
       case 'lobby':
-        if (!this.isHost) { this.lobby = w.lobby; this.changed(); }
+        if (!this.isHost && from === this.hostPeer && w.lobby?.hostId === from) { this.lobby = w.lobby; this.changed(); }
+        break;
+      case 'start':
+        if (this.isHost || from !== this.hostPeer) return;   // only the host can start the game
         break;
       case 'claim':
         if (this.isHost && this.lobby && !this.lobby.started) this.applyClaim(from, w.faction);
