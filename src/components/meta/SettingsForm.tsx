@@ -2,6 +2,7 @@
 import { useState, type ReactNode } from 'react';
 import { DEFAULT_SETTINGS, useSettings, type AutosaveYears } from '../../lib/settings';
 import { enableAudio, isAudioEnabled, play } from '../../hooks/useSound';
+import { t } from '../../i18n';
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
@@ -30,7 +31,7 @@ function Toggle({ on, onChange, accent, label }: { on: boolean; onChange: (v: bo
         border: `1px solid ${on ? accent : 'var(--border-light)'}`,
       }}
     >
-      {on ? '■ ON' : '□ OFF'}
+      {on ? t('■ ON') : t('□ OFF')}
     </button>
   );
 }
@@ -45,7 +46,7 @@ export default function SettingsForm({ accent = 'var(--cyan)' }: { accent?: stri
 
   return (
     <div className="flex flex-col" style={{ color: 'var(--text-secondary)' }}>
-      <Heading accent={accent}>AUDIO</Heading>
+      <Heading accent={accent}>{t('AUDIO')}</Heading>
       {!audioOn && (
         <button
           type="button"
@@ -53,39 +54,39 @@ export default function SettingsForm({ accent = 'var(--cyan)' }: { accent?: stri
           className="w-full py-1.5 mb-1 rounded font-orbitron text-[9px] font-bold tracking-wider hover:brightness-125"
           style={{ background: `color-mix(in srgb, ${accent}, transparent 88%)`, color: accent, border: `1px solid ${accent}` }}
         >
-          ENABLE AUDIO
+          {t('ENABLE AUDIO')}
         </button>
       )}
-      <Row label="MASTER VOLUME">
+      <Row label={t('MASTER VOLUME')}>
         <input
           type="range" min={0} max={1} step={0.05} value={s.masterVolume}
           onChange={e => set({ masterVolume: Number(e.target.value) })}
           onPointerUp={() => play('click')}
-          aria-label="Master volume"
+          aria-label={t('Master volume')}
           style={{ width: 110, accentColor: accent }}
         />
         <span className="font-mono-data text-[10px] w-9 text-right" style={{ color: accent }}>{Math.round(s.masterVolume * 100)}%</span>
       </Row>
-      <Row label="SOUND EFFECTS"><Toggle label="Sound effects" accent={accent} on={s.sfx} onChange={v => set({ sfx: v })} /></Row>
-      <Row label="AMBIENT DRONE"><Toggle label="Ambient" accent={accent} on={s.ambient} onChange={v => set({ ambient: v })} /></Row>
+      <Row label={t('SOUND EFFECTS')}><Toggle label={t('Sound effects')} accent={accent} on={s.sfx} onChange={v => set({ sfx: v })} /></Row>
+      <Row label={t('AMBIENT DRONE')}><Toggle label={t('Ambient')} accent={accent} on={s.ambient} onChange={v => set({ ambient: v })} /></Row>
 
-      <Heading accent={accent}>MAP</Heading>
-      <Row label="EDGE SCROLL" hint="Pan when the cursor touches the screen edge">
-        <Toggle label="Edge scroll" accent={accent} on={s.edgeScroll} onChange={v => set({ edgeScroll: v })} />
+      <Heading accent={accent}>{t('MAP')}</Heading>
+      <Row label={t('EDGE SCROLL')} hint={t('Pan when the cursor touches the screen edge')}>
+        <Toggle label={t('Edge scroll')} accent={accent} on={s.edgeScroll} onChange={v => set({ edgeScroll: v })} />
       </Row>
-      <Row label="SCROLL SPEED">
+      <Row label={t('SCROLL SPEED')}>
         <input
           type="range" min={0.5} max={2} step={0.1} value={s.scrollSpeed}
           onChange={e => set({ scrollSpeed: Number(e.target.value) })}
-          aria-label="Scroll speed"
+          aria-label={t('Scroll speed')}
           style={{ width: 110, accentColor: accent }}
         />
         <span className="font-mono-data text-[10px] w-9 text-right" style={{ color: accent }}>{s.scrollSpeed.toFixed(1)}×</span>
       </Row>
-      <Row label="DAY / NIGHT CYCLE"><Toggle label="Day and night cycle" accent={accent} on={s.dayNight} onChange={v => set({ dayNight: v })} /></Row>
+      <Row label={t('DAY / NIGHT CYCLE')}><Toggle label={t('Day and night cycle')} accent={accent} on={s.dayNight} onChange={v => set({ dayNight: v })} /></Row>
 
-      <Heading accent={accent}>GAME</Heading>
-      <Row label="AUTOSAVE" hint="Saves to the AUTO slot">
+      <Heading accent={accent}>{t('GAME')}</Heading>
+      <Row label={t('AUTOSAVE')} hint={t('Saves to the AUTO slot')}>
         <div className="flex rounded overflow-hidden" style={{ border: '1px solid var(--border-light)' }}>
           {([0, 1, 2, 5] as AutosaveYears[]).map(n => (
             <button
@@ -95,13 +96,13 @@ export default function SettingsForm({ accent = 'var(--cyan)' }: { accent?: stri
               className="font-mono-data text-[9.5px] px-1.5 py-0.5"
               style={{ background: s.autosaveYears === n ? accent : 'transparent', color: s.autosaveYears === n ? '#05070A' : 'var(--text-secondary)' }}
             >
-              {n === 0 ? 'OFF' : `${n}Y`}
+              {n === 0 ? t('OFF') : `${n}Y`}
             </button>
           ))}
         </div>
       </Row>
-      <Row label="REDUCE MOTION" hint="Fewer particles and animations">
-        <Toggle label="Reduce motion" accent={accent} on={s.reduceMotion} onChange={v => set({ reduceMotion: v })} />
+      <Row label={t('REDUCE MOTION')} hint={t('Fewer particles and animations')}>
+        <Toggle label={t('Reduce motion')} accent={accent} on={s.reduceMotion} onChange={v => set({ reduceMotion: v })} />
       </Row>
 
       <button
@@ -110,7 +111,7 @@ export default function SettingsForm({ accent = 'var(--cyan)' }: { accent?: stri
         className="self-end mt-3 font-mono-data text-[9px] tracking-widest px-2 py-0.5 rounded hover:brightness-150"
         style={{ color: 'var(--text-tertiary)', border: '1px solid var(--border-light)' }}
       >
-        RESET DEFAULTS
+        {t('RESET DEFAULTS')}
       </button>
     </div>
   );

@@ -30,6 +30,30 @@ function walk(dir) {
 }
 walk(SRC);
 
+// Text values inside component/engine tables that are rendered through t(variable):
+// `label: 'Counter-intelligence sweep'`, `aggressive: 'Aggressive racer — …'`. Only values that look like prose.
+const TABLE_DIRS = ['components/game', 'components/meta', 'components/minigames', 'pages', 'game', 'net'];
+const SKIP_FILES = /attention\.ts$|Methodology|Home\.tsx|mapgen\.ts|rng\.ts|types\.ts|bot\.ts/;
+function walkTables(dir) {
+  for (const f of readdirSync(dir)) {
+    const p = join(dir, f);
+    if (statSync(p).isDirectory()) { walkTables(p); continue; }
+    if (!/\.(tsx?)$/.test(f) || SKIP_FILES.test(p)) continue;
+    const text = readFileSync(p, 'utf8');
+    const re = /\b(\w+)\s*:\s*'((?:\\.|[^'\\])*)'/g;
+    let m;
+    while ((m = re.exec(text))) {
+      const [, prop, raw] = m;
+      const v = raw.replace(/\\(['\\])/g, '$1');
+      if (!/^[A-Z¡¿«"'(\u2190-\u2BFF\u{1F300}-\u{1FAFF}]/u.test(v) || !/[a-z]{2}/.test(v) || v.length < 3) continue;
+      if (/^(https?:|\.\/|#|rgba?\(|var\()/.test(v) || /\$\{/.test(v)) continue;
+      if (['id', 'effect', 'type', 'kind', 'icon', 'color', 'accent', 'background', 'card', 'eventId', 'requires', 'key', 'sprite', 'overlay', 'iconImg', 'url', 'path', 'font', 'fontFamily'].includes(prop)) continue;
+      if (!keys.has(v)) keys.set(v, relative(ROOT, p));
+    }
+  }
+}
+for (const d of TABLE_DIRS) walkTables(join(SRC, d));
+
 // Data tables: collect the human-readable fields.
 const FIELDS = new Set(['name', 'short', 'description', 'text', 'hint', 'label', 'detail', 'title', 'subtitle', 'placement', 'note',
   'specialBonus', 'doctrine', 'motto', 'pro', 'con', 'howTo', 'rewardLabel', 'effect', 'doctrineText']);

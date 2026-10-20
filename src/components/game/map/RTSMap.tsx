@@ -6,6 +6,7 @@ import { tileCenter } from '../../../game/mapgen';
 import type { GameState, Tile } from '../../../game/types';
 import { fmtMoney } from '../../../game/format';
 import { play, playSfx } from '../../../hooks/useSound';
+import { t } from '../../../i18n';
 import { MapRenderer } from './renderer';
 
 export interface MapOptions {
@@ -221,7 +222,7 @@ export default function RTSMap({ options = {} }: { options?: MapOptions }) {
         style={{ border: '1px solid var(--border-light)', background: 'rgba(5,8,12,0.9)', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}
         onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onPointerMove={e => e.stopPropagation()} onWheel={e => e.stopPropagation()}>
         <div className="flex justify-between px-1.5 py-0.5 font-mono-data text-[8.5px] tracking-widest" style={{ color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border)' }}>
-          <span>SECTOR MAP</span><span style={{ color: 'var(--cyan)' }}>HOME · fit</span>
+          <span>{t('SECTOR MAP')}</span><span style={{ color: 'var(--cyan)' }}>{t('HOME · fit')}</span>
         </div>
         <canvas ref={miniRef} width={MINI_W} height={MINI_H} className="block cursor-pointer" style={{ width: MINI_W, height: MINI_H }}
           onPointerDown={e => { miniDrag.current = true; e.currentTarget.setPointerCapture(e.pointerId); miniMove(e); }}
@@ -232,9 +233,9 @@ export default function RTSMap({ options = {} }: { options?: MapOptions }) {
       {/* Zoom controls */}
       <div className="absolute bottom-2 right-2 flex flex-col gap-1 z-20" onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()}>
         {[
-          { l: '+', f: () => { const r = rendererRef.current!; r.zoomAt(r.viewW / 2, r.viewH / 2, 1.25); }, t: 'Zoom in (+)' },
-          { l: '−', f: () => { const r = rendererRef.current!; r.zoomAt(r.viewW / 2, r.viewH / 2, 0.8); }, t: 'Zoom out (−)' },
-          { l: '⤢', f: () => rendererRef.current?.fit(), t: 'Fit continent (Home)' },
+          { l: '+', f: () => { const r = rendererRef.current!; r.zoomAt(r.viewW / 2, r.viewH / 2, 1.25); }, t: t('Zoom in (+)') },
+          { l: '−', f: () => { const r = rendererRef.current!; r.zoomAt(r.viewW / 2, r.viewH / 2, 0.8); }, t: t('Zoom out (−)') },
+          { l: '⤢', f: () => rendererRef.current?.fit(), t: t('Fit continent (Home)') },
         ].map(b => (
           <button key={b.l} title={b.t} onClick={b.f}
             className="w-7 h-7 rounded font-mono-data text-sm hover:brightness-150"
@@ -249,13 +250,13 @@ export default function RTSMap({ options = {} }: { options?: MapOptions }) {
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 px-3 py-1.5 rounded font-mono-data text-[11px] animate-fade-up whitespace-nowrap"
           style={{ background: 'rgba(11,12,16,0.92)', border: `1px solid ${CATEGORY_COLOR[buildingById[state.placing].category]}`, color: 'var(--text-primary)' }}
           onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()}>
-          PLACING <b style={{ color: CATEGORY_COLOR[buildingById[state.placing].category] }}>{buildingById[state.placing].name.toUpperCase()}</b>
+          {t('PLACING')} <b style={{ color: CATEGORY_COLOR[buildingById[state.placing].category] }}>{t(buildingById[state.placing].name).toUpperCase()}</b>
           {' · '}{fmtMoney(placingQuote.money)}
           {placingQuote.steel > 0 && <span style={{ color: '#C9CED8' }}> + ⛓{placingQuote.steel}</span>}
           {placingQuote.chips > 0 && <span style={{ color: '#67E8F9' }}> + ◆{placingQuote.chips}</span>}
-          {placingQuote.importCost > 0 && <span style={{ color: 'var(--amber)' }}> (+{fmtMoney(placingQuote.importCost)} import)</span>}
+          {placingQuote.importCost > 0 && <span style={{ color: 'var(--amber)' }}> {t('(+{cost} import)', { cost: fmtMoney(placingQuote.importCost) })}</span>}
           {!placingQuote.ok && <span style={{ color: 'var(--rose)' }}> · {placingQuote.reason}</span>}
-          <span style={{ color: 'var(--text-tertiary)' }}> · shift+click: place more · right-click/Esc: cancel</span>
+          <span style={{ color: 'var(--text-tertiary)' }}> · {t('shift+click: place more · right-click/Esc: cancel')}</span>
         </div>
       )}
     </div>
@@ -272,22 +273,25 @@ function TileTooltip({ state, tile, placement, x, y }: { state: GameState; tile:
     <div className="absolute z-30 pointer-events-none rounded px-2.5 py-2 font-mono-data text-[10px] leading-snug"
       style={{ left, top: Math.max(4, y - 10), width: 220, background: 'rgba(8,9,13,0.94)', border: '1px solid var(--border-light)', color: 'var(--text-secondary)', boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
       <div className="flex justify-between">
-        <span style={{ color: '#FFF4C2' }}>{b ? buildingById[b.type].name : info.name}</span>
-        <span style={{ color: owned ? 'var(--green)' : 'var(--amber)' }}>{region?.name}</span>
+        <span style={{ color: '#FFF4C2' }}>{t(b ? buildingById[b.type].name : info.name)}</span>
+        <span style={{ color: owned ? 'var(--green)' : 'var(--amber)' }}>{region ? t(region.name) : ''}</span>
       </div>
-      {b && <div style={{ color: 'var(--text-tertiary)' }}>{info.name} · level {b.level}{b.progress < 1 ? ` · ${b.upgrading ? 'upgrading' : 'building'} ${Math.floor(b.progress * 100)}%` : ''}</div>}
-      {!b && <div style={{ color: 'var(--text-tertiary)' }}>{info.note}</div>}
-      {tile.coast && <div style={{ color: 'var(--cyan)' }}>≈ Coast</div>}
-      {tile.river && <div style={{ color: 'var(--cyan)' }}>≈ River</div>}
-      {tile.deposit && <div style={{ color: depositInfo[tile.deposit].color }}>{depositInfo[tile.deposit].icon} {depositInfo[tile.deposit].name}: {depositInfo[tile.deposit].note}</div>}
-      {!owned && <div style={{ color: 'var(--amber)' }}>Undeveloped — click to develop the region.</div>}
+      {b && <div style={{ color: 'var(--text-tertiary)' }}>{t(info.name)} · {t('level {level}{progress}', {
+        level: b.level,
+        progress: b.progress < 1 ? t(' · {status} {pct}%', { status: b.upgrading ? t('upgrading') : t('building'), pct: Math.floor(b.progress * 100) }) : '',
+      })}</div>}
+      {!b && <div style={{ color: 'var(--text-tertiary)' }}>{t(info.note)}</div>}
+      {tile.coast && <div style={{ color: 'var(--cyan)' }}>≈ {t('Coast')}</div>}
+      {tile.river && <div style={{ color: 'var(--cyan)' }}>≈ {t('River')}</div>}
+      {tile.deposit && <div style={{ color: depositInfo[tile.deposit].color }}>{depositInfo[tile.deposit].icon} {t(depositInfo[tile.deposit].name)}: {t(depositInfo[tile.deposit].note)}</div>}
+      {!owned && <div style={{ color: 'var(--amber)' }}>{t('Undeveloped — click to develop the region.')}</div>}
       {placement && (
         <div className="mt-1 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
           {placement.ok ? (
             <>
-              <div style={{ color: placement.mult >= 1.05 ? 'var(--green)' : placement.mult < 0.9 ? 'var(--rose)' : 'var(--amber)' }}>OUTPUT ×{placement.mult.toFixed(2)}</div>
+              <div style={{ color: placement.mult >= 1.05 ? 'var(--green)' : placement.mult < 0.9 ? 'var(--rose)' : 'var(--amber)' }}>{t('OUTPUT ×{mult}', { mult: placement.mult.toFixed(2) })}</div>
               {placement.notes.map((n, i) => (
-                <div key={i} className="flex justify-between"><span>{n.label}</span><span style={{ color: n.good ? 'var(--green)' : 'var(--rose)' }}>{n.value}</span></div>
+                <div key={i} className="flex justify-between"><span>{t(n.label)}</span><span style={{ color: n.good ? 'var(--green)' : 'var(--rose)' }}>{n.value}</span></div>
               ))}
             </>
           ) : <div style={{ color: 'var(--rose)' }}>✖ {placement.reason}</div>}

@@ -5,13 +5,17 @@ import { isVideoPlayed, markVideoPlayed, getVideoUrl } from '../hooks/useVideo';
 import VideoPlayer from '../components/game/VideoPlayer';
 import type { Difficulty } from '../game/types';
 import { loadBest } from '../game/score';
+import { t } from '../i18n';
 
 const DIFF_KEY = 'terra_compute_difficulty';
-const DIFFICULTIES: Array<{ id: Difficulty; label: string; color: string; text: string }> = [
-  { id: 'easy', label: 'EASY', color: 'var(--green)', text: 'Rivals research slower, milder climate, more starting budget.' },
-  { id: 'normal', label: 'NORMAL', color: 'var(--cyan)', text: 'The historical race as balanced. Recommended first game.' },
-  { id: 'hard', label: 'HARD', color: 'var(--rose)', text: 'Rivals research faster, harsher climate, less starting budget.' },
-];
+// Built at render time so the labels follow the active language.
+function buildDifficulties(): Array<{ id: Difficulty; label: string; color: string; text: string }> {
+  return [
+    { id: 'easy', label: t('EASY'), color: 'var(--green)', text: t('Rivals research slower, milder climate, more starting budget.') },
+    { id: 'normal', label: t('NORMAL'), color: 'var(--cyan)', text: t('The historical race as balanced. Recommended first game.') },
+    { id: 'hard', label: t('HARD'), color: 'var(--rose)', text: t('Rivals research faster, harsher climate, less starting budget.') },
+  ];
+}
 
 function loadDifficulty(): Difficulty {
   try {
@@ -98,6 +102,7 @@ export default function ContinentSelect() {
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [pendingContinent, setPendingContinent] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty>(loadDifficulty);
+  const DIFFICULTIES = buildDifficulties();
 
   const chooseDifficulty = (d: Difficulty) => {
     play('click');
@@ -220,7 +225,7 @@ export default function ContinentSelect() {
               e.currentTarget.style.boxShadow = 'none';
             }}
           >
-            &#8592; BACK
+            &#8592; {t('BACK')}
           </button>
 
           <div className="text-center flex-1">
@@ -232,13 +237,13 @@ export default function ContinentSelect() {
                 animation: mounted ? 'title-flicker 3s ease-out' : 'none',
               }}
             >
-              SELECT YOUR FACTION
+              {t('SELECT YOUR FACTION')}
             </h1>
             <p
               className="font-rajdhani text-xs md:text-sm mt-1 tracking-wide"
               style={{ color: 'var(--text-tertiary)' }}
             >
-              Each continent commands unique strengths. Choose wisely.
+              {t('Each continent commands unique strengths. Choose wisely.')}
             </p>
           </div>
 
@@ -345,7 +350,7 @@ export default function ContinentSelect() {
                       textShadow: `0 0 10px ${c.color}88`,
                     }}
                   >
-                    {c.name}
+                    {t(c.name)}
                   </h3>
 
                   {/* Description */}
@@ -353,14 +358,14 @@ export default function ContinentSelect() {
                     className="font-rajdhani text-[11px] leading-snug"
                     style={{ color: 'var(--text-secondary)' }}
                   >
-                    {c.description}
+                    {t(c.description)}
                   </p>
 
                   {/* ── Stats Row ── */}
                   <div className="flex gap-2 mt-0.5">
                     <div className="flex flex-col items-center" style={{ flex: 1 }}>
                       <span className="font-mono-data text-[7px] tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                        GDP
+                        {t('GDP')}
                       </span>
                       <span className="font-mono-data text-[9px] font-bold" style={{ color: 'var(--text-primary)' }}>
                         ${c.gdp1960}B
@@ -368,7 +373,7 @@ export default function ContinentSelect() {
                     </div>
                     <div className="flex flex-col items-center" style={{ flex: 1 }}>
                       <span className="font-mono-data text-[7px] tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                        ENERGY
+                        {t('ENERGY')}
                       </span>
                       <span className="font-mono-data text-[9px] font-bold" style={{ color: 'var(--amber)' }}>
                         {c.energy1960}
@@ -376,10 +381,10 @@ export default function ContinentSelect() {
                     </div>
                     <div className="flex flex-col items-center" style={{ flex: 1 }}>
                       <span className="font-mono-data text-[7px] tracking-wider" style={{ color: 'var(--text-tertiary)' }}>
-                        TECH
+                        {t('TECH')}
                       </span>
                       <span className="font-mono-data text-[9px] font-bold" style={{ color: 'var(--cyan)' }}>
-                        Lv.{c.techLevel}
+                        {t('Lv.{level}', { level: c.techLevel })}
                       </span>
                     </div>
                   </div>
@@ -405,13 +410,17 @@ export default function ContinentSelect() {
                       className="font-mono-data text-[8px] tracking-wide"
                       style={{ color: c.color }}
                     >
-                      {c.specialBonus}
+                      {t(c.specialBonus)}
                     </span>
                   </div>
                   {best[c.id] && (
                     <div className="font-mono-data text-[8px] mt-0.5" style={{ color: best[c.id].won ? '#FFD700' : 'var(--text-tertiary)' }}
-                      title={`Best result with ${c.name}: ${best[c.id].score} points`}>
-                      ★ BEST {best[c.id].rank} · {best[c.id].score.toLocaleString('en-US')} · {best[c.id].won ? `won ${best[c.id].year}` : 'lost'}
+                      title={t('Best result with {name}: {score} points', { name: t(c.name), score: best[c.id].score })}>
+                      {t('★ BEST {rank} · {score} · {result}', {
+                        rank: best[c.id].rank,
+                        score: best[c.id].score.toLocaleString('en-US'),
+                        result: best[c.id].won ? t('won {year}', { year: best[c.id].year }) : t('lost'),
+                      })}
                     </div>
                   )}
                 </div>
@@ -454,13 +463,13 @@ export default function ContinentSelect() {
               }}
             />
             <span className="font-orbitron text-xs tracking-wide" style={{ color: selectedContinent.color }}>
-              {selectedContinent.name}
+              {t(selectedContinent.name)}
             </span>
             <span className="font-rajdhani text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
               |
             </span>
             <span className="font-rajdhani text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-              {selectedContinent.specialBonus}
+              {t(selectedContinent.specialBonus)}
             </span>
           </div>
         )}
@@ -468,7 +477,7 @@ export default function ContinentSelect() {
         {/* ─── Difficulty + Begin (stays in view on short screens) ─── */}
         <div className="sticky bottom-0 z-20 w-full flex flex-wrap justify-center items-center gap-3 py-2"
           style={{ background: 'linear-gradient(180deg, transparent, rgba(10,10,15,0.92) 30%)' }}>
-          <div className="flex flex-col items-center gap-1" role="radiogroup" aria-label="Difficulty">
+          <div className="flex flex-col items-center gap-1" role="radiogroup" aria-label={t('Difficulty')}>
             <div className="flex rounded overflow-hidden" style={{ border: '1px solid var(--border-light)' }}>
               {DIFFICULTIES.map(d => {
                 const on = d.id === difficulty;
@@ -526,7 +535,7 @@ export default function ContinentSelect() {
               }
             }}
           >
-            {selected ? 'BEGIN →' : 'SELECT A FACTION'}
+            {selected ? t('BEGIN →') : t('SELECT A FACTION')}
           </button>
         </div>
       </div>

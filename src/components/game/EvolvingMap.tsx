@@ -4,6 +4,7 @@ import { countBuildings, hasIntel, operational } from '../../game/engine';
 import { capabilityLabel } from '../../game/format';
 import { regionAnchor } from '../../game/geo';
 import { playSfx } from '../../hooks/useSound';
+import { t } from '../../i18n';
 import { getFactionSprite } from './factionSprites';
 
 // ─── SOUND PATHS ───
@@ -118,15 +119,15 @@ function getEraFilter(year: number): string {
 }
 
 function getEraLabel(year: number): string {
-  if (year < 1970) return '1960s — VINTAGE';
-  if (year < 1980) return '1970s — COLD WAR';
-  if (year < 1990) return '1980s — ATOMIC AGE';
-  if (year < 2000) return '1990s — DIGITAL DAWN';
-  if (year < 2010) return '2000s — INTERNET';
-  if (year < 2020) return '2010s — AI DAWN';
-  if (year < 2030) return '2020s — AI RACE';
-  if (year < 2040) return '2030s — INTELLIGENCE EXPLOSION';
-  return '2040s — POST-ASI';
+  if (year < 1970) return t('1960s — VINTAGE');
+  if (year < 1980) return t('1970s — COLD WAR');
+  if (year < 1990) return t('1980s — ATOMIC AGE');
+  if (year < 2000) return t('1990s — DIGITAL DAWN');
+  if (year < 2010) return t('2000s — INTERNET');
+  if (year < 2020) return t('2010s — AI DAWN');
+  if (year < 2030) return t('2020s — AI RACE');
+  if (year < 2040) return t('2030s — INTELLIGENCE EXPLOSION');
+  return t('2040s — POST-ASI');
 }
 
 // ─── IMAGE PRELOADER ───
@@ -378,6 +379,8 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
     return () => clearInterval(interval);
   }, [state.paused, satellites.length]);
 
+  const enterLabel = t('Enter {name} command map', { name: playerContinent?.name ? t(playerContinent.name) : t('continent') });
+
   return (
     <div ref={mapRef} className="relative w-full h-full overflow-hidden" style={{ background: '#050508' }}>
 
@@ -397,8 +400,8 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
       {playerHitZone && onEnterContinent && (
         <button
           type="button"
-          aria-label={`Enter ${playerContinent?.name || 'continent'} command map`}
-          title={`Enter ${playerContinent?.name || 'continent'} command map`}
+          aria-label={enterLabel}
+          title={enterLabel}
           onClick={onEnterContinent}
           className="absolute group"
           style={{
@@ -419,7 +422,7 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
               whiteSpace: 'nowrap',
             }}
           >
-            ENTER COMMAND MAP
+            {t('ENTER COMMAND MAP')}
           </span>
         </button>
       )}
@@ -466,9 +469,9 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
               transform: 'translate(-50%, -50%)', zIndex: 40, padding: '3px 6px', borderRadius: 4, whiteSpace: 'nowrap',
               background: 'rgba(5,5,8,0.78)', border: `1px solid ${c.color}88`, boxShadow: me ? `0 0 14px ${c.color}66` : 'none',
             }}>
-            <div style={{ fontSize: 9, color: c.color, fontWeight: 700 }}>{me ? '► ' : ''}{c.name.toUpperCase()}</div>
+            <div style={{ fontSize: 9, color: c.color, fontWeight: 700 }}>{me ? '► ' : ''}{t(c.name).toUpperCase()}</div>
             <div style={{ fontSize: 8, color: 'var(--text-secondary)' }}>
-              {intel ? `${capabilityLabel(cap)} ${cap.toFixed(1)}` : `≈${capabilityLabel(Math.round(cap))}`}
+              {intel ? t('{label} {cap}', { label: capabilityLabel(cap), cap: cap.toFixed(1) }) : t('≈{label}', { label: capabilityLabel(Math.round(cap)) })}
               <span style={{ color: intel ? (align >= 70 ? '#00E5A0' : align >= 45 ? '#FFB84D' : '#FF477E') : 'var(--text-tertiary)' }}> · {intel ? `${Math.round(align)}%` : '?'}</span>
               {!me && <span style={{ color: relColor }}> · ●</span>}
               {rival && rival.treaties.length > 0 && <span style={{ color: '#7B61FF' }}> · {rival.treaties.map(t => t[0].toUpperCase()).join('')}</span>}
@@ -519,7 +522,7 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
             {hasImg ? (
               <img
                 src={s.imgKey}
-                alt="satellite"
+                alt={t('satellite')}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -562,7 +565,7 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
             {hasImg ? (
               <img
                 src={p.imgKey}
-                alt="aircraft"
+                alt={t('aircraft')}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -610,7 +613,7 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
             {hasImg ? (
               <img
                 src={ROCKET_IMAGE}
-                alt="rocket"
+                alt={t('rocket')}
                 style={{
                   width: '100%',
                   height: '100%',
@@ -690,7 +693,7 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
         )}
         {rockets.length > 0 && (
           <span style={{ color: 'var(--amber)', marginLeft: '4px' }}>
-            🚀 launching...
+            🚀 {t('launching...')}
           </span>
         )}
       </div>
@@ -706,7 +709,7 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
           }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <img src={satImg} alt="" style={{ width: '16px', height: '11px', objectFit: 'contain' }} />
-            <span>+{satellites.length * 5}% DATA</span>
+            <span>{t('+{pct}% DATA', { pct: satellites.length * 5 })}</span>
           </div>
         </div>
       )}

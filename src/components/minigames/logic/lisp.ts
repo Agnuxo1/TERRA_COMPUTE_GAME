@@ -1,5 +1,6 @@
 // LISP Pipeline: list-transform puzzles, evaluation and BFS solver (no React/DOM).
 import { mulberry32 } from './rng.ts';
+import { t } from '../../../i18n/index.ts';
 
 export type Difficulty = 1 | 2 | 3;
 export type Atom = number; // 0..7 -> A..H
@@ -18,26 +19,33 @@ export interface OpDef {
   desc: string;
 }
 
+interface FixedOp {
+  id: string;
+  label: string;
+  /** Translated when read (not at import), so the active language is used. */
+  desc: () => string;
+}
+
 /** Fixed operations; CONS tiles are added per level as `cons:<atom>`. */
-export const FIXED_OPS: readonly OpDef[] = [
-  { id: 'car', label: 'CAR', desc: 'Keep only the first element' },
-  { id: 'cdr', label: 'CDR', desc: 'Drop the first element' },
-  { id: 'reverse', label: 'REVERSE', desc: 'Flip the list around' },
-  { id: 'sort', label: 'SORT', desc: 'Order A to H' },
-  { id: 'double', label: 'DOUBLE', desc: 'Write the list twice' },
-  { id: 'last', label: 'LAST', desc: 'Keep only the last element' },
-  { id: 'take2', label: 'TAKE-2', desc: 'Keep the first two elements' },
-  { id: 'droplast', label: 'DROP-LAST', desc: 'Remove the last element' },
+export const FIXED_OPS: readonly FixedOp[] = [
+  { id: 'car', label: 'CAR', desc: () => t('Keep only the first element') },
+  { id: 'cdr', label: 'CDR', desc: () => t('Drop the first element') },
+  { id: 'reverse', label: 'REVERSE', desc: () => t('Flip the list around') },
+  { id: 'sort', label: 'SORT', desc: () => t('Order A to H') },
+  { id: 'double', label: 'DOUBLE', desc: () => t('Write the list twice') },
+  { id: 'last', label: 'LAST', desc: () => t('Keep only the last element') },
+  { id: 'take2', label: 'TAKE-2', desc: () => t('Keep the first two elements') },
+  { id: 'droplast', label: 'DROP-LAST', desc: () => t('Remove the last element') },
 ];
 
 export function opDef(id: string): OpDef {
   if (id.startsWith('cons:')) {
     const a = Number(id.slice(5));
-    return { id, label: `CONS ${atomLabel(a)}`, desc: `Put ${atomLabel(a)} at the front` };
+    return { id, label: `CONS ${atomLabel(a)}`, desc: t('Put {atom} at the front', { atom: atomLabel(a) }) };
   }
   const d = FIXED_OPS.find(o => o.id === id);
   if (!d) throw new Error(`unknown op ${id}`);
-  return d;
+  return { id: d.id, label: d.label, desc: d.desc() };
 }
 
 export function applyOp(id: string, l: List): Atom[] {

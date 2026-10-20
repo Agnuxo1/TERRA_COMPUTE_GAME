@@ -4,6 +4,7 @@ import { MINIGAMES, type MinigameEntry } from '../components/minigames';
 import { StarRow } from '../components/minigames/MinigameShell';
 import type { MinigameDifficulty, Stars } from '../components/minigames/types';
 import { play } from '../hooks/useSound';
+import { t } from '../i18n';
 
 const LOGIC_CARD = './assets/cards/LOGIC.png';
 const STORE = 'terra_compute_logic_stars';
@@ -32,7 +33,7 @@ export default function LogicModeScreen() {
   if (active) {
     const Game = active.entry.Component;
     return (
-      <Suspense fallback={<div className="fixed inset-0 z-[90] flex items-center justify-center font-mono-data text-[11px] tracking-[0.3em]" style={{ background: '#07080C', color: 'var(--text-tertiary)' }}>LOADING EXERCISE…</div>}>
+      <Suspense fallback={<div className="fixed inset-0 z-[90] flex items-center justify-center font-mono-data text-[11px] tracking-[0.3em]" style={{ background: '#07080C', color: 'var(--text-tertiary)' }}>{t('LOADING EXERCISE…')}</div>}>
       <Game
         key={`${active.entry.meta.id}-${active.difficulty}`}
         difficulty={active.difficulty}
@@ -57,17 +58,17 @@ export default function LogicModeScreen() {
         <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
           <div>
             <button onClick={() => { play('click'); dispatch({ type: 'SET_SCREEN', screen: 'mode' }); }}
-              className="font-mono-data text-[11px] mb-3 hover:brightness-150" style={{ color: 'var(--text-secondary)' }}>← BACK</button>
-            <h1 className="font-orbitron text-3xl font-black tracking-wider" style={{ color: '#FFF4C2' }}>LOGIC ARCHIVE</h1>
-            <p className="font-rajdhani text-base" style={{ color: 'var(--text-secondary)' }}>Replay every breakthrough exercise of the campaign. {total} / {MINIGAMES.length * 9} ★ collected.</p>
+              className="font-mono-data text-[11px] mb-3 hover:brightness-150" style={{ color: 'var(--text-secondary)' }}>← {t('BACK')}</button>
+            <h1 className="font-orbitron text-3xl font-black tracking-wider" style={{ color: '#FFF4C2' }}>{t('LOGIC ARCHIVE')}</h1>
+            <p className="font-rajdhani text-base" style={{ color: 'var(--text-secondary)' }}>{t('Replay every breakthrough exercise of the campaign. {total} / {max} ★ collected.', { total, max: MINIGAMES.length * 9 })}</p>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="font-mono-data text-[10px] mr-1" style={{ color: 'var(--text-tertiary)' }}>DIFFICULTY</span>
+            <span className="font-mono-data text-[10px] mr-1" style={{ color: 'var(--text-tertiary)' }}>{t('DIFFICULTY')}</span>
             {([1, 2, 3] as const).map(d => (
               <button key={d} onClick={() => { play('click'); setDifficulty(d); }}
                 className="font-mono-data text-[11px] px-3 py-1 rounded"
                 style={{ color: difficulty === d ? '#050508' : 'var(--amber)', background: difficulty === d ? 'var(--amber)' : 'transparent', border: '1px solid var(--amber)' }}>
-                {['I · GENTLE', 'II · STANDARD', 'III · EXPERT'][d - 1]}
+                {[t('I · GENTLE'), t('II · STANDARD'), t('III · EXPERT')][d - 1]}
               </button>
             ))}
           </div>
@@ -84,14 +85,14 @@ export default function LogicModeScreen() {
                   <div className="absolute inset-0" style={{ background: 'linear-gradient(0deg, rgba(10,11,16,0.98), transparent 65%)' }} />
                   <div className="absolute top-2 left-2 font-mono-data text-[10px] px-1.5 rounded" style={{ background: '#000A', color: m.meta.accent }}>{m.meta.year}</div>
                   <div className="absolute bottom-2 left-3 right-3">
-                    <div className="font-orbitron text-sm font-bold tracking-wide" style={{ color: '#FFF4C2' }}>{m.meta.title}</div>
+                    <div className="font-orbitron text-sm font-bold tracking-wide" style={{ color: '#FFF4C2' }}>{t(m.meta.title)}</div>
                   </div>
                 </div>
                 <div className="px-3 pb-3 pt-1" style={{ background: 'rgba(10,11,16,0.98)' }}>
-                  <div className="font-rajdhani text-[13px] leading-snug min-h-[36px]" style={{ color: 'var(--text-secondary)' }}>{m.meta.subtitle}</div>
+                  <div className="font-rajdhani text-[13px] leading-snug min-h-[36px]" style={{ color: 'var(--text-secondary)' }}>{t(m.meta.subtitle)}</div>
                   <div className="flex items-center justify-between mt-1">
                     <StarRow stars={best} accent={m.meta.accent} size={16} />
-                    <span className="font-mono-data text-[10px]" style={{ color: m.meta.accent }}>PLAY ▶</span>
+                    <span className="font-mono-data text-[10px]" style={{ color: m.meta.accent }}>{t('PLAY')} ▶</span>
                   </div>
                 </div>
               </button>

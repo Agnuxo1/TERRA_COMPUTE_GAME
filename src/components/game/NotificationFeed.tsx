@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useGame } from '../../App';
+import { t } from '../../i18n';
 
 const COLORS: Record<string, string> = { info: '#00F0FF', warning: '#FFB84D', danger: '#FF477E', success: '#00E5A0' };
 
@@ -27,7 +28,7 @@ export default function NotificationFeed() {
         <div key={n.id} className="panel-elevated px-3 py-1.5 animate-fade-up pointer-events-auto cursor-pointer"
           onClick={() => dispatch({ type: 'DISMISS_NOTIFICATION', id: n.id })}
           style={{ borderLeft: `3px solid ${COLORS[n.type] || 'var(--cyan)'}`, background: 'rgba(12,13,18,0.9)' }}>
-          <span className="font-rajdhani text-[13px] leading-snug font-medium" style={{ color: 'var(--text-primary)' }}>{n.text}</span>
+          <span className="font-rajdhani text-[13px] leading-snug font-medium" style={{ color: 'var(--text-primary)' }}>{t(n.text)}</span>
         </div>
       ))}
     </div>

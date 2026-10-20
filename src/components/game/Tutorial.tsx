@@ -3,6 +3,7 @@ import { useGame } from '../../App';
 import type { GameState } from '../../game/types';
 import { play } from '../../hooks/useSound';
 import { continentById } from '../../game/data';
+import { t } from '../../i18n';
 
 const DONE_KEY = 'terra_compute_tutorial_done';
 
@@ -17,27 +18,39 @@ interface Step {
 
 const countType = (s: GameState, type: string) => s.map?.tiles.filter(t => t.building?.type === type).length ?? 0;
 
+/** Advisor title for the faction. Called at render time so the dictionary is ready. */
+function greeting(code: string): string {
+  switch (code) {
+    case 'su': case 'cn': return t('Comrade Director');
+    case 'na': return t('President');
+    case 'eu': return t('Director-General');
+    default: return t('Director');
+  }
+}
+
 function intro(s: GameState): Step {
-  const name = continentById(s.playerContinent ?? '')?.name ?? 'Your bloc';
+  const continent = continentById(s.playerContinent ?? '')?.name;
+  const name = continent ? t(continent) : t('Your bloc');
   return {
-    title: GREETING[s.playerContinent ?? ''] ?? 'Director',
-    text: `${name} enters the race to superintelligence in ${s.startYear}. Grow a healthy nation, out-research seven rivals and ignite a SAFE superintelligence — without cooking the planet. The clock is paused while you read.`,
+    title: greeting(s.playerContinent ?? ''),
+    text: t('{name} enters the race to superintelligence in {year}. Grow a healthy nation, out-research seven rivals and ignite a SAFE superintelligence — without cooking the planet. The clock is paused while you read.', { name, year: s.startYear }),
   };
 }
 
-const GREETING: Record<string, string> = { su: 'Comrade Director', cn: 'Comrade Director', na: 'President', eu: 'Director-General' };
-
-const STEPS: Step[] = [
-  { title: 'Director', text: '' },   // filled in by intro() with the faction and start year
-  { title: 'The command map', text: 'Drag or use the arrow keys to move, scroll to zoom, double-click to focus. The sector map in the corner jumps the camera anywhere.', target: 'minimap' },
-  { title: 'Construction', text: 'Open BUILD [B]. Every building is placed on a tile of your continent.', target: 'cmd-buildings', done: s => s.overlay === 'buildings' },
-  { title: 'Feed the people', text: 'Choose Collective Farm → PLACE ON MAP. Green tiles give a bonus: river valleys +50%, next to other farms +10%. Click a green tile.', target: 'side', done: (s, start) => countType(s, 'farm') > countType(start, 'farm') },
-  { title: 'Science', text: 'Open TECH [T] and start researching the Transistor. Research unlocks every new building.', target: 'cmd-tech', done: s => !!s.researching || s.unlockedTechs.length > 0 },
-  { title: 'Decrees', text: 'Open ECONOMY [E] and adopt your first decree. Each one has a real price — and slots are scarce.', target: 'cmd-economy', done: s => s.policies.length > 0 },
-  { title: 'Read the gauges', text: 'Every gauge explains itself: hover it to see what raises or lowers it. Food, housing, jobs and power keep approval up.', target: 'hud' },
-  { title: 'Directives & the race', text: 'The right panel tracks the race, the planet and your directives — each pays a cash bonus. Steel and chips feed your industry: produce them or pay import prices.', target: 'side' },
-  { title: 'Good luck', text: 'Press SPACE to pause any time, Esc for the menu. History will interrupt you with decisions and breakthrough exercises. Press START and the clock begins to run.' },
-];
+/** The lesson steps. Built at render time (not module load) so t() sees the loaded language. */
+function buildSteps(): Step[] {
+  return [
+    { title: '', text: '' },   // step 0 is filled in by intro() with the faction and start year
+    { title: t('The command map'), text: t('Drag or use the arrow keys to move, scroll to zoom, double-click to focus. The sector map in the corner jumps the camera anywhere.'), target: 'minimap' },
+    { title: t('Construction'), text: t('Open BUILD [B]. Every building is placed on a tile of your continent.'), target: 'cmd-buildings', done: s => s.overlay === 'buildings' },
+    { title: t('Feed the people'), text: t('Choose Collective Farm → PLACE ON MAP. Green tiles give a bonus: river valleys +50%, next to other farms +10%. Click a green tile.'), target: 'side', done: (s, start) => countType(s, 'farm') > countType(start, 'farm') },
+    { title: t('Science'), text: t('Open TECH [T] and start researching the Transistor. Research unlocks every new building.'), target: 'cmd-tech', done: s => !!s.researching || s.unlockedTechs.length > 0 },
+    { title: t('Decrees'), text: t('Open ECONOMY [E] and adopt your first decree. Each one has a real price — and slots are scarce.'), target: 'cmd-economy', done: s => s.policies.length > 0 },
+    { title: t('Read the gauges'), text: t('Every gauge explains itself: hover it to see what raises or lowers it. Food, housing, jobs and power keep approval up.'), target: 'hud' },
+    { title: t('Directives & the race'), text: t('The right panel tracks the race, the planet and your directives — each pays a cash bonus. Steel and chips feed your industry: produce them or pay import prices.'), target: 'side' },
+    { title: t('Good luck'), text: t('Press SPACE to pause any time, Esc for the menu. History will interrupt you with decisions and breakthrough exercises. Press START and the clock begins to run.') },
+  ];
+}
 
 export default function Tutorial() {
   const { state, dispatch } = useGame();
@@ -48,7 +61,8 @@ export default function Tutorial() {
   const start = useRef<GameState>(state);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const first = useMemo(() => intro(state), [state.playerContinent, state.startYear]); // eslint-disable-line react-hooks/exhaustive-deps
-  const cur = step === 0 ? first : STEPS[step];
+  const steps = useMemo(() => buildSteps(), []);
+  const cur = step === 0 ? first : steps[step];
 
   // Start paused so the first lessons can be read calmly; START resumes the clock.
   useEffect(() => {
@@ -84,7 +98,7 @@ export default function Tutorial() {
     return () => clearInterval(id);
   }, [cur, hidden]);
 
-  const progress = useMemo(() => `${Math.min(step + 1, STEPS.length)}/${STEPS.length}`, [step]);
+  const progress = useMemo(() => `${Math.min(step + 1, steps.length)}/${steps.length}`, [step, steps]);
   if (hidden || !cur || state.activeEvent) return null;
 
   return (
@@ -96,21 +110,21 @@ export default function Tutorial() {
       <div className="absolute z-[71] left-[calc(50%-150px)] max-[900px]:left-1/2 -translate-x-1/2 bottom-[86px] w-[min(520px,92%)] rounded-lg p-3 animate-fade-up"
         style={{ background: 'rgba(10,11,16,0.96)', border: '1px solid #FFD166', boxShadow: '0 12px 40px rgba(0,0,0,0.7)' }}>
         <div className="flex items-center justify-between mb-1">
-          <span className="font-mono-data text-[10px] tracking-[0.25em]" style={{ color: '#FFD166' }}>ADVISOR · {progress}</span>
-          <button onClick={finish} className="font-mono-data text-[9.5px] hover:brightness-150" style={{ color: 'var(--text-tertiary)' }}>SKIP TUTORIAL ✕</button>
+          <span className="font-mono-data text-[10px] tracking-[0.25em]" style={{ color: '#FFD166' }}>{t('ADVISOR · {progress}', { progress })}</span>
+          <button onClick={finish} className="font-mono-data text-[9.5px] hover:brightness-150" style={{ color: 'var(--text-tertiary)' }}>{t('SKIP TUTORIAL')} ✕</button>
         </div>
         <div className="font-orbitron text-[15px] font-bold mb-1" style={{ color: '#FFF4C2' }}>{cur.title}</div>
         <p className="font-rajdhani text-[14px] leading-snug" style={{ color: 'var(--text-secondary)' }}>{cur.text}</p>
         {!cur.done && (
           <div className="flex justify-end mt-2">
-            <button onClick={() => { play('click'); if (step + 1 >= STEPS.length) finish(); else setStep(step + 1); }}
+            <button onClick={() => { play('click'); if (step + 1 >= steps.length) finish(); else setStep(step + 1); }}
               className="font-mono-data text-[11px] px-4 py-1 rounded hover:brightness-125"
               style={{ color: '#050508', background: '#FFD166' }}>
-              {step + 1 >= STEPS.length ? 'START ▶' : 'NEXT ▶'}
+              {(step + 1 >= steps.length ? t('START') : t('NEXT')) + ' ▶'}
             </button>
           </div>
         )}
-        {cur.done && <div className="font-mono-data text-[9.5px] mt-1.5" style={{ color: 'var(--amber)' }}>▸ Do it to continue</div>}
+        {cur.done && <div className="font-mono-data text-[9.5px] mt-1.5" style={{ color: 'var(--amber)' }}>▸ {t('Do it to continue')}</div>}
       </div>
     </>
   );

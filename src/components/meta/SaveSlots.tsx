@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { continents } from '../../game/data';
 import { SLOTS, deleteSave, listSaves, type SaveMeta, type SaveSlot } from '../../game/save';
 import { play } from '../../hooks/useSound';
+import { t } from '../../i18n';
 
 export function continentName(id: string | null): string {
   if (!id) return '—';
-  return continents.find(c => c.id === id)?.name ?? id.toUpperCase();
+  const c = continents.find(x => x.id === id);
+  return c ? t(c.name) : id.toUpperCase();
 }
 
 export function fmtSavedAt(ms: number): string {
@@ -18,7 +20,7 @@ export function fmtSavedAt(ms: number): string {
 }
 
 export function slotLabel(slot: SaveSlot): string {
-  return slot === 'auto' ? 'AUTOSAVE' : `SLOT ${slot}`;
+  return slot === 'auto' ? t('AUTOSAVE') : t('SLOT {n}', { n: slot });
 }
 
 /** Most recent save across all slots, or null. */
@@ -60,7 +62,7 @@ export default function SaveSlots({ mode, accent = 'var(--cyan)', allowDelete, o
       const ok = onPick(slot) !== false;
       play(ok ? 'coin' : 'alert');
       setConfirm(null);
-      setFlash({ slot, text: ok ? 'SAVED' : 'SAVE FAILED', ok });
+      setFlash({ slot, text: ok ? t('SAVED') : t('SAVE FAILED'), ok });
       refresh();
       return;
     }
@@ -74,7 +76,7 @@ export default function SaveSlots({ mode, accent = 'var(--cyan)', allowDelete, o
     const ok = onPick(slot) !== false;
     if (!ok) {
       play('alert');
-      setFlash({ slot, text: 'LOAD FAILED', ok: false });
+      setFlash({ slot, text: t('LOAD FAILED'), ok: false });
     }
   };
 
@@ -97,8 +99,8 @@ export default function SaveSlots({ mode, accent = 'var(--cyan)', allowDelete, o
         const pending = confirm?.slot === slot ? confirm.kind : null;
         const disabled = mode === 'load' && !meta;
         const label = mode === 'save'
-          ? (pending === 'overwrite' ? 'CONFIRM OVERWRITE' : meta ? 'OVERWRITE' : 'SAVE HERE')
-          : (pending === 'load' ? 'CONFIRM LOAD' : 'LOAD');
+          ? (pending === 'overwrite' ? t('CONFIRM OVERWRITE') : meta ? t('OVERWRITE') : t('SAVE HERE'))
+          : (pending === 'load' ? t('CONFIRM LOAD') : t('LOAD'));
         return (
           <div
             key={slot}
@@ -117,18 +119,18 @@ export default function SaveSlots({ mode, accent = 'var(--cyan)', allowDelete, o
               {meta ? (
                 <>
                   <div className="font-mono-data text-[9.5px] truncate" style={{ color: 'var(--text-secondary)' }}>
-                    {continentName(meta.continent)} · {(meta.mode ?? '—').toUpperCase()} · {(meta.difficulty ?? 'normal').toUpperCase()}
+                    {t('{continent} · {mode} · {difficulty}', { continent: continentName(meta.continent), mode: (meta.mode ?? '—').toUpperCase(), difficulty: (meta.difficulty ?? 'normal').toUpperCase() })}
                   </div>
                   <div className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>
-                    {fmtSavedAt(meta.savedAt)} · 10^{meta.capability.toFixed(1)} FLOPS
+                    {t('{saved} · 10^{capability} FLOPS', { saved: fmtSavedAt(meta.savedAt), capability: meta.capability.toFixed(1) })}
                   </div>
                 </>
               ) : (
-                <div className="font-mono-data text-[9.5px]" style={{ color: 'var(--text-tertiary)' }}>— EMPTY —</div>
+                <div className="font-mono-data text-[9.5px]" style={{ color: 'var(--text-tertiary)' }}>{t('— EMPTY —')}</div>
               )}
-              {pending === 'overwrite' && <div className="font-mono-data text-[9px]" style={{ color: 'var(--amber)' }}>Replace this save? Click again to confirm.</div>}
-              {pending === 'load' && <div className="font-mono-data text-[9px]" style={{ color: 'var(--amber)' }}>Unsaved progress will be lost. Click again.</div>}
-              {pending === 'delete' && <div className="font-mono-data text-[9px]" style={{ color: 'var(--rose)' }}>Delete permanently? Click again.</div>}
+              {pending === 'overwrite' && <div className="font-mono-data text-[9px]" style={{ color: 'var(--amber)' }}>{t('Replace this save? Click again to confirm.')}</div>}
+              {pending === 'load' && <div className="font-mono-data text-[9px]" style={{ color: 'var(--amber)' }}>{t('Unsaved progress will be lost. Click again.')}</div>}
+              {pending === 'delete' && <div className="font-mono-data text-[9px]" style={{ color: 'var(--rose)' }}>{t('Delete permanently? Click again.')}</div>}
               {flash?.slot === slot && (
                 <div className="font-mono-data text-[9px] tracking-widest" style={{ color: flash.ok ? 'var(--green)' : 'var(--rose)' }}>{flash.text}</div>
               )}
@@ -159,7 +161,7 @@ export default function SaveSlots({ mode, accent = 'var(--cyan)', allowDelete, o
                     border: '1px solid var(--rose)',
                   }}
                 >
-                  {pending === 'delete' ? 'CONFIRM' : 'DELETE'}
+                  {pending === 'delete' ? t('CONFIRM') : t('DELETE')}
                 </button>
               )}
             </div>

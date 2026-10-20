@@ -4,6 +4,7 @@ import { covertChance, covertCost, defcon, hasIntel, rivalEta, sweepCost, COVERT
 import { isHuman, playerName } from '../../../game/mp';
 import { capabilityLabel, fmtMoney } from '../../../game/format';
 import { play } from '../../../hooks/useSound';
+import { t } from '../../../i18n';
 import { PanelHeader } from './common';
 
 const OPS: Record<'spy' | 'attack', Array<{ op: CovertOp; label: string; text: string }>> = {
@@ -25,14 +26,14 @@ export default function IntelPanel({ mode }: { mode: 'spy' | 'attack' }) {
   const rivals = [...state.rivals].sort((a, b) => b.capability - a.capability);
   return (
     <div className="flex flex-col h-full">
-      <PanelHeader title={mode === 'spy' ? 'INTELLIGENCE' : 'COVERT ACTION'} accent={accent} onClose={() => dispatch({ type: 'CLOSE_OVERLAY' })}
+      <PanelHeader title={mode === 'spy' ? t('INTELLIGENCE') : t('COVERT ACTION')} accent={accent} onClose={() => dispatch({ type: 'CLOSE_OVERLAY' })}
         right={<span className="font-mono-data text-[10px]" style={{ color: 'var(--green)' }}>{fmtMoney(state.budget)}</span>} />
       <div className="px-3 py-2 font-rajdhani text-[12px] leading-snug shrink-0" style={{ color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border)' }}>
         {mode === 'spy'
-          ? 'Without intelligence, rival numbers are rough guesses. Space Centers raise every success chance.'
-          : 'Slow down the reckless front-runner — a rogue superintelligence anywhere ends the game for everyone. Getting caught ruins relations.'}
+          ? t('Without intelligence, rival numbers are rough guesses. Space Centers raise every success chance.')
+          : t('Slow down the reckless front-runner — a rogue superintelligence anywhere ends the game for everyone. Getting caught ruins relations.')}
         <div className="mt-1 font-mono-data text-[9.5px]" style={{ color: defcon(state.tension) <= 2 ? 'var(--rose)' : 'var(--text-secondary)' }}>
-          ☢ DEFCON {defcon(state.tension)} · tension {Math.round(state.tension ?? 0)}/100 — every operation raises it; at DEFCON 1 every nation loses two years of growth.
+          {t('☢ DEFCON {defcon} · tension {tension}/100 — every operation raises it; at DEFCON 1 every nation loses two years of growth.', { defcon: defcon(state.tension), tension: Math.round(state.tension ?? 0) })}
         </div>
         {mode === 'spy' && (() => {
           const cost = sweepCost(state);
@@ -42,10 +43,10 @@ export default function IntelPanel({ mode }: { mode: 'spy' | 'attack' }) {
               onClick={() => { play('click'); dispatch({ type: 'COUNTER_INTEL' }); }}
               className={`mt-1.5 w-full rounded px-2 py-1.5 text-left ${active || state.budget < cost ? 'opacity-50 cursor-not-allowed' : 'hover:brightness-125'}`}
               style={{ border: '1px solid var(--green)', background: 'rgba(0,229,160,0.06)' }}
-              title="Enemy operations against you fail more often (−20% success) for 3 years. Stacks with AI Safety Institutes.">
-              <div className="font-mono-data text-[9.5px]" style={{ color: 'var(--green)' }}>🛡 COUNTER-INTELLIGENCE SWEEP</div>
+              title={t('Enemy operations against you fail more often (−20% success) for 3 years. Stacks with AI Safety Institutes.')}>
+              <div className="font-mono-data text-[9.5px]" style={{ color: 'var(--green)' }}>🛡 {t('COUNTER-INTELLIGENCE SWEEP')}</div>
               <div className="font-mono-data text-[8.5px]" style={{ color: 'var(--text-secondary)' }}>
-                {active ? `Active until ${Math.floor(active.until)}` : `${fmtMoney(cost)} · enemy operations −20% success for 3 years`}
+                {active ? t('Active until {until}', { until: Math.floor(active.until) }) : t('{cost} · enemy operations −20% success for 3 years', { cost: fmtMoney(cost) })}
               </div>
             </button>
           );
@@ -59,20 +60,22 @@ export default function IntelPanel({ mode }: { mode: 'spy' | 'attack' }) {
             <div key={r.id} className="rounded p-2" style={{ border: `1px solid ${c.color}55`, background: 'rgba(255,255,255,0.02)' }}>
               <div className="flex items-center justify-between">
                 <span className="font-rajdhani text-[14px] font-bold" style={{ color: c.color }}>
-                  {c.name}{isHuman(state, r.id) && <span className="font-mono-data text-[9px] font-normal ml-1" style={{ color: '#F2E9DC' }}>👤 {playerName(state, r.id)}</span>}
+                  {t(c.name)}{isHuman(state, r.id) && <span className="font-mono-data text-[9px] font-normal ml-1" style={{ color: '#F2E9DC' }}>👤 {playerName(state, r.id)}</span>}
                 </span>
                 <span className="font-mono-data text-[9.5px]" style={{ color: 'var(--text-secondary)' }}>
-                  {intel ? `${capabilityLabel(r.capability)} ${r.capability.toFixed(1)} · align ${Math.round(r.alignment)}%` : `≈${capabilityLabel(Math.round(r.capability))} · align ?`}
+                  {intel
+                    ? t('{label} {capability} · align {align}%', { label: capabilityLabel(r.capability), capability: r.capability.toFixed(1), align: Math.round(r.alignment) })
+                    : t('≈{label} · align ?', { label: capabilityLabel(Math.round(r.capability)) })}
                 </span>
               </div>
               {intel && (
                 <div className="font-mono-data text-[9px]" style={{ color: r.alignment < 60 ? 'var(--rose)' : 'var(--text-tertiary)' }}>
-                  ASI ETA ~{Math.round(rivalEta(r))} · stability {Math.round(r.stability)} · intel until {Math.floor(r.intelUntil)}
+                  {t('ASI ETA ~{eta} · stability {stability} · intel until {until}', { eta: Math.round(rivalEta(r)), stability: Math.round(r.stability), until: Math.floor(r.intelUntil) })}
                 </div>
               )}
               {(r.heat ?? 0) >= 0.5 && (
-                <div className="font-mono-data text-[9px]" style={{ color: 'var(--amber)' }} title="Every operation puts them on alert: the next one costs more and succeeds less often. Alert fades over a few years.">
-                  ⚠ ON ALERT ×{(1 + 0.6 * (r.heat ?? 0)).toFixed(1)} cost · −{Math.round(8 * (r.heat ?? 0))}% success
+                <div className="font-mono-data text-[9px]" style={{ color: 'var(--amber)' }} title={t('Every operation puts them on alert: the next one costs more and succeeds less often. Alert fades over a few years.')}>
+                  {t('⚠ ON ALERT ×{mult} cost · −{pct}% success', { mult: (1 + 0.6 * (r.heat ?? 0)).toFixed(1), pct: Math.round(8 * (r.heat ?? 0)) })}
                 </div>
               )}
               <div className="grid grid-cols-2 gap-1 mt-1.5">
@@ -85,9 +88,9 @@ export default function IntelPanel({ mode }: { mode: 'spy' | 'attack' }) {
                       onClick={() => { play('alert'); dispatch({ type: 'COVERT', rivalId: r.id, op: o.op }); }}
                       className={`rounded px-1.5 py-1 text-left ${ok ? 'hover:brightness-125' : 'opacity-40 cursor-not-allowed'}`}
                       style={{ border: `1px solid ${accent}88`, background: `${accent}10` }}
-                      title={`${o.text} World tension +${COVERT_TENSION[o.op]} (+${COVERT_TENSION[o.op] * 1.5} if exposed).`}>
-                      <div className="font-mono-data text-[9px]" style={{ color: accent }}>{o.label}</div>
-                      <div className="font-mono-data text-[8.5px]" style={{ color: 'var(--text-secondary)' }}>{fmtMoney(cost)} · {Math.round(ch * 100)}% success</div>
+                      title={t('{text} World tension +{tension} (+{exposed} if exposed).', { text: t(o.text), tension: COVERT_TENSION[o.op], exposed: COVERT_TENSION[o.op] * 1.5 })}>
+                      <div className="font-mono-data text-[9px]" style={{ color: accent }}>{t(o.label)}</div>
+                      <div className="font-mono-data text-[8.5px]" style={{ color: 'var(--text-secondary)' }}>{t('{cost} · {pct}% success', { cost: fmtMoney(cost), pct: Math.round(ch * 100) })}</div>
                     </button>
                   );
                 })}

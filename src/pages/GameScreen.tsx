@@ -23,6 +23,7 @@ import BuildPanel from '../components/game/panels/BuildPanel';
 import DiplomacyPanel from '../components/game/panels/DiplomacyPanel';
 import IntelPanel from '../components/game/panels/IntelPanel';
 import EconomyPanel from '../components/game/panels/EconomyPanel';
+import { t } from '../i18n';
 
 const OVERLAY_KEYS: Record<string, string> = { b: 'buildings', t: 'tech', d: 'diplomacy', a: 'attack', s: 'spy', e: 'economy' };
 
@@ -111,8 +112,8 @@ export default function GameScreen() {
               <button key={v} onClick={() => { play('click'); setMapView(v); }}
                 className="font-mono-data text-[10px] tracking-wider px-2.5 py-1"
                 style={{ background: mapView === v ? 'var(--cyan)' : 'rgba(11,12,16,0.85)', color: mapView === v ? '#001014' : 'var(--text-secondary)' }}
-                title="[M] toggle">
-                {v === 'continent' ? '◈ CONTINENT' : '◎ WORLD'}
+                title={t('[M] toggle')}>
+                {v === 'continent' ? t('◈ CONTINENT') : t('◎ WORLD')}
               </button>
             ))}
           </div>
@@ -123,7 +124,7 @@ export default function GameScreen() {
           {state.paused && !state.activeEvent && (
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-30 px-3 py-1 rounded font-mono-data text-[11px] tracking-[0.3em] animate-pulse-glow pointer-events-none"
               style={{ background: 'rgba(11,12,16,0.9)', color: 'var(--amber)', border: '1px solid var(--amber)' }}>
-              PAUSED — SPACE TO RESUME
+              {t('PAUSED — SPACE TO RESUME')}
             </div>
           )}
           {blackout && (
@@ -135,7 +136,7 @@ export default function GameScreen() {
           <div className="flex-1 overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>{side}</div>
           {state.overlay === null && state.selectedTile === null && (
             <div className="shrink-0 px-3 py-1.5 font-mono-data text-[8.5px] leading-relaxed" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-tertiary)' }}>
-              [B] build [T] tech [D] diplo [S] spy [A] covert [E] economy [M] world [␣] pause [1-3] speed
+              {t('[B] build [T] tech [D] diplo [S] spy [A] covert [E] economy [M] world [␣] pause [1-3] speed')}
             </div>
           )}
         </aside>

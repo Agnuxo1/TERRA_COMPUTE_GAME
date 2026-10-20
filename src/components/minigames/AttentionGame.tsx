@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { play } from '../../hooks/useSound';
+import { t } from '../../i18n';
 import { MinigameShell, MinigameResultCard } from './MinigameShell';
 import type { MinigameProps, MinigameResult } from './types';
 import { mulberry32 } from './logic/rng.ts';
@@ -13,6 +14,8 @@ export { meta };
 
 const ACCENT = meta.accent;
 const ROUNDS = 8;
+/** Placeholder marking where a styled value goes inside a translated sentence. */
+const SLOT = '\u0001';
 
 interface Answered {
   chosen: number | null;
@@ -117,7 +120,7 @@ export default function AttentionGame({ difficulty, onComplete }: MinigameProps)
       const stars = scoreAttention(correctCount);
       setResult({
         stars,
-        summary: `${correctCount} of ${ROUNDS} referents resolved. Score ${score}.`,
+        summary: t('{correct} of {rounds} referents resolved. Score {score}.', { correct: correctCount, rounds: ROUNDS, score }),
       });
       return;
     }
@@ -143,12 +146,15 @@ export default function AttentionGame({ difficulty, onComplete }: MinigameProps)
   const maxW = answered ? Math.max(...answered.weights) : 1;
   const mult = streakMultiplier(streak);
   const queryWord = item.tokens[item.query].replace(/[^\w']/g, '');
+  const answerWord = item.tokens[item.answer].replace(/[^\w']/g, '');
+  // The query word is styled, so the prompt sentence is split around it (the translation stays whole).
+  const [promptBefore, promptAfter] = t('What does "{word}" refer to?', { word: SLOT }).split(SLOT);
 
   return (
     <MinigameShell
       meta={meta}
-      status={`SENTENCE ${idx + 1}/${ROUNDS} · SCORE ${score}`}
-      onAbandon={() => finish({ stars: 0, summary: 'Exercise abandoned.' })}
+      status={t('SENTENCE {idx}/{rounds} · SCORE {score}', { idx: idx + 1, rounds: ROUNDS, score })}
+      onAbandon={() => finish({ stars: 0, summary: t('Exercise abandoned.') })}
       wide
     >
       <style>{`
@@ -161,7 +167,7 @@ export default function AttentionGame({ difficulty, onComplete }: MinigameProps)
         {/* HUD */}
         <div className="flex w-full max-w-4xl items-center gap-3">
           <div className="font-mono-data text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-            STREAK <span style={{ color: mult > 1 ? '#FFB84D' : 'var(--text-primary)' }}>{streak}</span>
+            {t('STREAK')} <span style={{ color: mult > 1 ? '#FFB84D' : 'var(--text-primary)' }}>{streak}</span>
             {' · '}
             <span className="font-orbitron text-sm font-black" style={{ color: mult > 1 ? '#FFB84D' : ACCENT }}>x{mult}</span>
           </div>
@@ -184,10 +190,10 @@ export default function AttentionGame({ difficulty, onComplete }: MinigameProps)
         {/* Prompt */}
         <div className="text-center">
           <div className="font-mono-data text-[10px] tracking-[0.3em]" style={{ color: ACCENT }}>
-            RESOLVE THE REFERENT
+            {t('RESOLVE THE REFERENT')}
           </div>
           <div className="font-orbitron text-lg font-black md:text-2xl" style={{ color: '#FFF4C2' }}>
-            What does <span style={{ color: ACCENT, textShadow: `0 0 12px ${ACCENT}` }}>"{queryWord}"</span> refer to?
+            {promptBefore}<span style={{ color: ACCENT, textShadow: `0 0 12px ${ACCENT}` }}>{queryWord}</span>{promptAfter}
           </div>
         </div>
 
@@ -254,7 +260,7 @@ export default function AttentionGame({ difficulty, onComplete }: MinigameProps)
                   >
                     <span className="font-rajdhani font-bold leading-none">{tok}</span>
                     <span className="font-mono-data mt-1 h-3 text-[10px] leading-3" style={{ color: isAns ? '#00E5A0' : 'var(--text-secondary)' }}>
-                      {isQuery ? (answered ? 'query' : 'QUERY') : answered ? `${Math.round(w * 100)}%` : ''}
+                      {isQuery ? (answered ? t('query') : t('QUERY')) : answered ? `${Math.round(w * 100)}%` : ''}
                     </span>
                   </button>
                 );
@@ -267,16 +273,16 @@ export default function AttentionGame({ difficulty, onComplete }: MinigameProps)
         <div className="flex min-h-[96px] w-full max-w-4xl flex-col items-center gap-1 text-center">
           {!answered ? (
             <div className="font-rajdhani text-sm" style={{ color: 'var(--text-tertiary)' }}>
-              Click the word the highlighted token points back to.
+              {t('Click the word the highlighted token points back to.')}
             </div>
           ) : (
             <>
               <div className="relative font-orbitron text-lg font-black" style={{ color: answered.correct ? '#00E5A0' : '#FF477E' }}>
                 {answered.correct
-                  ? `CORRECT: ${item.tokens[item.answer].replace(/[^\w']/g, '')}`
+                  ? t('CORRECT: {word}', { word: answerWord })
                   : answered.chosen === null
-                    ? `TIME'S UP: it was ${item.tokens[item.answer].replace(/[^\w']/g, '')}`
-                    : `NOT QUITE: it was ${item.tokens[item.answer].replace(/[^\w']/g, '')}`}
+                    ? t("TIME'S UP: it was {word}", { word: answerWord })
+                    : t('NOT QUITE: it was {word}', { word: answerWord })}
                 {gain > 0 && (
                   <span className="font-mono-data absolute -right-14 top-0 text-sm" style={{ color: '#FFB84D', animation: 'att-float 1.2s ease-out forwards' }}>
                     +{gain}
@@ -290,7 +296,7 @@ export default function AttentionGame({ difficulty, onComplete }: MinigameProps)
                 className="animate-pulse-glow rounded px-8 py-2 font-orbitron text-sm font-bold tracking-wider transition-all hover:brightness-125"
                 style={{ background: `${ACCENT}22`, color: ACCENT, border: `2px solid ${ACCENT}` }}
               >
-                {idx + 1 >= ROUNDS ? 'FINISH ▶' : 'NEXT ▶'}
+                {idx + 1 >= ROUNDS ? t('FINISH ▶') : t('NEXT ▶')}
               </button>
             </>
           )}

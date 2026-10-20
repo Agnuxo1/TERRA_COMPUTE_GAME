@@ -6,6 +6,7 @@ import { buildingById, CATEGORY_COLOR, depositInfo, SPRITE_FOR, terrainInfo } fr
 import { housingComfort, operational, regionCost, type Placement } from '../../../game/engine';
 import { TILE_H, TILE_W, edgeNeighbours, allNeighbours, tileCenter } from '../../../game/mapgen';
 import type { BuildingId, GameState, MapData, Tile } from '../../../game/types';
+import { t } from '../../../i18n';
 
 const HW = TILE_W / 2;
 const HH = TILE_H / 2;
@@ -37,6 +38,16 @@ const BADGE: Partial<Record<BuildingId, string>> = {
 const POWER: BuildingId[] = ['coal', 'nuclear', 'solar', 'fusion'];
 const COMPUTE: BuildingId[] = ['mainframe', 'super', 'datacenter', 'gpucluster', 'aifactory'];
 const SMOKE: BuildingId[] = ['coal', 'factory', 'chipfab'];
+
+// Canvas texts. They live at module scope (not inline) because the callers have locals named `t` (a tile),
+// which would shadow the translation function, and so the literal keys stay visible to the i18n extractor.
+const levelText = (level: number) => t('▲ LEVEL {level}', { level });
+const onlineText = () => t('✔ ONLINE');
+const damagedText = () => t('DAMAGED');
+const rpText = () => t('+RP');
+const foodText = () => t('+FOOD');
+const alignText = () => t('+ALIGN');
+const undevelopedText = (cost: number) => t('UNDEVELOPED · {price}B', { price: `$${cost}` });
 
 /** Which neighbours help (+) or hurt (−) a building type — drives the adjacency lines of the placement ghost. */
 export function adjacencyRelation(type: BuildingId, neighbour: BuildingId): 1 | -1 | 0 {
@@ -554,9 +565,9 @@ export class MapRenderer {
       if (before.progress < 1 && b.progress >= 1) {
         this.pings.push({ x: cx, y: cy, color: '#00E5A0', age: 0 });
         this.onFx?.('complete');
-        this.floaters.push({ x: cx, y: cy - 40, text: b.upgrading || b.level > 1 ? `▲ LEVEL ${b.level}` : '✔ ONLINE', color: '#00E5A0', age: 0 });
+        this.floaters.push({ x: cx, y: cy - 40, text: b.upgrading || b.level > 1 ? levelText(b.level) : onlineText(), color: '#00E5A0', age: 0 });
       } else if (before.progress >= 1 && b.progress < 1 && !b.upgrading && before.level === b.level) {
-        this.pings.push({ x: cx, y: cy, color: '#FF477E', age: 0, label: 'DAMAGED' });
+        this.pings.push({ x: cx, y: cy, color: '#FF477E', age: 0, label: damagedText() });
         this.onFx?.('damage');
         this.burst(cx, cy - 20, '#FF7A3D', 26);
       }
@@ -586,10 +597,10 @@ export class MapRenderer {
       if (b.type === 'factory') { text = `+${(6 * b.level).toFixed(0)} ⛓`; color = '#C9CED8'; }
       else if (b.type === 'chipfab') { text = `+${30 * b.level} ◆`; color = '#67E8F9'; }
       else if (b.type === 'market' || b.type === 'seaport') { text = `+$${b.type === 'market' ? 30 * b.level : 90 * b.level}`; color = '#FFD166'; }
-      else if (b.type === 'lab' || b.type === 'uni' || b.type === 'satellite') { text = '+RP'; color = '#A78BFA'; }
-      else if (b.type === 'farm') { text = '+FOOD'; color = '#86EFAC'; }
+      else if (b.type === 'lab' || b.type === 'uni' || b.type === 'satellite') { text = rpText(); color = '#A78BFA'; }
+      else if (b.type === 'farm') { text = foodText(); color = '#86EFAC'; }
       else if (COMPUTE.includes(b.type)) { text = 'FLOPS ▲'; color = '#00F0FF'; }
-      else if (b.type === 'defense') { text = '+ALIGN'; color = '#FF8FB1'; }
+      else if (b.type === 'defense') { text = alignText(); color = '#FF8FB1'; }
       else continue;
       this.floaters.push({ x: cx + (Math.random() - 0.5) * 10, y: cy - spriteSize(b.type) * 0.55, text, color, age: -Math.random() * 0.8 });
     }
@@ -1136,10 +1147,10 @@ export class MapRenderer {
     // region labels (constant size on screen)
     for (const r of map.regions) {
       const owned = s.ownedRegions.includes(r.id);
-      this.label(ctx, r.name.toUpperCase(), r.center[0], r.center[1], owned ? '11px' : 'bold 12px', owned ? '#FFF4C2' : '#FFB84D', owned ? 0.55 : 0.95, owned ? 0 : -8, 2.5);
+      this.label(ctx, t(r.name).toUpperCase(), r.center[0], r.center[1], owned ? '11px' : 'bold 12px', owned ? '#FFF4C2' : '#FFB84D', owned ? 0.55 : 0.95, owned ? 0 : -8, 2.5);
       if (!owned) {
         const cost = regionCost(s, r.id);
-        this.label(ctx, `UNDEVELOPED · $${cost}B`, r.center[0], r.center[1], '10px', s.budget >= cost ? '#00E5A0' : '#8A8D9A', 0.95, 7, 2.5);
+        this.label(ctx, undevelopedText(cost), r.center[0], r.center[1], '10px', s.budget >= cost ? '#00E5A0' : '#8A8D9A', 0.95, 7, 2.5);
       }
     }
 

@@ -5,6 +5,7 @@ import { continentById } from '../../game/data';
 import { defcon, hasIntel } from '../../game/engine';
 import { capabilityLabel } from '../../game/format';
 import { play } from '../../hooks/useSound';
+import { t } from '../../i18n';
 
 export const DEFCON_COLOR = ['', '#FF2D2D', '#FF7A2D', '#FFB84D', '#00F0FF', '#00E5A0'];
 
@@ -52,10 +53,10 @@ export default function MPHud() {
         style={{ background: 'rgba(8,9,12,0.88)', border: `1px solid ${DEFCON_COLOR[d]}66`, boxShadow: `0 4px 18px rgba(0,0,0,0.6)` }}>
         <span className={`font-orbitron text-[11px] font-black tracking-[0.15em] px-2 py-0.5 rounded shrink-0 ${d <= 2 ? 'animate-pulse' : ''}`}
           style={{ color: '#050608', background: DEFCON_COLOR[d] }}
-          title={`World tension ${Math.round(state.tension ?? 0)}/100. Covert operations raise it; treaties and time lower it. At DEFCON 1 every nation loses two years of growth.`}>
+          title={t('World tension {tension}/100. Covert operations raise it; treaties and time lower it. At DEFCON 1 every nation loses two years of growth.', { tension: Math.round(state.tension ?? 0) })}>
           DEFCON {d}
         </span>
-        {mp.offline && <span className="font-mono-data text-[9px] shrink-0" style={{ color: 'var(--amber)' }}>OFFLINE · vs AI</span>}
+        {mp.offline && <span className="font-mono-data text-[9px] shrink-0" style={{ color: 'var(--amber)' }}>{t('OFFLINE · vs AI')}</span>}
         {mp.players.map(p => {
           const c = continentById(p.faction);
           const meP = p.faction === mp.me;
@@ -65,18 +66,20 @@ export default function MPHud() {
           return (
             <span key={p.peerId} className="flex items-center gap-1 px-1.5 py-0.5 rounded shrink-0 font-mono-data text-[9.5px]"
               style={{ border: `1px solid ${c?.color ?? '#555'}${meP ? 'CC' : '55'}`, opacity: p.online ? 1 : 0.45 }}
-              title={`${p.name} · ${c?.name}${p.online ? '' : ' · disconnected (AI government)'}`}>
+              title={p.online
+                ? t('{player} · {faction}', { player: p.name, faction: t(c?.name ?? '') })
+                : t('{player} · {faction} · disconnected (AI government)', { player: p.name, faction: t(c?.name ?? '') })}>
               <span style={{ width: 6, height: 6, borderRadius: 6, background: p.online ? 'var(--green)' : '#666', boxShadow: p.online ? '0 0 6px var(--green)' : 'none' }} />
               <span style={{ color: c?.color }}>{p.name}{p.peerId === mp.players[0]?.peerId && mp.role === 'host' && meP ? ' ★' : ''}</span>
               <span style={{ color: 'var(--text-tertiary)' }}>{exact ? `${capabilityLabel(cap)} ${cap.toFixed(1)}` : `≈${capabilityLabel(Math.round(cap))}`}</span>
             </span>
           );
         })}
-        {guest && state.paused && <span className="font-mono-data text-[9px] shrink-0 animate-pulse" style={{ color: 'var(--amber)' }}>PAUSED BY HOST</span>}
+        {guest && state.paused && <span className="font-mono-data text-[9px] shrink-0 animate-pulse" style={{ color: 'var(--amber)' }}>{t('PAUSED BY HOST')}</span>}
         <button onClick={() => { play('click'); setOpen(o => !o); }}
           className="font-mono-data text-[9.5px] px-2 py-0.5 rounded shrink-0 hover:brightness-125"
           style={{ color: '#050608', background: unread ? 'var(--amber)' : 'var(--text-secondary)' }}>
-          ✉ HOTLINE{unread ? ` (${unread})` : ''}
+          ✉ {t('HOTLINE')}{unread ? ` (${unread})` : ''}
         </button>
       </div>
 
@@ -89,21 +92,21 @@ export default function MPHud() {
         <div className="absolute z-[45] left-1/2 -translate-x-1/2 top-[124px] w-[min(440px,90vw)] rounded-lg p-2 flex flex-col gap-1.5"
           style={{ background: 'rgba(8,9,12,0.96)', border: '1px solid var(--amber)', boxShadow: '0 12px 40px rgba(0,0,0,0.7)' }}>
           <div className="flex items-center justify-between">
-            <span className="font-mono-data text-[10px] tracking-[0.3em]" style={{ color: 'var(--amber)' }}>HOTLINE · {mp.room}</span>
+            <span className="font-mono-data text-[10px] tracking-[0.3em]" style={{ color: 'var(--amber)' }}>{t('HOTLINE')} · {mp.room}</span>
             <button onClick={() => setOpen(false)} className="font-mono-data text-[10px]" style={{ color: 'var(--text-tertiary)' }}>✕</button>
           </div>
           <div className="flex flex-col gap-0.5 overflow-auto font-mono-data text-[10.5px]" style={{ maxHeight: 180 }}>
-            {chat.length === 0 && <span style={{ color: 'var(--text-tertiary)' }}>Threaten, bargain, betray. Everything you type reaches every head of state.</span>}
+            {chat.length === 0 && <span style={{ color: 'var(--text-tertiary)' }}>{t('Threaten, bargain, betray. Everything you type reaches every head of state.')}</span>}
             {chat.map((m, i) => {
               const c = continentById(m.from);
               return <span key={i}><span style={{ color: 'var(--text-tertiary)' }}>{m.year} </span><span style={{ color: c?.color }}>{mp.players.find(p => p.faction === m.from)?.name ?? m.from}:</span> <span style={{ color: 'var(--text-secondary)' }}>{m.text}</span></span>;
             })}
           </div>
           <form onSubmit={e => { e.preventDefault(); send(); }} className="flex gap-1">
-            <input autoFocus value={text} onChange={e => setText(e.target.value.slice(0, 160))} placeholder="Message every head of state…"
+            <input autoFocus value={text} onChange={e => setText(e.target.value.slice(0, 160))} placeholder={t('Message every head of state…')}
               onKeyDown={e => e.stopPropagation()}
               className="flex-1 min-w-0 font-mono-data text-[11px] px-2 py-1 rounded outline-none" style={{ background: '#050608', color: '#F2E9DC', border: '1px solid var(--border-light)' }} />
-            <button className="font-mono-data text-[10px] px-3 rounded" style={{ color: '#050608', background: 'var(--amber)' }}>SEND</button>
+            <button className="font-mono-data text-[10px] px-3 rounded" style={{ color: '#050608', background: 'var(--amber)' }}>{t('SEND')}</button>
           </form>
         </div>
       )}

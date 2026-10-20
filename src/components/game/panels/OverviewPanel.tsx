@@ -5,6 +5,7 @@ import { asiThreshold, defcon, FIRSTS, has, hasIntel, requiredAlignment, rivalEt
 import { isHuman, playerName } from '../../../game/mp';
 import { capabilityLabel } from '../../../game/format';
 import { play } from '../../../hooks/useSound';
+import { t } from '../../../i18n';
 import { ActionButton, Bar, KV, Section } from './common';
 
 export default function OverviewPanel() {
@@ -30,17 +31,17 @@ export default function OverviewPanel() {
   return (
     <div className="flex flex-col">
       {/* ─── Race to ASI ─── */}
-      <Section title="RACE TO SUPERINTELLIGENCE" accent="var(--cyan)" right={<span className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>GOAL 10^{target}</span>}>
+      <Section title={t('RACE TO SUPERINTELLIGENCE')} accent="var(--cyan)" right={<span className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>{t('GOAL 10^{target}', { target })}</span>}>
         <div className="flex flex-col gap-1.5">
           {rows.map(r => (
-            <div key={r.id} title={r.me ? 'Your bloc' : r.intel ? `Estimated ASI year: ${Math.round(r.eta)}` : 'No intelligence: numbers are rough estimates. Run a SPY operation.'}>
+            <div key={r.id} title={r.me ? t('Your bloc') : r.intel ? t('Estimated ASI year: {year}', { year: Math.round(r.eta) }) : t('No intelligence: numbers are rough estimates. Run a SPY operation.')}>
               <div className="flex items-center justify-between font-mono-data text-[9.5px]">
                 <span style={{ color: r.me ? '#FFF4C2' : r.color, fontWeight: r.me ? 700 : 400 }}>
-                  {r.me ? '► ' : ''}{r.name}{r.human && <span style={{ color: '#F2E9DC' }}> 👤{r.human}</span>}
-                  {r.project && <span className="ml-1 px-1 rounded animate-pulse" style={{ color: '#050508', background: 'var(--rose)', fontSize: '8px', fontWeight: 700 }} title="This bloc has launched a crash programme to ignite superintelligence.">ASI PROJECT</span>}
+                  {r.me ? '► ' : ''}{t(r.name)}{r.human && <span style={{ color: '#F2E9DC' }}> 👤{r.human}</span>}
+                  {r.project && <span className="ml-1 px-1 rounded animate-pulse" style={{ color: '#050508', background: 'var(--rose)', fontSize: '8px', fontWeight: 700 }} title={t('This bloc has launched a crash programme to ignite superintelligence.')}>{t('ASI PROJECT')}</span>}
                 </span>
                 <span style={{ color: 'var(--text-secondary)' }}>
-                  {r.intel ? `${capabilityLabel(r.c)} ${r.c.toFixed(1)}` : `≈${capabilityLabel(Math.round(r.c))}`}
+                  {r.intel ? t('{label} {capability}', { label: capabilityLabel(r.c), capability: r.c.toFixed(1) }) : t('≈{label}', { label: capabilityLabel(Math.round(r.c)) })}
                   <span style={{ color: r.intel ? (r.a >= 70 ? 'var(--green)' : r.a >= 45 ? 'var(--amber)' : 'var(--rose)') : 'var(--text-tertiary)' }}>
                     {' · '}{r.intel ? `${Math.round(r.a)}%` : '?%'}
                   </span>
@@ -50,11 +51,11 @@ export default function OverviewPanel() {
                 <Bar value={r.c - 6} max={target - 6} color={r.me ? '#FFF4C2' : r.color} height={r.me ? 6 : 4} />
               </div>
               {!r.me && !r.intel && r.project && state.gameMode !== 'pioneer' && (
-                <div className="font-mono-data text-[8.5px]" style={{ color: 'var(--rose)' }}>Ignition date unknown — run INTEL [S] to see it</div>
+                <div className="font-mono-data text-[8.5px]" style={{ color: 'var(--rose)' }}>{t('Ignition date unknown — run INTEL [S] to see it')}</div>
               )}
               {!r.me && r.intel && (r.c > 19 || r.project) && state.gameMode !== 'pioneer' && (
                 <div className="font-mono-data text-[8.5px]" style={{ color: r.eta - state.year < 4 ? 'var(--rose)' : 'var(--text-tertiary)' }}>
-                  ASI ETA ~{Math.round(r.eta)} · {r.a < 60 ? 'RECKLESS: rogue AI risk' : 'likely aligned'}
+                  {t('ASI ETA ~{eta} · {status}', { eta: Math.round(r.eta), status: r.a < 60 ? t('RECKLESS: rogue AI risk') : t('likely aligned') })}
                 </div>
               )}
             </div>
@@ -64,41 +65,41 @@ export default function OverviewPanel() {
           {state.playerLaunchReady ? (
             <div className="flex flex-col gap-1">
               <div className="font-mono-data text-[10px] text-center" style={{ color: risk > 0 ? 'var(--rose)' : 'var(--green)' }}>
-                {risk > 0 ? `ROGUE-AI RISK ${Math.round(risk * 100)}% — raise alignment to ${req}% for zero risk` : 'ALIGNMENT SECURE — ZERO ROGUE RISK'}
+                {risk > 0 ? t('ROGUE-AI RISK {risk}% — raise alignment to {req}% for zero risk', { risk: Math.round(risk * 100), req }) : t('ALIGNMENT SECURE — ZERO ROGUE RISK')}
               </div>
               {armed ? (
                 <div className="grid grid-cols-2 gap-1">
                   <ActionButton color={risk > 0 ? '#FF477E' : '#00E5A0'} onClick={() => { play('alert'); dispatch({ type: 'IGNITE_ASI' }); }}>
-                    ☢ CONFIRM
+                    {t('☢ CONFIRM')}
                   </ActionButton>
-                  <ActionButton color="var(--text-secondary)" onClick={() => setArmed(false)}>ABORT</ActionButton>
+                  <ActionButton color="var(--text-secondary)" onClick={() => setArmed(false)}>{t('ABORT')}</ActionButton>
                 </div>
               ) : (
                 <ActionButton color={risk > 0 ? '#FF477E' : '#00E5A0'} onClick={() => { play('click'); setArmed(true); }}>
-                  ☢ IGNITE SUPERINTELLIGENCE
+                  {t('☢ IGNITE SUPERINTELLIGENCE')}
                 </ActionButton>
               )}
             </div>
           ) : (
             <div className="flex flex-col gap-0.5">
-              <Check ok={has(state, 'asi')} text="Research Superintelligence Theory" />
-              <Check ok={state.capability >= target} text={`Compute 10^${target} FLOPS (now 10^${state.capability.toFixed(1)})`} />
-              <Check ok={state.alignment >= req} text={`Alignment ≥ ${req}% (now ${Math.round(state.alignment)}%)`} soft />
+              <Check ok={has(state, 'asi')} text={t('Research Superintelligence Theory')} />
+              <Check ok={state.capability >= target} text={t('Compute 10^{target} FLOPS (now 10^{now})', { target, now: state.capability.toFixed(1) })} />
+              <Check ok={state.alignment >= req} text={t('Alignment ≥ {req}% (now {now}%)', { req, now: Math.round(state.alignment) })} soft />
             </div>
           )}
         </div>
       </Section>
 
       {/* ─── Planet ─── */}
-      <Section title="WORLD FIRSTS" accent="#FFD700">
+      <Section title={t('WORLD FIRSTS')} accent="#FFD700">
         <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
           {FIRSTS.map(f => {
             const w = state.firsts?.[f.key];
             const mine = w?.who === (state.mp?.me ?? state.playerContinent);
-            const who = w ? (w.who === 'history' ? 'before your time' : `${mine ? 'YOU' : (continentById(w.who)?.name ?? w.who)} ${w.year}`) : 'unclaimed';
+            const who = w ? (w.who === 'history' ? t('before your time') : `${mine ? t('YOU') : t(continentById(w.who)?.name ?? w.who)} ${w.year}`) : t('unclaimed');
             return (
-              <div key={f.key} className="font-mono-data text-[9px] flex justify-between gap-1" title={w ? '' : `First bloc to reach a ${f.label} wins a research bonus and national pride.`}>
-                <span style={{ color: w ? (mine ? '#FFD700' : 'var(--text-tertiary)') : 'var(--text-secondary)' }}>{w ? (mine ? '🏆' : '✔') : '○'} {f.label}</span>
+              <div key={f.key} className="font-mono-data text-[9px] flex justify-between gap-1" title={w ? '' : t('First bloc to reach a {label} wins a research bonus and national pride.', { label: t(f.label) })}>
+                <span style={{ color: w ? (mine ? '#FFD700' : 'var(--text-tertiary)') : 'var(--text-secondary)' }}>{w ? (mine ? '🏆' : '✔') : '○'} {t(f.label)}</span>
                 <span style={{ color: mine ? '#FFD700' : 'var(--text-tertiary)' }}>{who}</span>
               </div>
             );
@@ -106,23 +107,23 @@ export default function OverviewPanel() {
         </div>
       </Section>
 
-      <Section title="PLANET" accent={planetColor}>
-        <KV k="Planet health" v={`${Math.round(state.planetHealth)}%`} tone={state.planetHealth > 60 ? 'good' : state.planetHealth > 30 ? 'warn' : 'bad'} />
+      <Section title={t('PLANET')} accent={planetColor}>
+        <KV k={t('Planet health')} v={`${Math.round(state.planetHealth)}%`} tone={state.planetHealth > 60 ? 'good' : state.planetHealth > 30 ? 'warn' : 'bad'} />
         <Bar value={state.planetHealth} color={planetColor} />
         <div className="mt-1" />
-        <KV k="Warming" v={`+${state.temperature.toFixed(2)} °C`} tone={state.temperature > 2 ? 'bad' : state.temperature > 1.4 ? 'warn' : 'dim'} />
-        <KV k="World emissions" v={`${Math.round(worldEm)} Mt/yr`} />
-        <KV k="Your share" v={`${Math.round(share * 100)}%`} tone={share > 0.2 ? 'warn' : 'dim'} />
-        <KV k="AI doom clock" v={<span style={{ color: doomColor }}>{state.doomClock.toFixed(1)} min to midnight</span>} />
-        <KV k="World tension" v={<span title="Covert operations raise it, treaties and time lower it. DEFCON 1: every nation loses two years of growth." style={{ color: ['', '#FF2D2D', '#FF7A2D', '#FFB84D', '#00F0FF', '#00E5A0'][defcon(state.tension)] }}>DEFCON {defcon(state.tension)} · {Math.round(state.tension ?? 0)}</span>} />
+        <KV k={t('Warming')} v={`+${state.temperature.toFixed(2)} °C`} tone={state.temperature > 2 ? 'bad' : state.temperature > 1.4 ? 'warn' : 'dim'} />
+        <KV k={t('World emissions')} v={t('{amount} Mt/yr', { amount: Math.round(worldEm) })} />
+        <KV k={t('Your share')} v={`${Math.round(share * 100)}%`} tone={share > 0.2 ? 'warn' : 'dim'} />
+        <KV k={t('AI doom clock')} v={<span style={{ color: doomColor }}>{t('{minutes} min to midnight', { minutes: state.doomClock.toFixed(1) })}</span>} />
+        <KV k={t('World tension')} v={<span title={t('Covert operations raise it, treaties and time lower it. DEFCON 1: every nation loses two years of growth.')} style={{ color: ['', '#FF2D2D', '#FF7A2D', '#FFB84D', '#00F0FF', '#00E5A0'][defcon(state.tension)] }}>{t('DEFCON {level} · {tension}', { level: defcon(state.tension), tension: Math.round(state.tension ?? 0) })}</span>} />
         <div className="font-rajdhani text-[11.5px] leading-snug mt-1" style={{ color: 'var(--text-tertiary)' }}>
-          At 0% the planet collapses and everyone loses. Clean energy, forests and Climate Accords slow warming.
+          {t('At 0% the planet collapses and everyone loses. Clean energy, forests and Climate Accords slow warming.')}
         </div>
       </Section>
 
       {/* ─── Warnings ─── */}
       {state.warnings.length > 0 && (
-        <Section title="ALERTS" accent="var(--rose)">
+        <Section title={t('ALERTS')} accent="var(--rose)">
           <div className="flex flex-col gap-1">
             {state.warnings.slice(0, 5).map((w, i) => (
               <div key={i} className="font-rajdhani text-[12.5px] leading-snug flex gap-1.5" style={{ color: w.severity === 'danger' ? 'var(--rose)' : 'var(--amber)' }}>
@@ -134,16 +135,16 @@ export default function OverviewPanel() {
       )}
 
       {/* ─── Directives ─── */}
-      <Section title="DIRECTIVES" accent="var(--amber)">
+      <Section title={t('DIRECTIVES')} accent="var(--amber)">
         <div className="flex flex-col gap-1.5">
           {[...state.objectives.filter(o => o.done && o.reward > 0).slice(-2), ...state.objectives.filter(o => !o.done)].map(o => (
             <div key={o.id} className="flex gap-2" style={{ opacity: o.done ? 0.45 : 1 }}>
               <span className="font-mono-data text-[11px]" style={{ color: o.done ? 'var(--green)' : 'var(--amber)' }}>{o.done ? '✔' : '☐'}</span>
               <div className="min-w-0">
                 <div className="font-rajdhani text-[13px] font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>
-                  {o.text} <span className="font-mono-data text-[9px]" style={{ color: 'var(--green)' }}>+${o.reward}B</span>
+                  {t(o.text)} <span className="font-mono-data text-[9px]" style={{ color: 'var(--green)' }}>+${o.reward}B</span>
                 </div>
-                {!o.done && <div className="font-rajdhani text-[11.5px] leading-snug" style={{ color: 'var(--text-tertiary)' }}>{o.hint}</div>}
+                {!o.done && <div className="font-rajdhani text-[11.5px] leading-snug" style={{ color: 'var(--text-tertiary)' }}>{t(o.hint)}</div>}
               </div>
             </div>
           ))}
@@ -151,7 +152,7 @@ export default function OverviewPanel() {
       </Section>
 
       {/* ─── Log ─── */}
-      <Section title="WORLD LOG">
+      <Section title={t('WORLD LOG')}>
         <div className="flex flex-col gap-0.5">
           {state.log.slice(0, 12).map(l => (
             <div key={l.id} className="font-mono-data text-[9.5px] leading-snug" style={{ color: 'var(--text-secondary)' }}>

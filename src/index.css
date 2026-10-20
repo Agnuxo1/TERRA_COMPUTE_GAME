@@ -29,7 +29,7 @@ body {
   margin: 0; padding: 0;
   overflow: hidden;
   background: var(--void);
-  font-family: 'Rajdhani', sans-serif;
+  font-family: 'Rajdhani', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans KR', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans', 'Yu Gothic', 'Malgun Gothic', 'Segoe UI', sans-serif;
   color: var(--text-primary);
 }
 * { box-sizing: border-box; }
@@ -72,8 +72,8 @@ body {
 }
 
 /* ===== Shared utility classes (were referenced but never defined) ===== */
-.font-mono-data { font-family: 'Share Tech Mono', 'JetBrains Mono', monospace; }
-.font-rajdhani { font-family: 'Rajdhani', sans-serif; }
+.font-mono-data { font-family: 'Share Tech Mono', 'JetBrains Mono', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans KR', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans', 'Yu Gothic', 'Malgun Gothic', 'Segoe UI', monospace; }
+.font-rajdhani { font-family: 'Rajdhani', 'Noto Sans SC', 'Noto Sans JP', 'Noto Sans KR', 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans', 'Yu Gothic', 'Malgun Gothic', 'Segoe UI', sans-serif; }
 .panel-elevated {
   background: var(--surface-elevated);
   border: 1px solid var(--border-light);

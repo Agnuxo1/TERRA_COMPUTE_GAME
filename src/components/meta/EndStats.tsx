@@ -6,6 +6,7 @@ import type { GameState } from '../../game/types';
 import { evaluate, type Achievement } from '../../game/achievements';
 import { fmtMoney } from '../../game/format';
 import { continentName } from './SaveSlots';
+import { t } from '../../i18n';
 
 const AXIS = { fill: 'var(--text-tertiary)', fontSize: 9, fontFamily: 'JetBrains Mono, monospace' };
 const GRID = 'rgba(255,255,255,0.07)';
@@ -43,10 +44,10 @@ export default function EndStats({ state, accent }: { state: GameState; accent: 
   const capMin = Math.floor(Math.min(...data.map(d => Math.min(d.capability, d.rivalTop || d.capability))));
 
   const summary: Array<[string, string]> = [
-    ['FACTION', continentName(state.playerContinent)],
-    ['MODE', (state.gameMode ?? '—').toUpperCase()],
-    ['DIFFICULTY', (state.difficulty ?? 'normal').toUpperCase()],
-    ['YEARS', `${state.startYear}–${Math.floor(state.year)}`],
+    [t('FACTION'), continentName(state.playerContinent)],
+    [t('MODE'), (state.gameMode ?? '—').toUpperCase()],
+    [t('DIFFICULTY'), (state.difficulty ?? 'normal').toUpperCase()],
+    [t('YEARS'), `${state.startYear}–${Math.floor(state.year)}`],
   ];
 
   return (
@@ -62,42 +63,42 @@ export default function EndStats({ state, accent }: { state: GameState; accent: 
       </div>
 
       <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-        <ChartCard title="COMPUTE · LOG10 FLOPS" legend={[['YOU', '#00F0FF'], ['TOP RIVAL', '#FF477E']]}>
+        <ChartCard title={t('COMPUTE · LOG10 FLOPS')} legend={[[t('YOU'), '#00F0FF'], [t('TOP RIVAL'), '#FF477E']]}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 4, right: 6, bottom: 0, left: -26 }}>
               <CartesianGrid stroke={GRID} vertical={false} />
               <XAxis dataKey="year" tick={AXIS} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={18} />
               <YAxis tick={AXIS} tickLine={false} axisLine={false} domain={[Math.max(0, capMin), 25]} allowDecimals={false} />
-              <ReferenceLine y={24} stroke="#FFF4C2" strokeDasharray="4 3" label={{ value: 'ASI 10^24', position: 'insideTopLeft', fill: '#FFF4C2', fontSize: 8, fontFamily: 'JetBrains Mono, monospace' }} />
+              <ReferenceLine y={24} stroke="#FFF4C2" strokeDasharray="4 3" label={{ value: t('ASI 10^24'), position: 'insideTopLeft', fill: '#FFF4C2', fontSize: 8, fontFamily: 'JetBrains Mono, monospace' }} />
               <Tooltip {...tooltipStyle} formatter={(v: number) => `10^${Number(v).toFixed(1)}`} />
-              <Line type="monotone" dataKey="capability" name="You" stroke="#00F0FF" strokeWidth={2} dot={false} isAnimationActive={false} />
-              <Line type="monotone" dataKey="rivalTop" name="Top rival" stroke="#FF477E" strokeWidth={1.5} strokeDasharray="3 2" dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="capability" name={t('You')} stroke="#00F0FF" strokeWidth={2} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="rivalTop" name={t('Top rival')}stroke="#FF477E" strokeWidth={1.5} strokeDasharray="3 2" dot={false} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="PLANET · PEOPLE · SAFETY %" legend={[['PLANET', '#00E5A0'], ['APPROVAL', '#FFB84D'], ['ALIGN', '#B794FF']]}>
+        <ChartCard title={t('PLANET · PEOPLE · SAFETY %')} legend={[[t('PLANET'), '#00E5A0'], [t('APPROVAL'), '#FFB84D'], [t('ALIGN'), '#B794FF']]}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 4, right: 6, bottom: 0, left: -26 }}>
               <CartesianGrid stroke={GRID} vertical={false} />
               <XAxis dataKey="year" tick={AXIS} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={18} />
               <YAxis tick={AXIS} tickLine={false} axisLine={false} domain={[0, 100]} ticks={[0, 50, 100]} />
               <Tooltip {...tooltipStyle} formatter={(v: number) => `${Math.round(Number(v))}%`} />
-              <Line type="monotone" dataKey="planetHealth" name="Planet" stroke="#00E5A0" strokeWidth={2} dot={false} isAnimationActive={false} />
-              <Line type="monotone" dataKey="approval" name="Approval" stroke="#FFB84D" strokeWidth={1.5} dot={false} isAnimationActive={false} />
-              <Line type="monotone" dataKey="alignment" name="Alignment" stroke="#B794FF" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="planetHealth" name={t('Planet')} stroke="#00E5A0" strokeWidth={2} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="approval" name={t('Approval')} stroke="#FFB84D" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="alignment" name={t('Alignment')}stroke="#B794FF" strokeWidth={1.5} dot={false} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="GDP" legend={[['GDP / YEAR', '#FFF4C2']]}>
+        <ChartCard title={t('GDP')} legend={[[t('GDP / YEAR'), '#FFF4C2']]}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 4, right: 6, bottom: 0, left: -8 }}>
               <CartesianGrid stroke={GRID} vertical={false} />
               <XAxis dataKey="year" tick={AXIS} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={18} />
               <YAxis tick={AXIS} tickLine={false} axisLine={false} tickFormatter={(v: number) => fmtMoney(v)} width={44} />
               <Tooltip {...tooltipStyle} formatter={(v: number) => fmtMoney(Number(v))} />
-              <Line type="monotone" dataKey="gdp" name="GDP" stroke="#FFF4C2" strokeWidth={2} dot={false} isAnimationActive={false} />
+              <Line type="monotone" dataKey="gdp" name={t('GDP')}stroke="#FFF4C2" strokeWidth={2} dot={false} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -105,16 +106,16 @@ export default function EndStats({ state, accent }: { state: GameState; accent: 
 
       <div className="flex flex-wrap items-center justify-center gap-1.5">
         <span className="font-mono-data text-[9px] tracking-[0.2em]" style={{ color: 'var(--text-tertiary)' }}>
-          {fresh.length ? 'ACHIEVEMENTS UNLOCKED' : 'NO NEW ACHIEVEMENTS THIS GAME'}
+          {fresh.length ? t('ACHIEVEMENTS UNLOCKED') : t('NO NEW ACHIEVEMENTS THIS GAME')}
         </span>
         {fresh.map(a => (
           <span
             key={a.id}
-            title={a.description}
+            title={t(a.description)}
             className="flex items-center gap-1 px-2 py-0.5 rounded font-orbitron text-[9px] font-bold tracking-wider"
             style={{ color: accent, border: `1px solid ${accent}`, background: 'rgba(11,12,16,0.8)', boxShadow: `0 0 10px color-mix(in srgb, ${accent}, transparent 75%)` }}
           >
-            <span>{a.icon}</span>{a.name}
+            <span>{a.icon}</span>{t(a.name)}
           </span>
         ))}
       </div>

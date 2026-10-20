@@ -3,6 +3,7 @@ import { useGame } from '../App';
 import { play } from '../hooks/useSound';
 import EndStats from '../components/meta/EndStats';
 import ScoreCard from '../components/meta/ScoreCard';
+import { t } from '../i18n';
 
 function fmtNumber(n: number): string {
   if (n >= 1e24) return (n / 1e24).toFixed(1) + 'Y';
@@ -101,39 +102,39 @@ export default function VictoryScreen() {
           color: '#FFD700',
           textShadow: '0 0 30px rgba(255,215,0,0.4)',
         }}>
-          VICTORY
+          {t('VICTORY')}
         </h1>
 
         <p className="font-rajdhani text-sm text-center leading-snug" style={{color:'var(--text-secondary)', maxWidth:'640px'}}>
-          {state.gameOverReason || 'You have achieved Safe Artificial Superintelligence.'}
+          {state.gameOverReason || t('You have achieved Safe Artificial Superintelligence.')}
         </p>
 
         <div className="panel-elevated px-5 py-2.5 flex flex-wrap justify-center items-center gap-x-6 gap-y-1" style={{maxWidth:'720px'}}>
           <div className="contents">
             <div className="flex flex-col items-center">
-              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>YEAR ACHIEVED</span>
+              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>{t('YEAR ACHIEVED')}</span>
               <span className="font-orbitron text-base" style={{color:'var(--cyan)'}}>{state.victoryYear}</span>
             </div>
             <div className="flex flex-col items-center">
-              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>COMPUTE</span>
+              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>{t('COMPUTE')}</span>
               <span className="font-mono-data text-base" style={{color:'var(--green)'}}>{fmtNumber(state.compute)}F</span>
             </div>
             <div className="flex flex-col items-center">
-              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>ALIGNMENT</span>
+              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>{t('ALIGNMENT')}</span>
               <span className="font-orbitron text-base" style={{color:'var(--green)'}}>{Math.floor(state.alignment)}%</span>
             </div>
           </div>
           <div className="contents">
             <div className="flex flex-col items-center">
-              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>BUILDINGS</span>
+              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>{t('BUILDINGS')}</span>
               <span className="font-orbitron text-base" style={{color:'var(--amber)'}}>{state.totalBuildings}</span>
             </div>
             <div className="flex flex-col items-center">
-              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>TECHS</span>
+              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>{t('TECHS')}</span>
               <span className="font-orbitron text-base" style={{color:'var(--purple)'}}>{state.totalTechs}</span>
             </div>
             <div className="flex flex-col items-center">
-              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>PLANET</span>
+              <span className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>{t('PLANET')}</span>
               <span className="font-mono-data text-base" style={{color:'var(--cyan)'}}>{Math.round(state.planetHealth)}%</span>
             </div>
           </div>
@@ -147,12 +148,12 @@ export default function VictoryScreen() {
           <button onClick={handlePlayAgain}
             className="px-6 py-2.5 rounded font-orbitron text-sm font-bold"
             style={{background:'#FFD700', color:'#000'}}>
-            PLAY AGAIN
+            {t('PLAY AGAIN')}
           </button>
           <button onClick={handleMenu}
             className="px-6 py-2.5 rounded font-orbitron text-sm"
             style={{background:'var(--surface)', color:'var(--text-secondary)', border:'1px solid var(--border)'}}>
-            MAIN MENU
+            {t('MAIN MENU')}
           </button>
         </div>
       </div>

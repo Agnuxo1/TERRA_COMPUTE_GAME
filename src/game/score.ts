@@ -1,5 +1,6 @@
 // End-of-game score and rank: rewards winning early, safely, with a living planet and a content people.
 import type { GameState } from './types';
+import { t } from '../i18n/index.ts';
 
 export interface ScoreLine { label: string; points: number }
 export interface FinalScore { total: number; raw: number; rank: 'S' | 'A' | 'B' | 'C' | 'D'; title: string; lines: ScoreLine[]; mult: number }
@@ -11,22 +12,23 @@ export function finalScore(s: GameState): FinalScore {
   const won = s.outcome === 'safe_asi';
   const year = s.victoryYear || Math.floor(s.year);
   const lines: ScoreLine[] = [
-    { label: won ? 'Safe superintelligence' : 'Race lost', points: won ? 4000 : 0 },
-    { label: won ? `Ignited in ${year}` : 'Time survived', points: won ? Math.max(0, 2040 - year) * 180 : Math.max(0, Math.min(year, 2040) - (s.startYear || 1960)) * 20 },
-    { label: 'Peak compute', points: Math.round(Math.max(0, (s.peakCapability ?? 6) - 6) * 90) },
-    { label: `Alignment ${Math.round(s.alignment)}%`, points: Math.round(s.alignment * 12) },
-    { label: `Planet health ${Math.round(s.planetHealth)}%`, points: Math.round(s.planetHealth * 15) },
-    { label: `Approval ${Math.round(s.approval)}%`, points: Math.round(s.approval * 8) },
-    { label: `${s.unlockedTechs?.length ?? 0} technologies`, points: (s.unlockedTechs?.length ?? 0) * 15 },
+    { label: won ? t('Safe superintelligence') : t('Race lost'), points: won ? 4000 : 0 },
+    { label: won ? t('Ignited in {year}', { year }) : t('Time survived'), points: won ? Math.max(0, 2040 - year) * 180 : Math.max(0, Math.min(year, 2040) - (s.startYear || 1960)) * 20 },
+    { label: t('Peak compute'), points: Math.round(Math.max(0, (s.peakCapability ?? 6) - 6) * 90) },
+    { label: t('Alignment {n}%', { n: Math.round(s.alignment) }), points: Math.round(s.alignment * 12) },
+    { label: t('Planet health {n}%', { n: Math.round(s.planetHealth) }), points: Math.round(s.planetHealth * 15) },
+    { label: t('Approval {n}%', { n: Math.round(s.approval) }), points: Math.round(s.approval * 8) },
+    { label: t('{n} technologies', { n: s.unlockedTechs?.length ?? 0 }), points: (s.unlockedTechs?.length ?? 0) * 15 },
   ];
   const mult = (DIFF_MULT[s.difficulty] ?? 1) * (MODE_MULT[s.gameMode ?? 'complete'] ?? 1);
   // The rank judges the game itself (any mode, any difficulty); the multiplier only weighs the faction record.
   const raw = lines.reduce((a, l) => a + (Number.isFinite(l.points) ? l.points : 0), 0);
   const total = Math.round(raw * mult);
   const rank = raw >= 11500 ? 'S' : raw >= 9800 ? 'A' : raw >= 7500 ? 'B' : raw >= 5000 ? 'C' : 'D';
+  // Titles are translated here (not at module load) so the dictionary is ready and the extractor sees each key.
   const title = won
-    ? { S: 'Architect of the Future', A: 'Steward of the Singularity', B: 'Careful Pioneer', C: 'Lucky Winner', D: 'Pyrrhic Victory' }[rank]
-    : { S: 'Noble Runner-up', A: 'Noble Runner-up', B: 'Respected Contender', C: 'Footnote of History', D: 'Cautionary Tale' }[rank];
+    ? { S: t('Architect of the Future'), A: t('Steward of the Singularity'), B: t('Careful Pioneer'), C: t('Lucky Winner'), D: t('Pyrrhic Victory') }[rank]
+    : { S: t('Noble Runner-up'), A: t('Noble Runner-up'), B: t('Respected Contender'), C: t('Footnote of History'), D: t('Cautionary Tale') }[rank];
   return { total, raw, rank, title, lines, mult };
 }
 

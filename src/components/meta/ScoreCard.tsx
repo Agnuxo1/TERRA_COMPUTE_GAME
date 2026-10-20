@@ -4,6 +4,7 @@ import type { GameState } from '../../game/types';
 import { finalScore, loadBest, recordBest } from '../../game/score';
 import { continentById } from '../../game/data';
 import { capabilityLabel } from '../../game/format';
+import { t } from '../../i18n';
 
 const RANK_COLOR: Record<string, string> = { S: '#FFD700', A: '#00E5A0', B: '#00F0FF', C: '#FFB84D', D: '#FF477E' };
 
@@ -31,7 +32,7 @@ export default function ScoreCard({ state }: { state: GameState }) {
           <span className="font-orbitron text-[13px] font-bold" style={{ color }}>{sc.title}</span>
           <span className="font-mono-data text-[18px]" style={{ color: '#FFF4C2' }}>{sc.total.toLocaleString('en-US')} pts</span>
           <span className="font-mono-data text-[9px]" style={{ color: isRecord ? 'var(--green)' : 'var(--text-tertiary)' }}>
-            {isRecord ? '★ NEW FACTION RECORD' : prevBest ? `Faction record: ${prevBest.score.toLocaleString('en-US')} (${prevBest.rank})` : ''}
+            {isRecord ? t('★ NEW FACTION RECORD') : prevBest ? t('Faction record: {score} ({rank})', { score: prevBest.score.toLocaleString('en-US'), rank: prevBest.rank }) : ''}
           </span>
         </div>
       </div>
@@ -39,17 +40,17 @@ export default function ScoreCard({ state }: { state: GameState }) {
         {sc.lines.map(l => (
           <div key={l.label} className="flex justify-between gap-3"><span>{l.label}</span><span style={{ color: l.points > 0 ? '#FFF4C2' : 'var(--text-tertiary)' }}>+{l.points}</span></div>
         ))}
-        {sc.mult !== 1 && <div className="flex justify-between gap-3"><span>Mode × difficulty</span><span style={{ color: '#FFF4C2' }}>×{sc.mult.toFixed(2)}</span></div>}
+        {sc.mult !== 1 && <div className="flex justify-between gap-3"><span>{t('Mode × difficulty')}</span><span style={{ color: '#FFF4C2' }}>×{sc.mult.toFixed(2)}</span></div>}
       </div>
     </div>
     {standings.length > 1 && (
       <div className="panel-elevated px-4 py-2 flex flex-col gap-1" style={{ maxWidth: 720, width: '100%' }}>
-        <span className="font-mono-data text-[9px] tracking-[0.3em]" style={{ color: '#FF3B3B' }}>WAR ROOM {state.mp!.room} · FINAL STANDINGS</span>
+        <span className="font-mono-data text-[9px] tracking-[0.3em]" style={{ color: '#FF3B3B' }}>{t('WAR ROOM {room} · FINAL STANDINGS', { room: state.mp!.room })}</span>
         {standings.map((p, i) => {
           const c = continentById(p.faction);
           return (
             <div key={p.peerId} className="flex items-center justify-between font-mono-data text-[11px]" style={{ color: p.mine ? '#FFF4C2' : 'var(--text-secondary)' }}>
-              <span><span style={{ color: i === 0 ? '#FFD700' : 'var(--text-tertiary)' }}>{i + 1}.</span> <span style={{ color: c?.color }}>{c?.name}</span> · {p.name}{p.mine ? ' (you)' : ''}{p.online ? '' : ' · disconnected'}</span>
+              <span><span style={{ color: i === 0 ? '#FFD700' : 'var(--text-tertiary)' }}>{i + 1}.</span> <span style={{ color: c?.color }}>{c?.name}</span> · {p.name}{p.mine ? ` ${t('(you)')}` : ''}{p.online ? '' : ` · ${t('disconnected')}`}</span>
               <span>{capabilityLabel(p.cap)} 10^{p.cap.toFixed(1)}</span>
             </div>
           );

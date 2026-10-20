@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { play } from '../../hooks/useSound';
+import { t } from '../../i18n';
 import { MinigameResultCard, MinigameShell, RetroButton } from './MinigameShell';
 import type { MinigameProps, MinigameResult } from './types';
 import {
@@ -53,7 +54,7 @@ export default function MooreGame({ difficulty, onComplete }: MinigameProps) {
   const [bump, setBump] = useState<number | null>(null);
   const completed = useRef(false);
 
-  const masks = useMemo(() => turns.map((t, i) => currentMask(puzzle, i, t)), [turns, puzzle]);
+  const masks = useMemo(() => turns.map((turn, i) => currentMask(puzzle, i, turn)), [turns, puzzle]);
   const live = useMemo(() => powered(n, masks, puzzle.source), [n, masks, puzzle.source]);
   const liveCount = live.filter(Boolean).length;
   const chipsLit = [...chips].filter(i => live[i]).length;
@@ -66,8 +67,8 @@ export default function MooreGame({ difficulty, onComplete }: MinigameProps) {
 
   useEffect(() => {
     if (!result) return;
-    const t = setTimeout(() => setShowCard(true), 1200);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setShowCard(true), 1200);
+    return () => clearTimeout(timer);
   }, [result]);
 
   useEffect(() => {
@@ -90,14 +91,17 @@ export default function MooreGame({ difficulty, onComplete }: MinigameProps) {
       return;
     }
     if (locked.has(i)) { play('alert'); setBump(i); setTimeout(() => setBump(null), 250); return; }
-    const nextTurns = turns.map((t, j) => (j === i ? t + dir : t));
-    const nextMasks = nextTurns.map((t, j) => currentMask(puzzle, j, t));
+    const nextTurns = turns.map((turn, j) => (j === i ? turn + dir : turn));
+    const nextMasks = nextTurns.map((turn, j) => currentMask(puzzle, j, turn));
     const total = moves + 1;
     setTurns(nextTurns);
     setMoves(total);
     if (isSolved(n, nextMasks, puzzle.source)) {
       play('coin');
-      setResult({ stars: starsForMoves(puzzle.par, total), summary: `Circuit live in ${total} rotations (par ${puzzle.par}).` });
+      setResult({
+        stars: starsForMoves(puzzle.par, total),
+        summary: t('Circuit live in {moves} rotations (par {par}).', { moves: total, par: puzzle.par }),
+      });
     } else {
       play('click');
     }
@@ -107,8 +111,8 @@ export default function MooreGame({ difficulty, onComplete }: MinigameProps) {
     <MinigameShell
       meta={meta}
       wide
-      status={`ROTATIONS ${moves} · PAR ${puzzle.par} · LIVE ${liveCount}/${n * n}`}
-      onAbandon={() => finish({ stars: 0, summary: 'Exercise abandoned.' })}
+      status={t('ROTATIONS {moves} · PAR {par} · LIVE {live}/{total}', { moves, par: puzzle.par, live: liveCount, total: n * n })}
+      onAbandon={() => finish({ stars: 0, summary: t('Exercise abandoned.') })}
     >
       <div className="relative flex h-full w-full flex-col items-center justify-center gap-3 md:flex-row md:gap-5">
         {/* Board */}
@@ -141,7 +145,7 @@ export default function MooreGame({ difficulty, onComplete }: MinigameProps) {
                   cursor: lockMode ? 'cell' : 'pointer',
                   animation: bump === i ? 'moore-bump .25s' : undefined,
                 }}
-                aria-label={`tile ${i}`}
+                aria-label={t('tile {n}', { n: i })}
               >
                 <TileGlyph sol={puzzle.sol[i]} on={on} chip={chips.has(i)} rot={puzzle.scr[i] + turns[i]} />
                 {isSource && (
@@ -168,13 +172,13 @@ export default function MooreGame({ difficulty, onComplete }: MinigameProps) {
           className="flex w-full max-w-[300px] flex-col gap-2 rounded-lg p-3 md:w-[260px]"
           style={{ background: 'rgba(12,13,18,0.9)', border: '1px solid var(--border-light)' }}
         >
-          <div className="font-mono-data text-[10px] tracking-[0.25em]" style={{ color: ACCENT }}>DIE STATUS</div>
+          <div className="font-mono-data text-[10px] tracking-[0.25em]" style={{ color: ACCENT }}>{t('DIE STATUS')}</div>
           <div className="grid grid-cols-2 gap-2">
             {[
-              ['ROTATIONS', moves],
-              ['PAR', puzzle.par],
-              ['TRACES LIVE', `${liveCount}/${n * n}`],
-              ['CHIPS LIT', `${chipsLit}/${chips.size}`],
+              [t('ROTATIONS'), moves],
+              [t('PAR'), puzzle.par],
+              [t('TRACES LIVE'), `${liveCount}/${n * n}`],
+              [t('CHIPS LIT'), `${chipsLit}/${chips.size}`],
             ].map(([k, v]) => (
               <div key={k} className="rounded p-1.5 text-center" style={{ background: '#05060A', border: '1px solid var(--border-light)' }}>
                 <div className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>{k}</div>
@@ -187,14 +191,14 @@ export default function MooreGame({ difficulty, onComplete }: MinigameProps) {
             active={lockMode}
             onClick={() => { setLockMode(m => !m); play('click'); }}
             className="px-3 py-2 text-xs font-bold tracking-widest"
-            title="Toggle lock mode (L). While on, clicking a tile pins or unpins it."
+            title={t('Toggle lock mode (L). While on, clicking a tile pins or unpins it.')}
           >
-            {lockMode ? 'LOCK MODE: ON' : 'LOCK MODE: OFF'}
+            {lockMode ? t('LOCK MODE: ON') : t('LOCK MODE: OFF')}
           </RetroButton>
           <div className="font-mono-data text-[10px] leading-snug" style={{ color: 'var(--text-tertiary)' }}>
-            Click: rotate ↻ · Right/Shift-click: rotate ↺<br />
-            Lock mode (L): click a tile to pin it. Pinned tiles cannot turn.<br />
-            3★ ≤ {Math.ceil(puzzle.par * 1.35) + 2} rotations · 2★ ≤ {puzzle.par * 2 + 6}
+            {t('Click: rotate ↻ · Right/Shift-click: rotate ↺')}<br />
+            {t('Lock mode (L): click a tile to pin it. Pinned tiles cannot turn.')}<br />
+            {t('3★ ≤ {three} rotations · 2★ ≤ {two}', { three: Math.ceil(puzzle.par * 1.35) + 2, two: puzzle.par * 2 + 6 })}
           </div>
         </div>
 
