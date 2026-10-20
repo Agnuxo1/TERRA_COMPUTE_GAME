@@ -149,6 +149,19 @@ export interface Modifier {
 
 export type TreatyId = 'trade' | 'research' | 'climate' | 'safety';
 
+/** A rival's memory of what someone did to it (fades over time). */
+export interface AIMemory { who: string; delta: number; year: number; why: string }   // who = 'player' or a rival id
+
+/** Living rival: a yearly budget split into investment lines that drive its pace, posture and memory. */
+export interface AINation {
+  budget: number;                                    // $B available
+  invest: { compute: number; research: number; safety: number; defense: number; covert: number };  // smoothed $B/yr
+  mood: 'build' | 'race' | 'secure' | 'diplomacy';   // current posture (shown in UI)
+  plan: string;                                      // English source text of the last yearly plan (translated at render with t())
+  memory: AIMemory[];
+  lastYear: number;                                  // last year planned
+}
+
 export interface Rival {
   id: string;
   strategy: AIStrategy;
@@ -170,6 +183,8 @@ export interface Rival {
   heat?: number;
   /** Multiplayer: the human's own counter-intelligence (reported in their snapshot), lowers our success odds. */
   defense?: number;
+  /** Living rival state (investment, posture, memory). Optional so older saves still load. */
+  nation?: AINation;
   lastAction: string;
   cooldown: number;       // years until next notable action
 }
