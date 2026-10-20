@@ -28,7 +28,7 @@ import { dismiss, hire, initTalent, poach, talentBonus } from './people.ts';
 import { t } from '../i18n/index.ts';
 import { isVictory } from './types.ts';
 import type {
-  AIStrategy, BuildingId, Difficulty, Economy, ForecastWarning, GameEvent, GameMode, GameState, LogEntry, MapData, Modifier,
+  AIStrategy, BuildingId, Difficulty, Economy, ForecastWarning, GameEvent, GameMode, GameMods, GameState, LogEntry, MapData, Modifier,
   Notification, PlacedBuilding, ProjectId, Rival, Tile, TreatyId, YearReport, YearReportLine, ZoneId,
 } from './types.ts';
 
@@ -53,7 +53,7 @@ export type CovertOp = 'intel' | 'steal' | 'sabotage' | 'propaganda' | 'blackout
 
 export type Action =
   | { type: 'SET_MODE'; mode: GameMode }
-  | { type: 'START_GAME'; continentId: string; seed?: number; difficulty?: Difficulty }
+  | { type: 'START_GAME'; continentId: string; seed?: number; difficulty?: Difficulty; mods?: GameMods; challenge?: string }
   | { type: 'TICK' }
   | { type: 'SELECT_TILE'; tileId: number | null }
   | { type: 'SET_PLACING'; building: BuildingId | null }

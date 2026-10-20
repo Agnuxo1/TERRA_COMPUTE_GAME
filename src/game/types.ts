@@ -2,7 +2,7 @@
 // Everything here is plain data so the engine can run headless (tests, balance sims).
 
 export type GameMode = 'pioneer' | 'strategist' | 'complete' | 'logic';
-export type Screen = 'title' | 'mode' | 'select' | 'game' | 'logic' | 'gameover' | 'victory' | 'lobby';
+export type Screen = 'title' | 'mode' | 'select' | 'game' | 'logic' | 'gameover' | 'victory' | 'lobby' | 'scenarios' | 'challenge';
 
 export type Terrain = 'water' | 'plains' | 'fertile' | 'forest' | 'hills' | 'desert' | 'tundra';
 export type Deposit = 'coal' | 'uranium' | 'silicon';
@@ -391,6 +391,30 @@ export interface GameState {
   flags?: Record<string, number>;
   /** E2: hired and lost (poached) scientists. */
   talent?: TalentState;
+
+  // Phase H (optional so older saves load)
+  /** H3: game modifiers chosen before the game (absent = all neutral). */
+  mods?: GameMods;
+  /** H1: scenario this game started from. */
+  scenario?: string;
+  /** H2: daily/weekly challenge this game belongs to, e.g. 'daily-2026-10-20'. */
+  challenge?: string;
+}
+
+/** H3: pre-game modifiers. Every field is optional; absent = neutral. */
+export interface GameMods {
+  /** Rival covert aggression multiplier (0.5 calm … 1.5 hostile). */
+  aiAggression?: number;
+  /** History speed multiplier on years per tick (0.75 slow … 1.5 fast). */
+  pace?: number;
+  /** Dynamic (non-historical) events switched off. */
+  noDynamicEvents?: boolean;
+  /** Planet damage from emissions ×1.5. */
+  fragilePlanet?: boolean;
+  /** Coal plants cannot be built. */
+  noCoal?: boolean;
+  /** Chip market price multiplier (e.g. 3 = "chips at triple price"). */
+  chipPrice?: number;
 }
 
 // ─── Phases D & E ──────────────────────────────────────────────────────────
