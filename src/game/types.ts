@@ -16,7 +16,8 @@ export type BuildingId =
 
 export type BuildingCategory = 'people' | 'economy' | 'energy' | 'science' | 'compute' | 'safety';
 
-export type Difficulty = 'easy' | 'normal' | 'hard';
+/** 'doomsday' = hard, plus every AI bloc gangs up on whoever leads the race (guide 8.4). */
+export type Difficulty = 'easy' | 'normal' | 'hard' | 'doomsday';
 
 export interface HistoryPoint {
   year: number;
