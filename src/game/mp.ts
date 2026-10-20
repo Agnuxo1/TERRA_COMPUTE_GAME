@@ -16,6 +16,8 @@ export interface MPInfo {
   players: MPPlayer[];
   /** The host left: the game continues offline against AI blocs. */
   offline?: boolean;
+  /** G3: West vs East teams (shared research, team chat, joint victory). */
+  teams?: boolean;
 }
 
 /** Summary every human broadcasts about their own nation (~1 per second). */
@@ -30,7 +32,7 @@ export type MPMsg =
   | { t: 'diplo'; from: string; to: string; kind: 'gift' | 'propose' | 'accept' | 'decline' | 'cancel'; treaty?: TreatyId; amount?: number }
   | { t: 'aiop'; from: string; to: string; lag?: number; align?: number; stability?: number; clean?: number }
   | { t: 'end'; who: string; human: boolean; safe: boolean; year: number }
-  | { t: 'chat'; from: string; text: string }
+  | { t: 'chat'; from: string; text: string; team?: boolean }
   | { t: 'first'; key: string; who: string; year: number }
   | { t: 'defcon1'; year: number; culprit?: string }
   /** Phase D1: a guest's influence (delta > 0) or successful coup (delta < 0 on target) in a zone, applied by the host. */
@@ -38,6 +40,12 @@ export type MPMsg =
   /** G4: a deal offered to another human, and that human's answer. */
   | { t: 'deal'; from: string; to: string; deal: import('./deals').Deal }
   | { t: 'dealr'; from: string; to: string; id: string; accept: boolean };
+
+/** G3: the two sides of a team game. */
+export const TEAM_WEST = ['na', 'eu', 'sa', 'oc'];
+export const teamOf = (id: string): 'west' | 'east' => (TEAM_WEST.includes(id) ? 'west' : 'east');
+/** True when both blocs are on the same side of a team game. */
+export const allied = (s: GameState, a: string, b: string) => !!s.mp?.teams && a !== b && teamOf(a) === teamOf(b);
 
 export const isHuman = (s: GameState, id: string) =>
   !!s.mp && !s.mp.offline && id !== s.mp.me && s.mp.players.some(p => p.faction === id && p.online);

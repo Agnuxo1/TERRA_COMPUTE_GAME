@@ -14,6 +14,8 @@ export interface LobbyState {
   players: LobbyPlayer[];
   mode: 'complete' | 'strategist';
   difficulty: Difficulty;
+  /** G3: West vs East team game. */
+  teams?: boolean;
   started: boolean;
   seed: number;
 }
@@ -314,7 +316,7 @@ class Session {
     else { this.pendingClaim = faction; this.send?.({ k: 'claim', faction }); }
   }
 
-  setOptions(o: Partial<Pick<LobbyState, 'mode' | 'difficulty'>>) {
+  setOptions(o: Partial<Pick<LobbyState, 'mode' | 'difficulty' | 'teams'>>) {
     if (this.isHost && this.lobby && !this.lobby.started) this.setLobby({ ...this.lobby, ...o });
   }
 
