@@ -1,0 +1,25 @@
+# Balance guard: 24 bot games (8 continents × 3 seeds). Fails on exceptions, NaN, unfinished games
+# or a win rate outside 40–75 %. The simulator only imports the game sources, so no npm install is needed.
+name: balance
+
+on:
+  push:
+    branches: [v4, main]
+    paths: ['src/game/**', 'tools/sim/**', '.github/workflows/balance.yml']
+  pull_request:
+    paths: ['src/game/**', 'tools/sim/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node tools/sim/sweep.ts 0.40 0.75
