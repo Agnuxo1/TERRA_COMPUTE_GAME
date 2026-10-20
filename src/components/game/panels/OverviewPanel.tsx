@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useGame } from '../../../App';
+import { advise } from '../../../game/advisor';
 import { continentById } from '../../../game/data';
 import { DOCTRINES } from '../../../game/doctrines';
 import {
@@ -31,9 +32,25 @@ export default function OverviewPanel() {
   const share = worldEm > 0 ? state.eco.emissions / worldEm : 0;
   const planetColor = state.planetHealth > 60 ? '#00E5A0' : state.planetHealth > 30 ? '#FFB84D' : '#FF477E';
   const doomColor = state.doomClock > 6 ? '#00E5A0' : state.doomClock > 3 ? '#FFB84D' : '#FF477E';
+  const advice = advise(state);
+  const adviceOverlay = advice?.action?.overlay;
 
   return (
     <div className="flex flex-col">
+      {/* ─── Advisor (C2) ─── */}
+      {advice && (
+        <Section title={t('ADVISOR')} accent="var(--amber)">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-rajdhani text-[12.5px] leading-snug" style={{ color: 'var(--text-secondary)' }}>{t(advice.text, advice.params)}</span>
+            {adviceOverlay && (
+              <ActionButton small color="var(--amber)" onClick={() => { play('click'); dispatch({ type: 'OPEN_OVERLAY', overlay: adviceOverlay }); }}>
+                {t('OPEN')}
+              </ActionButton>
+            )}
+          </div>
+        </Section>
+      )}
+
       {/* ─── Race to ASI ─── */}
       <Section title={t('RACE TO SUPERINTELLIGENCE')} accent="var(--cyan)" right={<span className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>{t('GOAL 10^{target}', { target })}</span>}>
         <div className="flex flex-col gap-1.5">
@@ -92,6 +109,11 @@ export default function OverviewPanel() {
             </div>
           )}
         </div>
+      </Section>
+
+      {/* ─── Capability over time (C4) ─── */}
+      <Section title={t('CAPABILITY OVER TIME')} accent="var(--cyan)">
+        <RivalChart />
       </Section>
 
       {/* ─── Paths to victory ─── */}
@@ -208,6 +230,51 @@ export default function OverviewPanel() {
           ))}
         </div>
       </Section>
+    </div>
+  );
+}
+
+/** Capability over time: you against the three strongest rivals. Dotted where a rival is only estimated (no intel). Inline SVG. */
+function RivalChart() {
+  const { state } = useGame();
+  const pts = state.history;
+  if (pts.length < 2) {
+    return <div className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>{t('The chart appears after the first year.')}</div>;
+  }
+  const top = [...state.rivals].sort((a, b) => b.capability - a.capability).slice(0, 3);
+  const series = [
+    { key: 'me', name: t('You'), color: '#FFF4C2', dashed: false, values: pts.map(p => p.capability as number | undefined) },
+    ...top.map(r => {
+      const c = continentById(r.id)!;
+      return { key: r.id, name: t(c.name), color: c.color, dashed: !hasIntel(state, r), values: pts.map(p => p.rivals?.[r.id]) };
+    }),
+  ];
+  const W = 260, H = 84, PAD = 4;
+  const all = series.flatMap(sr => sr.values.filter((v): v is number => v !== undefined));
+  const lo = Math.min(...all) - 0.2;
+  const hi = Math.max(...all) + 0.2;
+  const x0 = pts[0].year, x1 = pts[pts.length - 1].year;
+  const X = (year: number) => PAD + ((year - x0) / Math.max(1, x1 - x0)) * (W - 2 * PAD);
+  const Y = (v: number) => PAD + (1 - (v - lo) / Math.max(0.01, hi - lo)) * (H - 2 * PAD);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} role="img" aria-label={t('Capability over time: you and the top three rivals')}>
+        {series.map(sr => {
+          const coords = sr.values.flatMap((v, i) => (v === undefined ? [] : [`${X(pts[i].year).toFixed(1)},${Y(v).toFixed(1)}`]));
+          return <polyline key={sr.key} points={coords.join(' ')} fill="none" stroke={sr.color}
+            strokeWidth={sr.key === 'me' ? 2 : 1.4} strokeDasharray={sr.dashed ? '2 3' : undefined} strokeLinejoin="round" />;
+        })}
+      </svg>
+      <div className="flex flex-wrap gap-x-2 font-mono-data text-[8.5px]">
+        {series.map(sr => (
+          <span key={sr.key} style={{ color: sr.color }}>
+            {sr.dashed ? '┄ ' : '━ '}{sr.name}{sr.dashed && <span style={{ color: 'var(--text-tertiary)' }}> {t('(estimate)')}</span>}
+          </span>
+        ))}
+      </div>
+      <div className="flex justify-between font-mono-data text-[8.5px]" style={{ color: 'var(--text-tertiary)' }}>
+        <span>{x0}</span><span>{x1}</span>
+      </div>
     </div>
   );
 }

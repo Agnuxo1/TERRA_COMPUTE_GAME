@@ -104,6 +104,9 @@ export default function SettingsForm({ accent = 'var(--cyan)' }: { accent?: stri
       <Row label={t('REDUCE MOTION')} hint={t('Fewer particles and animations')}>
         <Toggle label={t('Reduce motion')} accent={accent} on={s.reduceMotion} onChange={v => set({ reduceMotion: v })} />
       </Row>
+      <Row label={t('YEARLY REPORT')} hint={t('A short summary after each year, bottom-left')}>
+        <Toggle label={t('Yearly report')} accent={accent} on={s.yearReport} onChange={v => set({ yearReport: v })} />
+      </Row>
 
       <button
         type="button"
