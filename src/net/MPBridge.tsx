@@ -5,7 +5,7 @@ import { useGame } from '../App';
 import { YEARS_PER_TICK, gameReducer, giftCost, initialState, ownDefense } from '../game/engine';
 
 const clampN = (v: unknown, lo: number, hi: number) => { const n = Number(v); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : lo; };
-import { aiStates, makeSnapshot, type MPPlayer } from '../game/mp';
+import { aiStates, makeSnapshot, teamOf, type MPPlayer } from '../game/mp';
 import type { GameState, ZoneId, ZoneState } from '../game/types';
 import { zoneById } from '../game/zones';
 
@@ -45,7 +45,9 @@ export function startMultiplayer(lobby: LobbyState, selfId: string): GameState |
   if (!me?.faction) return null;
   let s = gameReducer({ ...initialState, gameMode: lobby.mode }, { type: 'START_GAME', continentId: me.faction, seed: lobby.seed, difficulty: lobby.difficulty });
   const players: MPPlayer[] = lobby.players.filter(p => p.faction).map(p => ({ peerId: p.peerId, name: p.name, faction: p.faction!, online: p.online }));
-  s = { ...s, mp: { role: lobby.hostId === selfId ? 'host' : 'guest', me: me.faction, room: lobby.code, players }, mpOutbox: [], chat: [], paused: false, speed: 1 };
+  s = { ...s, mp: { role: lobby.hostId === selfId ? 'host' : 'guest', me: me.faction, room: lobby.code, players, teams: !!lobby.teams }, mpOutbox: [], chat: [], paused: false, speed: 1 };
+  // G3: allies start on good terms.
+  if (lobby.teams) s.rivals = s.rivals.map(r => (teamOf(r.id) === teamOf(me.faction!) ? { ...r, relation: Math.max(r.relation, 50) } : r));
   return s;
 }
 
@@ -62,7 +64,7 @@ export function stateFromSave(lobby: LobbyState, selfId: string): GameState | nu
   if (!saved.mp || saved.mp.me !== me.faction) return null;
   const players: MPPlayer[] = lobby.players.filter(p => p.faction).map(p => ({ peerId: p.peerId, name: String(p.name).slice(0, 18), faction: p.faction!, online: p.online || p.peerId === selfId }));
   const role = lobby.hostId === selfId ? 'host' : 'guest';
-  return { ...saved, mp: { role, me: me.faction, room: lobby.code, players }, mpOutbox: [], screen: 'game', paused: role === 'host' ? true : saved.paused };
+  return { ...saved, mp: { role, me: me.faction, room: lobby.code, players, teams: saved.mp.teams }, mpOutbox: [], screen: 'game', paused: role === 'host' ? true : saved.paused };
 }
 
 export default function MPBridge() {

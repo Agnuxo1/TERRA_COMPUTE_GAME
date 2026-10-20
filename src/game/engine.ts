@@ -17,7 +17,7 @@ import { basePrice, PRICE_IMPACT, type Good } from './market.ts';
 import { POLICY_COOLDOWN, POLICY_GDP_COST, policyById, policySlots } from './policies.ts';
 import { mulberry32 } from './rng.ts';
 import { applyDynamic, leaderOf, projectEvent, rollDynamic, type DynHelpers } from './dynamic-events.ts';
-import { isHuman, isRemote, lagFor, outbox, playerName, type AIState, type MPMsg, type MPPlayer, type Snapshot } from './mp.ts';
+import { TEAM_WEST, allied, isHuman, isRemote, lagFor, outbox, playerName, type AIState, type MPMsg, type MPPlayer, type Snapshot } from './mp.ts';
 import { aggression, applyNation, cloneNation, initNation, memoryScore, planYear, remember, sabotaged, type PlanHelpers } from './ai/nation.ts';
 import { DOCTRINES, type DoctrineDef } from './doctrines.ts';
 import { advise } from './advisor.ts';
@@ -589,6 +589,7 @@ export function computeEconomy(s: GameState): Economy {
   if (has(s, 'agentic')) researchMult *= 1.2;
   if (has(s, 'agi')) researchMult *= 1.5;
   researchMult *= 1 + 0.1 * s.rivals.filter(r => r.treaties.includes('research')).length;
+  researchMult *= 1 + 0.1 * (s.mp?.players.filter(p => p.online && allied(s, s.mp!.me, p.faction)).length ?? 0);
   if (pol(s, 'space_race')) researchMult *= 1.1;
   if (pol(s, 'propaganda')) researchMult *= 0.95;
   if (pol(s, 'manhattan_ai')) researchMult *= 1.15;
@@ -813,6 +814,12 @@ function tickRivals(s: GameState, dt: number) {
       outbox(s, { t: 'end', who: r.id, human: false, safe: !rogue, year: Math.floor(year) });
       const custodian = !rogue && custodianReady(s);
       s.outcome = rogue ? 'rogue_rival' : custodian ? 'custodian' : 'rival_asi';
+      if (!rogue && allied(s, meId(s), r.id)) {
+        s.outcome = 'safe_asi';
+        s.victoryYear = Math.floor(year);
+        s.gameOverReason = t('Your ally {name} ignited a safe superintelligence in {year}. The {side} wins together.', { name: rivalName(r.id), year: Math.floor(year), side: teamName(r.id) });
+        return r;
+      }
       s.gameOverReason = rogue
         ? t('{name} ignited an unaligned superintelligence in {year} (alignment {alignment}%). It optimised the planet for its own goals. Humanity\'s story ended with a prompt.', { name: rivalName(r.id), year: Math.floor(year), alignment: Math.round(r.alignment) })
         : custodian
@@ -1536,6 +1543,9 @@ const DE: DEHelpers = {
 };
 
 // --- G4 deals and pacts -------------------------------------------------------
+/** G3: translated side name for team games. */
+function teamName(id: string): string { return TEAM_WEST.includes(id) ? t('Western Bloc') : t('Eastern Bloc'); }
+
 /** The non-aggression pact this player holds with a bloc, if still in force. */
 function pactWith(s: GameState, bloc: string): PactRecord | undefined {
   return (s.pacts ?? []).find(p => p.with === bloc && p.until > s.year);
@@ -1955,6 +1965,12 @@ function receive(state: GameState, m: MPMsg): GameState {
     case 'end': {
       if (m.who === me || s.outcome) return s;
       const who = `${rivalName(m.who)}${m.human && playerName(s, m.who) ? ` (${playerName(s, m.who)})` : ''}`;
+      if (m.safe && allied(s, me, m.who)) {
+        s.outcome = 'safe_asi';
+        s.victoryYear = m.year;
+        s.gameOverReason = t('Your ally {name} ignited a safe superintelligence in {year}. The {side} wins together.', { name: who, year: m.year, side: teamName(m.who) });
+        return endGame(s);
+      }
       const custodian = m.safe && custodianReady(s);
       s.outcome = m.safe ? (custodian ? 'custodian' : 'rival_asi') : 'rogue_rival';
       s.gameOverReason = custodian
@@ -1971,7 +1987,8 @@ function receive(state: GameState, m: MPMsg): GameState {
       if (!host) brinkCrisis(s, m.culprit);
       return s;
     case 'chat':
-      s.chat = [...(s.chat ?? []), { from: m.from, text: m.text.slice(0, 160), year: Math.floor(s.year) }].slice(-40);
+      if (m.team && m.from !== me && !allied(s, me, m.from)) return state;
+      s.chat = [...(s.chat ?? []), { from: m.from, text: (m.team ? '[TEAM] ' : '') + m.text.slice(0, 160), year: Math.floor(s.year) }].slice(-40);
       return s;
   }
   return s;

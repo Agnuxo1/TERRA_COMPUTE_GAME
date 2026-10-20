@@ -7,6 +7,7 @@ import { capabilityLabel } from '../../game/format';
 import { play } from '../../hooks/useSound';
 import { t } from '../../i18n';
 import { session } from '../../net/session';
+import { teamOf } from '../../game/mp';
 
 /** Round-trip colour: green < 150 ms, amber < 400, red above. */
 const rttColor = (ms: number) => (ms < 150 ? 'var(--green)' : ms < 400 ? 'var(--amber)' : '#FF3B3B');
@@ -45,8 +46,12 @@ export default function MPHud() {
   const send = () => {
     const t = text.trim().slice(0, 160);
     if (!t) return;
-    dispatch({ type: 'MP_RECV', msg: { t: 'chat', from: mp.me, text: t } });
-    session.broadcast({ k: 'msg', m: { t: 'chat', from: mp.me, text: t } });
+    // G3: in a team game a message starting with '/t ' goes only to allies.
+    const team = !!mp.teams && t.startsWith('/t ');
+    const body = team ? t.slice(3) : t;
+    dispatch({ type: 'MP_RECV', msg: { t: 'chat', from: mp.me, text: body, team } });
+    if (team) for (const p of mp.players) { if (p.online && p.faction !== mp.me && teamOf(p.faction) === teamOf(mp.me)) session.broadcast({ k: 'msg', m: { t: 'chat', from: mp.me, text: body, team } }, p.peerId); }
+    else session.broadcast({ k: 'msg', m: { t: 'chat', from: mp.me, text: body } });
     setText('');
   };
   const unread = Math.max(0, chat.length - seen);

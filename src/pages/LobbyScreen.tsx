@@ -231,6 +231,12 @@ export default function LobbyScreen() {
                           style={{ color: lobby.difficulty === d ? '#050608' : 'var(--text-secondary)', background: lobby.difficulty === d ? 'var(--cyan)' : 'transparent', border: '1px solid rgba(0,240,255,0.35)' }}>{t('{level} AI', { level: d.toUpperCase() })}</button>
                       ))}
                     </div>
+                    <button disabled={!ses.isHost} onClick={() => ses.setOptions({ teams: !lobby.teams })}
+                      title={t('Western Bloc (North America, Europe, South America, Oceania) against Eastern Bloc (Soviet Union, China, India, Africa): shared research, team chat (/t), joint victory.')}
+                      className="font-mono-data text-[10px] tracking-widest py-1.5 rounded disabled:cursor-default"
+                      style={{ color: lobby.teams ? '#050608' : 'var(--text-secondary)', background: lobby.teams ? AMBER : 'transparent', border: `1px solid ${AMBER}66` }}>
+                      {lobby.teams ? t('TEAMS: WEST vs EAST') : t('FREE FOR ALL')}
+                    </button>
                     {ses.isHost ? (
                       <button onClick={begin} disabled={!me?.faction || lobby.started}
                         className="mt-1 font-orbitron font-black tracking-[0.25em] py-3 rounded transition-all hover:brightness-125 disabled:opacity-40"
