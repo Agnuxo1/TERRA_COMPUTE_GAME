@@ -6,6 +6,7 @@ import { tileCenter } from '../../../game/mapgen';
 import type { GameState, Tile } from '../../../game/types';
 import { fmtMoney } from '../../../game/format';
 import { play, playSfx } from '../../../hooks/useSound';
+import { useFps } from '../../../hooks/useFps';
 import { t } from '../../../i18n';
 import { MapRenderer } from './renderer';
 import { computeHeat, HEAT_LAYERS, heatLabel, heatLegend, type HeatLayer } from './layers';
@@ -34,6 +35,25 @@ export default function RTSMap({ options = {} }: { options?: MapOptions }) {
   const lastClick = useRef({ t: 0, id: -1 });
   const opts = useRef(options);
   opts.current = options;
+
+  // Low-FX mode: below 40 FPS for 5 consecutive samples (1 per second) it turns on; back to full effects
+  // only after 20 consecutive samples above 55. Samples in between reset both counters, and null (no data) is ignored.
+  const fps = useFps();
+  const [lowFx, setLowFx] = useState(false);
+  const lowFxRef = useRef(false);
+  const fpsRun = useRef({ slow: 0, fast: 0 });
+  useEffect(() => {
+    if (fps === null) return;
+    const run = fpsRun.current;
+    if (fps < 40) { run.slow += 1; run.fast = 0; }
+    else if (fps > 55) { run.fast += 1; run.slow = 0; }
+    else { run.slow = 0; run.fast = 0; }
+    if (!lowFxRef.current && run.slow >= 5) {
+      lowFxRef.current = true; run.slow = 0; run.fast = 0; setLowFx(true);
+    } else if (lowFxRef.current && run.fast >= 20) {
+      lowFxRef.current = false; run.slow = 0; run.fast = 0; setLowFx(false);
+    }
+  }, [fps]);
 
   // Renderer lifecycle
   useEffect(() => {
@@ -113,9 +133,9 @@ export default function RTSMap({ options = {} }: { options?: MapOptions }) {
     if (!r) return;
     r.ui = {
       hover, selected: state.selectedTile, placing: state.placing, placements,
-      dayNight: options.dayNight ?? true, reduceMotion: options.reduceMotion ?? false,
+      dayNight: options.dayNight ?? true, reduceMotion: options.reduceMotion ?? false, lowEffects: lowFx,
     };
-  }, [hover, state.selectedTile, state.placing, placements, options.dayNight, options.reduceMotion]);
+  }, [hover, state.selectedTile, state.placing, placements, options.dayNight, options.reduceMotion, lowFx]);
 
   // Esc cancels placement
   useEffect(() => {
@@ -254,6 +274,14 @@ export default function RTSMap({ options = {} }: { options?: MapOptions }) {
           onPointerMove={miniMove}
           onPointerUp={() => { miniDrag.current = false; }} />
       </div>
+
+      {lowFx && (
+        <div className="absolute top-2 left-2 z-20 px-1.5 py-0.5 rounded font-mono-data text-[9px] tracking-widest pointer-events-none"
+          title={t('Map effects are reduced because the frame rate is low. Full effects return when it recovers.')}
+          style={{ background: 'rgba(11,12,16,0.85)', border: '1px solid var(--amber)', color: 'var(--amber)' }}>
+          {t('LOW FX')}
+        </div>
+      )}
 
       {/* Zoom controls */}
       <div className="absolute bottom-2 right-2 flex flex-col gap-1 z-20" onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()}>

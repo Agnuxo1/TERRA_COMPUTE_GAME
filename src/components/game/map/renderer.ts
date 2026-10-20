@@ -23,6 +23,9 @@ export interface MapUi {
   placements: Map<number, Placement> | null;
   dayNight: boolean;
   reduceMotion: boolean;
+  /** Low-FX mode (RTSMap turns it on while the frame rate stays low): no smoke or particles, no day-night veil,
+   *  map-life animation frozen, half the vehicles drawn. Visual only; never touches game state. */
+  lowEffects: boolean;
 }
 
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; r: number; color: string; kind: 'smoke' | 'steam' | 'spark' | 'ember' | 'weld' | 'vapor' | 'trail' }
@@ -112,7 +115,7 @@ export class MapRenderer {
   private mini: CanvasRenderingContext2D | null;
   private state: GameState | null = null;
   private map: MapData | null = null;
-  ui: MapUi = { hover: null, selected: null, placing: null, placements: null, dayNight: true, reduceMotion: false };
+  ui: MapUi = { hover: null, selected: null, placing: null, placements: null, dayNight: true, reduceMotion: false, lowEffects: false };
   private heat: HeatColours | null = null;
   cam: Camera = { x: 0, y: 0, scale: 1 };
   private raf = 0;
@@ -693,7 +696,7 @@ export class MapRenderer {
     const speed = running ? Math.max(1, s.speed) : 0;
     // emitters
     this.emitAcc += dt;
-    if (this.emitAcc > 0.12 && !this.ui.reduceMotion) {
+    if (this.emitAcc > 0.12 && !this.ui.reduceMotion && !this.ui.lowEffects) {
       this.emitAcc = 0;
       for (const t of s.map.tiles) {
         const b = t.building;
@@ -766,6 +769,8 @@ export class MapRenderer {
         v.path = [at, next];
       }
     }
+    // low FX: no smoke, sparks or trails at all (rockets and streaks above may have queued some this frame)
+    if (this.ui.lowEffects) this.particles.length = 0;
   }
 
   /** Particle emitters per building type (called ~8 times a second). */
@@ -1011,7 +1016,7 @@ export class MapRenderer {
     ctx.drawImage(this.terrainCache, 0, 0, this.terrainCache.width / CACHE_SCALE, this.terrainCache.height / CACHE_SCALE);
 
     // water glints
-    if (!this.ui.reduceMotion) {
+    if (!this.calm) {
       for (let i = 0; i < 46; i++) {
         const t = map.tiles[Math.floor(hash(i * 31.7 + Math.floor(this.time / 3 + i * 0.37)) * map.tiles.length)];
         if (!t || t.terrain !== 'water') continue;
@@ -1116,7 +1121,8 @@ export class MapRenderer {
       const tile = map.tiles[id];
       if (tile) drawables.push({ row: tile.row + 0.6, fn: () => this.drawCrowd(ctx, tile) });
     }
-    for (const v of this.vehicles) {
+    for (const [vi, v] of this.vehicles.entries()) {
+      if (this.ui.lowEffects && vi % 2) continue; // low FX draws half the traffic
       const a = map.tiles[v.path[0]];
       const b = map.tiles[v.path[1]];
       if (!a || !b) continue;
@@ -1174,7 +1180,7 @@ export class MapRenderer {
     ctx.globalAlpha = 1;
 
     // night & lights
-    const night = this.ui.dayNight ? Math.max(0, Math.sin((this.time / 120) * Math.PI * 2 - Math.PI / 2)) ** 1.5 * 0.5 : 0;
+    const night = this.ui.dayNight && !this.ui.lowEffects ? Math.max(0, Math.sin((this.time / 120) * Math.PI * 2 - Math.PI / 2)) ** 1.5 * 0.5 : 0;
     const haze = Math.max(0, (60 - s.planetHealth) / 60) * 0.22;
     if (night > 0.02 || haze > 0.01) {
       ctx.save();
@@ -1484,11 +1490,16 @@ export class MapRenderer {
     return wx > v.x0 - 80 && wx < v.x1 + 80 && wy > v.y0 - 120 && wy < v.y1 + 80;
   }
 
+  /** Ambient map-life animation is frozen when motion is reduced or low FX is on. */
+  private get calm(): boolean {
+    return this.ui.reduceMotion || this.ui.lowEffects;
+  }
+
   /** F5 protest: three small figures and a waving red flag on a housing block. Static when motion is reduced. */
   private drawCrowd(ctx: CanvasRenderingContext2D, tile: Tile) {
     const [cx, cy] = tileCenter(tile.col, tile.row);
     if (!this.inView(cx, cy)) return;
-    const still = this.ui.reduceMotion;
+    const still = this.calm;
     const ph = tile.id * 0.9;
     // Drawn at 1.8× over a faint red glow so the unrest reads at normal zoom.
     ctx.save();
@@ -1525,7 +1536,7 @@ export class MapRenderer {
     const x = cx - size / 2;
     const y = cy - size * 0.7;
     let a = 0.5;
-    if (!this.ui.reduceMotion) a += Math.sin(this.time * 13 + tile.id) * 0.05 + (hash(tile.id + Math.floor(this.time * 4)) > 0.92 ? 0.3 : 0);
+    if (!this.calm) a += Math.sin(this.time * 13 + tile.id) * 0.05 + (hash(tile.id + Math.floor(this.time * 4)) > 0.92 ? 0.3 : 0);
     ctx.save();
     // clip to the tile footprint united with the block's silhouette, so the veil stays on the block and its tile
     ctx.beginPath();
