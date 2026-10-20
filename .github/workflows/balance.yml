@@ -1,4 +1,4 @@
-# Balance guard: 24 bot games (8 continents × 3 seeds). Fails on exceptions, NaN, unfinished games
+# Balance guard: 64 bot games (8 continents × 8 seeds). Fails on exceptions, NaN, unfinished games
 # or a win rate outside 40–75 %. The simulator only imports the game sources, so no npm install is needed.
 name: balance
 
@@ -23,3 +23,6 @@ jobs:
         with:
           node-version: 22
       - run: node tools/sim/sweep.ts 0.40 0.75
+        env:
+          SEEDS: '11,22,33,44,55,66,77,88'
+          FACTION_BAND: '0.35,0.75'
