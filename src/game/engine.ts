@@ -18,6 +18,7 @@ import { POLICY_COOLDOWN, POLICY_GDP_COST, policyById, policySlots } from './pol
 import { mulberry32 } from './rng.ts';
 import { applyDynamic, leaderOf, projectEvent, rollDynamic, type DynHelpers } from './dynamic-events.ts';
 import { isHuman, isRemote, lagFor, outbox, playerName, type AIState, type MPMsg, type MPPlayer, type Snapshot } from './mp.ts';
+import { aggression, applyNation, cloneNation, initNation, memoryScore, planYear, remember, sabotaged, type PlanHelpers } from './ai/nation.ts';
 import { t } from '../i18n/index.ts';
 import type {
   AIStrategy, BuildingId, Difficulty, Economy, ForecastWarning, GameEvent, GameMode, GameState, LogEntry, MapData, Modifier,
@@ -678,6 +679,14 @@ function createRivals(player: string, mode: GameMode, startYear: number, difficu
 
 function rivalName(id: string) { return t(continentById(id)?.name ?? id); }
 
+const NATION_HELPERS: PlanHelpers = {
+  rand: () => rand(),
+  affinity,
+  pushLog,
+  raiseTension: (s, d) => raiseTension(s, d),
+  rivalName,
+};
+
 function tickRivals(s: GameState, dt: number) {
   const year = s.year;
   const pioneer = s.gameMode === 'pioneer';
@@ -688,6 +697,17 @@ function tickRivals(s: GameState, dt: number) {
     s.firedEvents = [...s.firedEvents, 'lead-fear'];
     notify(s, t('⚠ Your lead in the race alarms the world. Hawkish rivals will turn on your compute — AI Safety Institutes defend it.'), 'warning');
     pushLog(s, t('World'), t('Your bloc now leads the race to superintelligence.'), 'warning');
+  }
+  // Living rivals: plan the year and apply the budget split first (on fresh copies, so pacts can reach any bloc).
+  s.rivals = s.rivals.map(r => r.nation ? { ...r, nation: cloneNation(r.nation) } : { ...r });
+  for (const r of s.rivals) {
+    if (isRemote(s, r.id)) continue;   // multiplayer: remote blocs are simulated elsewhere
+    if (!r.nation) r.nation = initNation(r, year);
+    if (Math.floor(year) > r.nation.lastYear) {
+      planYear(s, r, lead, NATION_HELPERS);
+      r.nation.lastYear = Math.floor(year);
+    }
+    applyNation(r, dt, year);
   }
   s.rivals = s.rivals.map(r0 => {
     const r = { ...r0, treaties: [...r0.treaties] };
@@ -711,7 +731,8 @@ function tickRivals(s: GameState, dt: number) {
       r.emissions = 34 * Math.pow(r.gdp / 1000, 0.75) * (1 - r.cleanShare);
     }
     // Relations relax toward the cold-war baseline
-    const base = affinity(s.playerContinent || '', r.id) - (feared && (r.strategy === 'aggressive' || r.strategy === 'tech') ? 25 : 0);
+    // Attitude target: the cold-war baseline plus what this bloc remembers about us (memories fade).
+    const base = clamp(affinity(s.playerContinent || '', r.id) - (feared && (r.strategy === 'aggressive' || r.strategy === 'tech') ? 25 : 0) + memoryScore(r, year), -100, 100);
     r.relation = clamp(r.relation + (base - r.relation) * 0.04 * dt + (r.treaties.length ? 0.6 * dt : 0) - (pol(s, 'propaganda') ? dt : 0), -100, 100);
 
     // Notable actions (human players act for themselves)
@@ -753,7 +774,7 @@ function rivalAction(s: GameState, r: Rival, pioneer: boolean) {
   const name = rivalName(r.id);
   const defense = countBuildings(s, 'defense', true);
   const opsMult = bonus(s, 'enemyOps') ?? 1;
-  if (!pioneer && r.relation < -20 && (r.strategy === 'aggressive' || r.relation < -50) && s.year > 1970 && chance(0.6)) {
+  if (!pioneer && r.relation < -20 && (r.strategy === 'aggressive' || r.relation < -50) && s.year > 1970 && chance(Math.min(0.95, 0.6 * aggression(r)))) {
     const powers = s.modifiers.some(m => m.id === 'emergency_powers') ? 0.7 : 1;
     const sweep = s.modifiers.some(m => m.id === 'counterintel') ? 0.6 : 1;
     raiseTension(s, 3);
@@ -1502,6 +1523,8 @@ function checkFirsts(s: GameState) {
 export const COVERT_HEAT: Record<CovertOp, number> = { intel: 0.2, steal: 0.6, sabotage: 1, propaganda: 0.5, blackout: 1.2 };
 /** World tension each operation adds (x1.5 when exposed). */
 export const COVERT_TENSION: Record<CovertOp, number> = { intel: 2, steal: 4, sabotage: 8, propaganda: 4, blackout: 10 };
+/** What a bloc remembers when one of our operations is exposed (English source, translated at render). */
+const EXPOSED_WHY: Record<CovertOp, string> = { intel: 'Caught our spies', steal: 'Caught our spies', sabotage: 'Caught our saboteurs', propaganda: 'Caught our propaganda', blackout: 'Caught our grid attackers' };
 export function covertCost(s: GameState, op: CovertOp, r?: Rival): number {
   const floor = { intel: 25, steal: 50, sabotage: 90, propaganda: 65, blackout: 100 }[op];
   const share = { intel: 0.12, steal: 0.25, sabotage: 0.45, propaganda: 0.33, blackout: 0.55 }[op];
@@ -1820,6 +1843,7 @@ function reduce(state: GameState, action: Action): GameState {
         if (s.budget < cost) return state;
         s.budget -= cost;
         rv.relation = clamp(rv.relation + 12, -100, 100);
+        remember(rv, 'player', 10, 'Sent us aid', s.year);
         notify(s, t('🎁 Aid package delivered to {name}. Relations +12.', { name }), 'success');
         return s;
       }
@@ -1827,6 +1851,7 @@ function reduce(state: GameState, action: Action): GameState {
         const tid = action.action.slice(7) as TreatyId;
         rv.treaties = rv.treaties.filter(t => t !== tid);
         rv.relation -= 15;
+        remember(rv, 'player', -15, 'Tore up a treaty', s.year);
         notify(s, t('{treaty} with {name} cancelled. Relations -15.', { treaty: t(TREATY_INFO[tid].name), name }), 'warning');
         return s;
       }
@@ -1852,6 +1877,7 @@ function reduce(state: GameState, action: Action): GameState {
       }
       rv.treaties.push(tid);
       rv.relation = clamp(rv.relation + 8, -100, 100);
+      remember(rv, 'player', 8, 'Signed a treaty with us', s.year);
       if (tid === 'safety' || tid === 'climate') raiseTension(s, -5);
       notify(s, t('✍ {treaty} signed with {name}.', { treaty: t(info.name), name }), 'success');
       pushLog(s, name, t('{treaty} signed.', { treaty: t(info.name) }), 'success');
@@ -1878,6 +1904,7 @@ function reduce(state: GameState, action: Action): GameState {
         rv.treaties = action.op === 'sabotage' ? [] : rv.treaties;
         notify(s, t('✖ Operation against {name} exposed! Relations -{hit}{note}.', { name, hit, note: action.op === 'sabotage' ? t(', all treaties torn up') : '' }), 'danger');
         pushLog(s, t('Intelligence'), t('Operation against {name} failed.', { name }), 'danger');
+        if (!humanTarget) remember(rv, 'player', -12, EXPOSED_WHY[action.op], s.year);
         return s;
       }
       rv.intelUntil = Math.max(rv.intelUntil, s.year + (action.op === 'intel' ? 10 : 3));
@@ -1895,6 +1922,8 @@ function reduce(state: GameState, action: Action): GameState {
           if (humanTarget) { notify(s, t('💥 Sabotage succeeded: one of {name}\'s compute centres is down for repairs.', { name }), 'success'); break; }
           rv.lag += 1.2;
           rv.capability = historicalCapability(s.year - rv.lag);
+          sabotaged(rv);
+          if (chance(0.3)) remember(rv, 'player', -15, 'Sabotaged our data centres', s.year);
           notify(s, t('💥 Sabotage succeeded: {name}\'s AI program set back ~1 year.', { name }), 'success');
           break;
         case 'propaganda':
