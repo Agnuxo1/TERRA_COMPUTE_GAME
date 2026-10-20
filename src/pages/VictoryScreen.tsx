@@ -3,6 +3,8 @@ import { useGame } from '../App';
 import { play } from '../hooks/useSound';
 import EndStats from '../components/meta/EndStats';
 import ScoreCard from '../components/meta/ScoreCard';
+import Newspaper from '../components/game/Newspaper';
+import { pickEnding } from '../game/endings';
 import { t } from '../i18n';
 
 // Built at render time so the copy follows the active language.
@@ -26,6 +28,7 @@ function fmtNumber(n: number): string {
 
 export default function VictoryScreen() {
   const { state, dispatch } = useGame();
+  const ending = pickEnding(state);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -149,6 +152,8 @@ export default function VictoryScreen() {
             </div>
           </div>
         </div>
+
+        <Newspaper year={state.victoryYear || Math.floor(state.year)} headline={ending.headline} text={ending.text} />
 
         <ScoreCard state={state} />
 

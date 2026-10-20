@@ -24,9 +24,12 @@ import BuildPanel from '../components/game/panels/BuildPanel';
 import DiplomacyPanel from '../components/game/panels/DiplomacyPanel';
 import IntelPanel from '../components/game/panels/IntelPanel';
 import EconomyPanel from '../components/game/panels/EconomyPanel';
+import ZonePanel from '../components/game/panels/ZonePanel';
+import TalentPanel from '../components/game/panels/TalentPanel';
+import type { ZoneId } from '../game/types';
 import { t } from '../i18n';
 
-const OVERLAY_KEYS: Record<string, string> = { b: 'buildings', t: 'tech', d: 'diplomacy', a: 'attack', s: 'spy', e: 'economy' };
+const OVERLAY_KEYS: Record<string, string> = { b: 'buildings', t: 'tech', d: 'diplomacy', a: 'attack', s: 'spy', e: 'economy', z: 'zones', h: 'talent' };
 
 export default function GameScreen() {
   const { state, dispatch } = useGame();
@@ -99,6 +102,8 @@ export default function GameScreen() {
     : state.overlay === 'attack' ? <IntelPanel mode="attack" />
     : state.overlay === 'spy' ? <IntelPanel mode="spy" />
     : state.overlay === 'economy' ? <EconomyPanel />
+    : state.overlay?.startsWith('zones') ? <ZonePanel focus={(state.overlay.split(':')[1] || undefined) as ZoneId | undefined} />
+    : state.overlay === 'talent' ? <TalentPanel />
     : state.selectedTile !== null ? <TilePanel />
     : <OverviewPanel />;
 

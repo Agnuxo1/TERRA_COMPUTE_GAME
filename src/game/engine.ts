@@ -21,11 +21,15 @@ import { isHuman, isRemote, lagFor, outbox, playerName, type AIState, type MPMsg
 import { aggression, applyNation, cloneNation, initNation, memoryScore, planYear, remember, sabotaged, type PlanHelpers } from './ai/nation.ts';
 import { DOCTRINES, type DoctrineDef } from './doctrines.ts';
 import { advise } from './advisor.ts';
+import { combine, type DEHelpers, type WorldBonus } from './bonuses.ts';
+import { addInfluence, influenceGain, initZones, playerCoup, playerInfluence, tickZones, zoneBonus, zoneById, zoneHolder } from './zones.ts';
+import { initProjects, projectBonus, startStage, tickProjects } from './projects.ts';
+import { dismiss, hire, initTalent, poach, talentBonus } from './people.ts';
 import { t } from '../i18n/index.ts';
 import { isVictory } from './types.ts';
 import type {
   AIStrategy, BuildingId, Difficulty, Economy, ForecastWarning, GameEvent, GameMode, GameState, LogEntry, MapData, Modifier,
-  Notification, PlacedBuilding, Rival, Tile, TreatyId, YearReport, YearReportLine,
+  Notification, PlacedBuilding, ProjectId, Rival, Tile, TreatyId, YearReport, YearReportLine, ZoneId,
 } from './types.ts';
 
 // ─── Time ────────────────────────────────────────────────────────────────
@@ -77,13 +81,18 @@ export type Action =
   | { type: 'COUNTER_INTEL' }
   | { type: 'MP_RECV'; msg: MPMsg }
   | { type: 'MP_SNAPSHOT'; snap: Snapshot }
-  | { type: 'MP_AI'; ai: AIState[] }
+  | { type: 'MP_AI'; ai: AIState[]; zones?: GameState['zones'] }
   | { type: 'MP_CLOCK'; speed: number; paused: boolean }
   | { type: 'MP_CLOCK_TENSION'; tension: number }
   | { type: 'MP_PLAYERS'; players: MPPlayer[]; offline?: boolean }
   | { type: 'MP_OUTBOX_CLEAR'; n: number }
   | { type: 'PROPOSE_AI_CONTROL' }
-  | { type: 'TOGGLE_MOBILISE' };
+  | { type: 'TOGGLE_MOBILISE' }
+  | { type: 'INFLUENCE'; zone: ZoneId }
+  | { type: 'COUP'; zone: ZoneId; target: string }
+  | { type: 'PROJECT_STAGE'; project: ProjectId }
+  | { type: 'HIRE'; scientist: string }
+  | { type: 'DISMISS'; scientist: string };
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  INITIAL STATE
@@ -221,7 +230,8 @@ export function marketSpread(s: GameState): number {
 }
 
 export function marketPrice(s: GameState, good: Good, side: 'buy' | 'sell'): number {
-  const p = basePrice(good, s.year) * s.priceMod[good] * (good === 'chips' && s.modifiers.some(m => m.id === 'chipwar_prices') ? 1.6 : 1);
+  const p = basePrice(good, s.year) * s.priceMod[good] * (good === 'chips' && s.modifiers.some(m => m.id === 'chipwar_prices') ? 1.6 : 1)
+    * (good === 'chips' && side === 'buy' ? worldBonus(s).chipImport : 1);
   return side === 'buy' ? p * (1 + marketSpread(s)) : p * (1 - marketSpread(s));
 }
 
@@ -442,6 +452,7 @@ export function computeEconomy(s: GameState): Economy {
   const ps = popScale(s.playerContinent);
   const eco: Economy = { ...emptyEconomy, approvalFactors: [] };
   if (!map) return eco;
+  const wb = worldBonus(s);
 
   // Aggregate building outputs
   let energySupply = s.legacy.energy * Math.max(0.35, 1 - 0.012 * (s.year - s.startYear));
@@ -476,7 +487,7 @@ export function computeEconomy(s: GameState): Economy {
     const pl = evaluatePlacement(s, t, b.type, true);
     const m = pl.ok ? pl.mult : 1;
     jobs += def.jobs * ps * (1 + 0.5 * (lvl - 1));
-    energyDemandBuildings += def.energyUse * lm * (pl.energyFactor || 1);
+    energyDemandBuildings += def.energyUse * lm * (pl.energyFactor || 1) * (isCompute(b.type) ? wb.computeEnergy : 1);
     let em = def.emissions * lm;
     if (envprot && (b.type === 'coal' || b.type === 'factory')) em *= 0.7;
     emissions += em;
@@ -521,11 +532,12 @@ export function computeEconomy(s: GameState): Economy {
   // Energy
   const householdDemand = s.population * 0.12 * (1 + s.education / 200) * (1 + (s.year - 1960) / 90);
   const energyDemand = (householdDemand + energyDemandBuildings) * modProduct(s, 'energyDemand');
-  energySupply *= modProduct(s, 'energySupply');
+  energySupply *= modProduct(s, 'energySupply') * wb.powerSupply;
   const energyRatio = energyDemand > 0 ? clamp(energySupply / energyDemand, 0, 1) : 1;
 
   // Labour
   if (pol(s, 'mass_housing')) housingCap *= 1.15;
+  housingCap *= wb.housing;
   const workers = s.population * 0.45 + automation;
   const staffing = jobs > 0 ? clamp(workers / jobs, 0, 1) : 1;
   const unemployment = clamp(1 - jobs / Math.max(workers, 1), 0, 1);
@@ -545,13 +557,13 @@ export function computeEconomy(s: GameState): Economy {
   if (has(s, 'pc')) gdpMult *= 1.1;
   if (has(s, 'web')) gdpMult *= 1.1;
   if (has(s, 'agentic')) gdpMult *= 1.15;
-  gdpMult *= modProduct(s, 'gdp');
+  gdpMult *= modProduct(s, 'gdp') * wb.economy;
   if (pol(s, 'free_market')) gdpMult *= 1.12;
   if (pol(s, 'green_deal')) gdpMult *= 0.95;
   const unrest = s.approval < 35 ? 0.85 : 1;
   const productivity = baseProductivity(s);
   const gdp = (employed * productivity * (0.6 + s.education / 100 * 0.9) + sectorGdp * staffing) * gdpMult * unrest * (0.5 + 0.5 * energyRatio);
-  const tradeIncome = s.rivals.reduce((sum, r) => sum + (r.treaties.includes('trade') ? tradeValue(s, r) : 0), 0) * (pol(s, 'open_trade') ? 1.5 : 1);
+  const tradeIncome = s.rivals.reduce((sum, r) => sum + (r.treaties.includes('trade') ? tradeValue(s, r) : 0), 0) * (pol(s, 'open_trade') ? 1.5 : 1) * wb.trade;
   const income = gdp * s.taxRate + tradeIncome;
   if (s.modifiers.some(m => m.id === 'agents_state')) upkeep *= 0.85;
   if (pol(s, 'austerity')) upkeep *= 0.85;
@@ -560,14 +572,14 @@ export function computeEconomy(s: GameState): Economy {
 
   // Goods: own production, and chips the hardware burns every year
   const goodsMult = staffing * energyRatio * (pol(s, 'autarky') ? 1.25 : 1);
-  steelProd *= goodsMult * (pol(s, 'five_year_plan') ? 1.35 : 1) * (pol(s, 'free_market') ? 0.9 : 1) * (pol(s, 'open_trade') ? 0.9 : 1);
-  chipProd *= goodsMult * (0.5 + s.education / 200);
+  steelProd *= goodsMult * (pol(s, 'five_year_plan') ? 1.35 : 1) * (pol(s, 'free_market') ? 0.9 : 1) * (pol(s, 'open_trade') ? 0.9 : 1) * wb.steel;
+  chipProd *= goodsMult * (0.5 + s.education / 200) * wb.chips;
   const chipGap = Math.max(0, chipUse - chipProd);
   const imports = s.chips <= 1 && !pol(s, 'autarky') ? chipGap * marketPrice(s, 'chips', 'buy') : 0;
   const netBudget = income - upkeep - policyCost - debtInterest - imports;
 
   // Research
-  let researchMult = (bonus(s, 'research') ?? 1) * modProduct(s, 'research');
+  let researchMult = (bonus(s, 'research') ?? 1) * modProduct(s, 'research') * wb.research;
   if (has(s, 'internet')) researchMult *= 1.15;
   if (has(s, 'backprop')) researchMult *= 1.1;
   if (has(s, 'agentic')) researchMult *= 1.2;
@@ -579,7 +591,7 @@ export function computeEconomy(s: GameState): Economy {
   const rModel = doctrine(s, 'research_model');
   if (rModel === 'a') researchMult *= 1.08;
   else if (rModel === 'b') researchMult *= 0.95;
-  const policyCompute = (pol(s, 'manhattan_ai') ? 1.35 : 1) * (pol(s, 'safety_first') ? 0.9 : 1);
+  const policyCompute = (pol(s, 'manhattan_ai') ? 1.35 : 1) * (pol(s, 'safety_first') ? 0.9 : 1) * wb.compute;
   const chipFactor = s.eco.chipFactor ?? 1;
   const baseRP = 15 + (continentById(s.playerContinent)?.techLevel ?? 4) * 3;
   const humanRP = (baseRP + (labRP + uniRP + spaceRP) * staffing * energyRatio) * (0.4 + s.education / 100);
@@ -591,7 +603,7 @@ export function computeEconomy(s: GameState): Economy {
 
   // Alignment
   const pressure = Math.max(0, capability - 15) ** 2 * 0.12 * (has(s, 'interp') ? 0.75 : 1) * (pol(s, 'manhattan_ai') ? 1.5 : 1);
-  alignmentGain = alignmentGain * energyRatio * (pol(s, 'safety_first') ? 1.6 : 1) + modSum(s, 'alignment');
+  alignmentGain = alignmentGain * energyRatio * (pol(s, 'safety_first') ? 1.6 : 1) + modSum(s, 'alignment') + wb.alignment;
 
   // Emissions (forests absorb)
   const sink = forestTiles * 0.4 * (bonus(s, 'forestSink') ?? 1);
@@ -619,6 +631,7 @@ export function computeEconomy(s: GameState): Economy {
     + (pol(s, 'autarky') ? 3 : 0) + (pol(s, 'open_trade') ? -2 : 0) + (pol(s, 'propaganda') ? 7 : 0) + (pol(s, 'security_state') ? -5 : 0);
   if (polApproval) f.push({ label: t('Policies'), value: polApproval });
   if (s.mobilised) f.push({ label: t('Mobilisation'), value: -8 });
+  if (wb.approval) f.push({ label: t('Projects'), value: wb.approval });
   if (s.budget < 0) f.push({ label: t('Debt'), value: -8 });
   const approvalTarget = clamp(f.reduce((a, b) => a + b.value, 0), 0, 100);
 
@@ -840,6 +853,7 @@ function rivalAction(s: GameState, r: Rival, pioneer: boolean) {
       s.researchProgress = Math.max(0, s.researchProgress * 0.8);
       pushLog(s, name, t('Spies stole {amount} research points.', { amount: stolen }), 'danger');
       notify(s, t('⚠ {name} stole research from your labs.', { name }), 'danger');
+      poach(s, r.id, DE);
       r.lastAction = t('Stole your research');
     } else {
       r.relation -= 5;
@@ -1039,6 +1053,10 @@ export function startGame(state: GameState, continentId: string, seed = Date.now
   }
   refreshObjectives(s, true);
   s.tension = tensionBaseline(startYear);
+  s.zones = initZones([continentId, ...s.rivals.map(r => r.id)]);
+  s.projects = initProjects();
+  s.talent = initTalent();
+  s.flags = {};
   const startTop = Math.max(s.capability, ...s.rivals.map(r => r.capability));
   s.firsts = Object.fromEntries(FIRSTS.filter(f => startTop >= f.cap).map(f => [f.key, { who: 'history', year: startYear }]));
   notify(s, t('{city}, {year}. Click the map to build. Your directives are on the right.', { city: t(c.name), year: startYear }), 'info');
@@ -1221,7 +1239,7 @@ export function techAvailable(s: GameState, techId: string): boolean {
 /** Alignment can only be pushed as far as your safety science allows. */
 export function alignmentCap(s: GameState): number {
   return Math.min(98, 55 + (has(s, 'alignment') ? 15 : 0) + (has(s, 'interp') ? 15 : 0) + (has(s, 'agi') ? 10 : 0)
-    + (doctrine(s, 'safety_path') === 'a' ? 10 : 0));
+    + (doctrine(s, 'safety_path') === 'a' ? 10 : 0) + worldBonus(s).alignmentCap);
 }
 
 // --- Alternative victories (Phase B) -----------------------------------------
@@ -1407,6 +1425,13 @@ function yearly(s: GameState, year: number, pioneer: boolean) {
       }
     }
   }
+  // Phases D & E: strategic zones (the host decides them in multiplayer) and national projects.
+  if (!pioneer) {
+    if (!s.zones) s.zones = initZones([meId(s), ...s.rivals.map(r => r.id)]);
+    if (!s.projects) s.projects = initProjects();
+    if (!s.mp || s.mp.offline || s.mp.role === 'host') tickZones(s, DE);
+    tickProjects(s, DE);
+  }
   // Silicon hegemony: chips at 60% or more of the world estimate for five years running (counted from 1990,
   // when rivals enter the estimate; before that a single chip fab would read as 100% of the world).
   s.siliconYears = year > 1990 && chipWorldShare(s) >= 0.6 ? (s.siliconYears ?? 0) + 1 : 0;
@@ -1498,6 +1523,19 @@ const H: DynHelpers = {
   sabotageChance: (s, r) => covertChance(s, r, 'sabotage'),
   hasIntel: (s, r) => hasIntel(s, r),
 };
+
+/** Engine services for the phase D & E modules (zones, projects, people). */
+const DE: DEHelpers = {
+  rand: () => rand(), notify, pushLog, rivalName, raiseTension, isRemote,
+  me: s => meId(s),
+  countBuildings: (s, type) => countBuildings(s, type, true),
+};
+
+/** Phases D & E: bonuses from the zones you hold, the projects you own and the scientists you hired. */
+export function worldBonus(s: GameState): WorldBonus {
+  const me = meId(s);
+  return combine(zoneBonus(s, me), projectBonus(s, me), talentBonus(s));
+}
 
 export function choiceAvailable(s: GameState, requires?: string): boolean {
   if (!requires) return true;
@@ -1729,7 +1767,7 @@ export function covertChance(s: GameState, r: Rival, op: CovertOp): number {
   const policy = (pol(s, 'security_state') ? 0.15 : 0) + (pol(s, 'space_race') ? 0.1 : 0);
   const cyber = s.modifiers.some(m => m.id === 'cyber_arms') ? 0.15 : 0;
   const alert = 0.08 * (r.heat ?? 0);
-  return clamp(base + Math.min(0.3, sats * 0.1) + quantum + policy + cyber - def - alert, 0.05, 0.95);
+  return clamp(base + Math.min(0.3, sats * 0.1) + quantum + policy + cyber + worldBonus(s).covert - def - alert, 0.05, 0.95);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1771,6 +1809,7 @@ function sufferOperation(s: GameState, from: string, op: CovertOp, ok: boolean) 
       s.researchPoints = Math.max(0, s.researchPoints * 0.85);
       s.researchProgress = Math.max(0, s.researchProgress * 0.8);
       notify(s, t('⚠ {who} stole research from your labs.', { who }), 'danger');
+      poach(s, from, DE);
       break;
     case 'sabotage': {
       const pool = s.map!.tiles.filter(t => t.building && isCompute(t.building.type) && t.building.progress >= 1);
@@ -1804,6 +1843,14 @@ function receive(state: GameState, m: MPMsg): GameState {
   const s: GameState = { ...state, rivals: state.rivals.map(r => ({ ...r, treaties: [...r.treaties] })) };
   const host = s.mp!.role === 'host';
   switch (m.t) {
+    case 'zone': {
+      // Zones are host-authoritative: guests send their influence and coups, the host applies and rebroadcasts.
+      if (!host || !zoneById(m.zone) || !Number.isFinite(m.delta)) return state;
+      const d = clamp(m.delta, -15, 15);
+      if (m.target) addInfluence(s, m.zone, m.target, -Math.abs(d), DE);
+      else addInfluence(s, m.zone, m.from, Math.max(0, d), DE);
+      return s;
+    }
     case 'op':
       if (host) raiseTension(s, m.tn, m.from);
       if (m.to === me) sufferOperation(s, m.from, m.op, m.ok);
@@ -2126,7 +2173,7 @@ function reduce(state: GameState, action: Action): GameState {
         if (!humanTarget) remember(rv, 'player', -12, EXPOSED_WHY[action.op], s.year);
         return s;
       }
-      rv.intelUntil = Math.max(rv.intelUntil, s.year + (action.op === 'intel' ? 10 : 3));
+      rv.intelUntil = Math.max(rv.intelUntil, s.year + (action.op === 'intel' ? 10 : 3) * worldBonus(s).intelYears);
       switch (action.op) {
         case 'intel':
           notify(s, t('👁 Intelligence on {name} secured for 10 years.', { name }), 'success');
@@ -2214,6 +2261,32 @@ function reduce(state: GameState, action: Action): GameState {
       return s;
     }
 
+    case 'INFLUENCE': {
+      const s: GameState = { ...state };
+      if (!playerInfluence(s, action.zone, DE)) return state;
+      if (s.mp && !s.mp.offline && s.mp.role === 'guest') outbox(s, { t: 'zone', from: meId(s), zone: action.zone, delta: influenceGain(s, action.zone, DE) });
+      return s;
+    }
+    case 'COUP': {
+      const s: GameState = { ...state, rivals: state.rivals.map(r => ({ ...r })) };
+      const res = playerCoup(s, action.zone, action.target, DE);
+      if (res === 'invalid') return state;
+      if (res === 'ok' && s.mp && !s.mp.offline && s.mp.role === 'guest') outbox(s, { t: 'zone', from: meId(s), zone: action.zone, delta: -15, target: action.target });
+      return s;
+    }
+    case 'PROJECT_STAGE': {
+      const s: GameState = { ...state };
+      return startStage(s, action.project, DE) ? s : state;
+    }
+    case 'HIRE': {
+      const s: GameState = { ...state };
+      return hire(s, action.scientist, DE) ? s : state;
+    }
+    case 'DISMISS': {
+      const s: GameState = { ...state };
+      dismiss(s, action.scientist);
+      return s;
+    }
     case 'TOGGLE_MOBILISE': {
       if (!mobiliseAvailable(state)) return state;
       const on = !state.mobilised;
@@ -2258,6 +2331,15 @@ function reduce(state: GameState, action: Action): GameState {
     case 'MP_AI': {
       if (!state.mp || state.mp.role !== 'guest') return state;
       const s: GameState = { ...state };
+      if (action.zones) {
+        const me = meId(s);
+        for (const id of Object.keys(action.zones) as ZoneId[]) {
+          const before = state.zones?.[id]?.holder ?? null, after = zoneHolder(action.zones[id]);
+          if (before === me && after !== me) { notify(s, t('You lost control of the {zone} zone.', { zone: t(zoneById(id)?.name ?? id) }), 'warning'); s.approval = Math.max(0, s.approval - 2); }
+          else if (after === me && before !== me) notify(s, t('You now hold the {zone} zone.', { zone: t(zoneById(id)?.name ?? id) }), 'success');
+        }
+        s.zones = action.zones;
+      }
       s.rivals = state.rivals.map(r => {
         const a = action.ai.find(x => x.id === r.id);
         if (!a || isHuman(state, r.id)) return r;

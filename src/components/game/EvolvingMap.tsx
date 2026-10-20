@@ -3,9 +3,27 @@ import { useEffect, useMemo, useState, useRef } from 'react';
 import { countBuildings, hasIntel, operational } from '../../game/engine';
 import { capabilityLabel } from '../../game/format';
 import { regionAnchor } from '../../game/geo';
+import { ZONES, zoneHolder, zoneOpen } from '../../game/zones';
+import type { ZoneId } from '../../game/types';
 import { playSfx } from '../../hooks/useSound';
 import { t } from '../../i18n';
 import { getFactionSprite } from './factionSprites';
+
+// Strategic zone markers (D1): placed on territory anchors of the globe (760x450 space); orbit has no region and sits on the top band.
+const ZONE_MARKER: Record<ZoneId, { region: string; dx: number; dy: number } | null> = {
+  taiwan: { region: 'as_china', dx: 45, dy: 30 },
+  gulf: { region: 'as_middle_east', dx: 0, dy: 0 },
+  arctic: { region: 'as_siberia', dx: 0, dy: 0 },
+  congo: { region: 'af_congo', dx: 0, dy: 0 },
+  suez: { region: 'af_egypt', dx: 0, dy: 0 },
+  orbit: null,
+};
+function zoneMarkerPos(id: ZoneId): { x: number; y: number } {
+  const m = ZONE_MARKER[id];
+  if (!m) return { x: 380, y: 22 };
+  const a = regionAnchor(m.region);
+  return { x: a.x + m.dx, y: a.y + m.dy };
+}
 
 // ─── SOUND PATHS ───
 function getPlaneSound(year: number): string {
@@ -177,7 +195,7 @@ const continentHitZones: Record<string, { left: string; top: string; width: stri
 };
 
 export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
   const [planes, setPlanes] = useState<Plane[]>([]);
   const [satellites, setSatellites] = useState<Satellite[]>([]);
   const [rockets, setRockets] = useState<RocketLaunch[]>([]);
@@ -477,6 +495,39 @@ export default function EvolvingMap({ onEnterContinent }: EvolvingMapProps) {
               {rival && rival.treaties.length > 0 && <span style={{ color: '#7B61FF' }}> · {rival.treaties.map(t => t[0].toUpperCase()).join('')}</span>}
             </div>
           </div>
+        );
+      })}
+
+      {/* Strategic zones (D1): clickable markers coloured by holder; closed zones are dimmed */}
+      {ZONES.map(z => {
+        const pos = zoneMarkerPos(z.id);
+        const holder = zoneHolder(state.zones?.[z.id]);
+        const color = (holder && continents.find(c => c.id === holder)?.color) || '#8A8A94';
+        const open = zoneOpen(z.id, year);
+        const label = t(z.name);
+        return (
+          <button
+            key={`zone-${z.id}`}
+            type="button"
+            aria-label={t('Open {zone} zone', { zone: label })}
+            title={label}
+            onClick={() => dispatch({ type: 'OPEN_OVERLAY', overlay: 'zones:' + z.id })}
+            className="absolute flex items-center gap-1 px-1.5 py-0.5 rounded font-mono-data text-[8px] hover:brightness-125"
+            style={{
+              left: `${(pos.x / 760) * 100}%`,
+              top: `${(pos.y / 450) * 100}%`,
+              transform: 'translate(-50%, -50%)',
+              zIndex: 36,
+              color,
+              background: 'rgba(5,5,8,0.8)',
+              border: `1px solid ${color}aa`,
+              opacity: open ? 1 : 0.4,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}` }} />
+            {label}
+          </button>
         );
       })}
 

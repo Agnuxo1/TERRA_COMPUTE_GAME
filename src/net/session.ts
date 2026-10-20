@@ -2,7 +2,7 @@
 // Peers find each other through free public Nostr relays (Trystero); after that every message goes browser to browser.
 // The room code doubles as the password that encrypts the connection handshake.
 import type { Room } from 'trystero';
-import type { Difficulty } from '../game/types';
+import type { Difficulty, GameState } from '../game/types';
 import type { AIState, MPMsg, Snapshot } from '../game/mp';
 
 export interface LobbyPlayer { peerId: string; name: string; faction: string | null; online: boolean }
@@ -23,7 +23,7 @@ export type Wire =
   | { k: 'start'; lobby: LobbyState }
   | { k: 'clk'; y: number; sp: number; p: boolean; tn: number }
   | { k: 'snap'; s: Snapshot }
-  | { k: 'ai'; a: AIState[] }
+  | { k: 'ai'; a: AIState[]; zones?: GameState['zones'] }
   | { k: 'msg'; m: MPMsg }
   | { k: 'preq' }
   | { k: 'lchat'; name: string; text: string };
