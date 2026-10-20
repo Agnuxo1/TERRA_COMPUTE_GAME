@@ -3,9 +3,35 @@ import { continentById } from '../../../game/data';
 import { covertChance, covertCost, defcon, hasIntel, rivalEta, sweepCost, COVERT_TENSION, type CovertOp } from '../../../game/engine';
 import { isHuman, playerName } from '../../../game/mp';
 import { capabilityLabel, fmtMoney } from '../../../game/format';
+import type { AINation } from '../../../game/types';
 import { play } from '../../../hooks/useSound';
 import { t } from '../../../i18n';
 import { PanelHeader } from './common';
+
+/** Five-segment bar of a rival's smoothed investment split ($B/yr), with a legend. */
+function InvestSplit({ invest }: { invest: AINation['invest'] }) {
+  const parts: Array<{ key: keyof AINation['invest']; label: string; color: string }> = [
+    { key: 'compute', label: t('Compute'), color: 'var(--green)' },
+    { key: 'research', label: t('Research'), color: '#7B61FF' },
+    { key: 'safety', label: t('Safety'), color: 'var(--cyan)' },
+    { key: 'defense', label: t('Defence'), color: 'var(--amber)' },
+    { key: 'covert', label: t('Covert'), color: 'var(--rose)' },
+  ];
+  const vals = parts.map(p => Math.max(0, invest[p.key]));
+  const total = vals.reduce((a, b) => a + b, 0);
+  if (total <= 0) return null;
+  return (
+    <div className="mt-1">
+      <div className="font-mono-data text-[8px]" style={{ color: 'var(--text-tertiary)' }}>{t('Investment mix')}</div>
+      <div className="flex h-[5px] rounded-sm overflow-hidden my-0.5" style={{ background: 'rgba(255,255,255,0.06)' }}>
+        {parts.map((p, i) => <div key={p.key} style={{ width: `${(vals[i] / total) * 100}%`, background: p.color }} />)}
+      </div>
+      <div className="flex flex-wrap gap-x-2 font-mono-data text-[8px]">
+        {parts.map((p, i) => <span key={p.key} style={{ color: p.color }}>{p.label} {Math.round((vals[i] / total) * 100)}%</span>)}
+      </div>
+    </div>
+  );
+}
 
 const OPS: Record<'spy' | 'attack', Array<{ op: CovertOp; label: string; text: string }>> = {
   spy: [
@@ -73,6 +99,7 @@ export default function IntelPanel({ mode }: { mode: 'spy' | 'attack' }) {
                   {t('ASI ETA ~{eta} · stability {stability} · intel until {until}', { eta: Math.round(rivalEta(r)), stability: Math.round(r.stability), until: Math.floor(r.intelUntil) })}
                 </div>
               )}
+              {intel && r.nation && !isHuman(state, r.id) && <InvestSplit invest={r.nation.invest} />}
               {(r.heat ?? 0) >= 0.5 && (
                 <div className="font-mono-data text-[9px]" style={{ color: 'var(--amber)' }} title={t('Every operation puts them on alert: the next one costs more and succeeds less often. Alert fades over a few years.')}>
                   {t('⚠ ON ALERT ×{mult} cost · −{pct}% success', { mult: (1 + 0.6 * (r.heat ?? 0)).toFixed(1), pct: Math.round(8 * (r.heat ?? 0)) })}

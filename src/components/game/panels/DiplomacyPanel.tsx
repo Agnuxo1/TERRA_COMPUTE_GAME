@@ -4,7 +4,7 @@ import { TREATY_INFO, giftCost, has, hasIntel } from '../../../game/engine';
 import { fmtMoney } from '../../../game/format';
 import { RIVAL_LEADERS } from '../../../game/dynamic-events';
 import { isHuman, playerName } from '../../../game/mp';
-import type { TreatyId } from '../../../game/types';
+import type { AINation, TreatyId } from '../../../game/types';
 import { play } from '../../../hooks/useSound';
 import { t } from '../../../i18n';
 import { Bar, PanelHeader } from './common';
@@ -17,6 +17,30 @@ const STRATEGY_TEXT: Record<string, string> = {
   economic: 'Trade-focused economy',
   defensive: 'Cautious and defensive',
 };
+
+const MOOD_COLOR: Record<AINation['mood'], string> = { build: 'var(--green)', race: 'var(--rose)', secure: 'var(--amber)', diplomacy: '#7B61FF' };
+
+function moodLabel(m: AINation['mood']): string {
+  switch (m) {
+    case 'race': return t('Racing');
+    case 'secure': return t('Securing');
+    case 'diplomacy': return t('Courting');
+    default: return t('Building');
+  }
+}
+
+/** Top 3 memories of a rival by impact, one signed line each (tooltip on the relation number). */
+function memoryTip(n: AINation): string | undefined {
+  if (!n.memory.length) return undefined;
+  return [...n.memory]
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+    .slice(0, 3)
+    .map(m => {
+      const d = Math.round(m.delta);
+      return t('{delta} {why}', { delta: `${d > 0 ? '+' : ''}${d}`, why: t(m.why) });
+    })
+    .join('\n');
+}
 
 export default function DiplomacyPanel() {
   const { state, dispatch } = useGame();
@@ -33,6 +57,7 @@ export default function DiplomacyPanel() {
           const c = continentById(r.id)!;
           const relColor = r.relation >= 30 ? '#00E5A0' : r.relation >= 0 ? '#FFB84D' : '#FF477E';
           const intel = hasIntel(state, r);
+          const ai = !isHuman(state, r.id) && r.nation ? r.nation : undefined;
           return (
             <div key={r.id} className="rounded p-2" style={{ border: `1px solid ${c.color}55`, background: 'rgba(255,255,255,0.02)' }}>
               <div className="flex items-center justify-between">
@@ -43,12 +68,18 @@ export default function DiplomacyPanel() {
                     : RIVAL_LEADERS[r.id] && <span className="font-mono-data text-[9px] font-normal ml-1.5" style={{ color: 'var(--text-secondary)' }}>{t(RIVAL_LEADERS[r.id].title)} {RIVAL_LEADERS[r.id].name}</span>}
                   {r.project !== undefined && <span className="font-mono-data text-[8px] ml-1.5 px-1 rounded whitespace-nowrap" style={{ color: '#050508', background: 'var(--rose)' }}>{t('ASI PROJECT')}</span>}
                 </span>
-                <span className="font-mono-data text-[10px]" style={{ color: relColor }}>{r.relation >= 30 ? t('FRIENDLY') : r.relation >= 0 ? t('NEUTRAL') : r.relation > -50 ? t('HOSTILE') : t('ENEMY')} {Math.round(r.relation)}</span>
+                <span className="font-mono-data text-[10px]" style={{ color: relColor }} title={ai ? memoryTip(ai) : undefined}>{r.relation >= 30 ? t('FRIENDLY') : r.relation >= 0 ? t('NEUTRAL') : r.relation > -50 ? t('HOSTILE') : t('ENEMY')} {Math.round(r.relation)}</span>
               </div>
               <div className="my-1"><Bar value={r.relation + 100} max={200} color={relColor} height={4} marker={100} /></div>
               <div className="font-mono-data text-[9px] mb-1.5" style={{ color: 'var(--text-tertiary)' }}>
                 <span title={RIVAL_LEADERS[r.id]?.doctrine ? t(RIVAL_LEADERS[r.id].doctrine) : undefined}>{t(STRATEGY_TEXT[r.strategy])}</span>{RIVAL_LEADERS[r.id] && <span style={{ color: 'var(--text-secondary)' }}> · {t(RIVAL_LEADERS[r.id].doctrine)}</span>}{intel ? ` · ${t('emissions {emissions} Mt · clean {clean}%', { emissions: Math.round(r.emissions), clean: Math.round(r.cleanShare * 100) })}` : ''}
               </div>
+              {ai && (
+                <div className="font-mono-data text-[9px] -mt-1 mb-1.5" style={{ color: 'var(--text-tertiary)' }}>
+                  <span style={{ color: MOOD_COLOR[ai.mood] }}>{moodLabel(ai.mood)}</span>
+                  {ai.plan && <> · {t(ai.plan)}</>}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-1">
                 <button onClick={() => { play('coin'); dispatch({ type: 'DIPLOMACY', rivalId: r.id, action: 'gift' }); }} disabled={state.budget < gift}
                   className={`font-mono-data text-[9px] py-1 rounded ${state.budget < gift ? 'opacity-40' : 'hover:brightness-125'}`}
