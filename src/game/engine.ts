@@ -821,7 +821,7 @@ function queueEvent(s: GameState, event: GameEvent) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 interface ObjectiveDef { id: string; text: string; hint: string; reward: number; check: (s: GameState) => boolean }
-const OBJECTIVES: ObjectiveDef[] = [
+export const OBJECTIVES: ObjectiveDef[] = [
   { id: 'food', text: 'Feed a growing nation', hint: 'Build a Farm on a river valley (green tiles). Keep food above 105%.', reward: 60, check: s => countBuildings(s, 'farm', true) >= 3 && s.eco.foodSupply >= s.eco.foodDemand * 1.05 },
   { id: 'school', text: 'Educate the people', hint: 'Build a School District next to housing (+25%).', reward: 60, check: s => countBuildings(s, 'school', true) >= 2 },
   { id: 'transistor', text: 'Research the Transistor', hint: 'Open TECH [T] and pick Transistor.', reward: 60, check: s => has(s, 'transistor') },
