@@ -399,6 +399,12 @@ export interface GameState {
   scenario?: string;
   /** H2: daily/weekly challenge this game belongs to, e.g. 'daily-2026-10-20'. */
   challenge?: string;
+
+  // Phase G (optional so older saves load)
+  /** G4: deals proposed to or by this player. */
+  deals?: import('./deals').Deal[];
+  /** G4: non-aggression pacts in force (breaking one pays the penalty to the victim). */
+  pacts?: import('./deals').PactRecord[];
 }
 
 /** H3: pre-game modifiers. Every field is optional; absent = neutral. */

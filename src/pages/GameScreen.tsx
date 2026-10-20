@@ -27,6 +27,7 @@ import IntelPanel from '../components/game/panels/IntelPanel';
 import EconomyPanel from '../components/game/panels/EconomyPanel';
 import ZonePanel from '../components/game/panels/ZonePanel';
 import TalentPanel from '../components/game/panels/TalentPanel';
+import DealPanel from '../components/game/panels/DealPanel';
 import type { ZoneId } from '../game/types';
 import { t } from '../i18n';
 
@@ -111,6 +112,7 @@ export default function GameScreen() {
     : state.overlay === 'economy' ? <EconomyPanel />
     : state.overlay?.startsWith('zones') ? <ZonePanel focus={(state.overlay.split(':')[1] || undefined) as ZoneId | undefined} />
     : state.overlay === 'talent' ? <TalentPanel />
+    : state.overlay?.startsWith('deal:') ? <DealPanel key={state.overlay} rivalId={state.overlay.slice(5)} />
     : state.selectedTile !== null ? <TilePanel />
     : <OverviewPanel />;
 

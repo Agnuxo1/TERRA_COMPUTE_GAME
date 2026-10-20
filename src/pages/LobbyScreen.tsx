@@ -5,8 +5,8 @@ import { continents } from '../game/data';
 import { newRoomCode, ROOM_ALPHABET } from '../game/mp';
 import type { Difficulty } from '../game/types';
 import { play } from '../hooks/useSound';
-import { session, FACTION_IDS } from '../net/session';
-import { startMultiplayer } from '../net/MPBridge';
+import { session, FACTION_IDS, listMPSaves } from '../net/session';
+import { startMultiplayer, stateFromSave } from '../net/MPBridge';
 import { RIVAL_LEADERS } from '../game/dynamic-events';
 import { t } from '../i18n';
 
@@ -51,6 +51,10 @@ export default function LobbyScreen() {
   const inRoom = ses.status !== 'idle';
   const me = ses.me;
   const startedRef = useRef(false);
+  /** Room code of the save this session is being opened from: guests reload their save, the host resumes its own. */
+  const rejoinRef = useRef<string | null>(null);
+  const resumeRef = useRef<string | null>(null);
+  const saves = useMemo(() => (inRoom ? [] : listMPSaves()), [inRoom]);
 
   const callsign = name.trim() || 'Comrade';
   const saveName = (v: string) => { setName(v); try { localStorage.setItem(NAME_KEY, v); } catch { /* storage unavailable */ } };
@@ -58,17 +62,26 @@ export default function LobbyScreen() {
   // Everyone (host included) enters the game when the host starts it.
   useEffect(() => session.onWire((w, from) => {
     if (w.k !== 'start' || startedRef.current || from !== session.lobby?.hostId) return;
-    const s = startMultiplayer(w.lobby, session.selfId);
+    const s = rejoinRef.current === w.lobby.code ? stateFromSave(w.lobby, session.selfId) : startMultiplayer(w.lobby, session.selfId);
     if (s) { startedRef.current = true; play('alert'); dispatch({ type: 'LOAD_STATE', state: s }); }
   }), [dispatch]);
 
-  const create = () => { play('click'); void ses.open(newRoomCode(), callsign, true); };
-  const join = () => { if (code.length === 6) { play('click'); void ses.open(code, callsign, false); } };
+  // Rejoining a game that is already running: the host seats me again (same token) and sends the started lobby.
+  useEffect(() => {
+    if (startedRef.current || !rejoinRef.current || !lobby?.started || lobby.code !== rejoinRef.current) return;
+    const s = stateFromSave(lobby, session.selfId);
+    if (s) { startedRef.current = true; play('alert'); dispatch({ type: 'LOAD_STATE', state: s }); }
+  }, [lobby, dispatch]);
+
+  const create = () => { play('click'); rejoinRef.current = null; resumeRef.current = null; void ses.open(newRoomCode(), callsign, true); };
+  const join = () => { if (code.length === 6) { play('click'); rejoinRef.current = null; resumeRef.current = null; void ses.open(code, callsign, false); } };
+  const rejoin = (c: string) => { play('click'); rejoinRef.current = c; resumeRef.current = null; void ses.open(c, callsign, false, { rejoin: true }); };
+  const resume = (c: string) => { play('click'); rejoinRef.current = null; resumeRef.current = c; void ses.resume(c, callsign); };
   const leave = () => { play('click'); void ses.leave(); };
   const begin = () => {
     const l = ses.start();
     if (!l) return;
-    const s = startMultiplayer(l, ses.selfId);
+    const s = resumeRef.current === l.code ? stateFromSave(l, ses.selfId) : startMultiplayer(l, ses.selfId);
     if (s) { startedRef.current = true; play('alert'); dispatch({ type: 'LOAD_STATE', state: s }); }
   };
   // Packaged builds (desktop file://, Android https://localhost) invite friends to the public web version.
@@ -123,6 +136,17 @@ export default function LobbyScreen() {
                   <button onClick={join} disabled={code.length !== 6 || !online}
                     className="font-orbitron font-bold tracking-widest px-4 rounded hover:brightness-125 disabled:opacity-40" style={{ color: '#050608', background: AMBER }}>{t('JOIN')}</button>
                 </div>
+                {saves.length > 0 && (
+                  <div className="flex flex-col gap-1.5">
+                    {saves.map(m => (
+                      <button key={m.code} onClick={() => (m.role === 'host' ? resume(m.code) : rejoin(m.code))} disabled={!online}
+                        className="font-mono-data text-[10.5px] tracking-wider py-2 rounded hover:brightness-125 disabled:opacity-40"
+                        style={{ color: AMBER, border: `1px solid ${AMBER}`, background: 'rgba(255,184,77,0.08)' }}>
+                        {m.role === 'host' ? t('↻ Resume game {code} ({year})', { code: m.code, year: m.year }) : t('↻ Rejoin room {code} ({year})', { code: m.code, year: m.year })}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <p className="font-rajdhani text-[12px] leading-snug" style={{ color: 'var(--text-tertiary)' }}>
                   {t('Browsers connect directly (WebRTC). Free public relays only introduce the players; the room code encrypts that handshake. Like any peer-to-peer game, the other players can see your IP address. A few very strict networks (some offices and mobile carriers) block direct links.')}
                 </p>
@@ -157,7 +181,7 @@ export default function LobbyScreen() {
               </div>
 
               {lobby?.started && !startedRef.current && (
-                <div className="rounded p-3 font-mono-data text-[11px] text-center" style={{ color: RED, border: `1px solid ${RED}` }}>{t('This war room is full or its game has already begun.')}</div>
+                <div className="rounded p-3 font-mono-data text-[11px] text-center" style={{ color: RED, border: `1px solid ${RED}` }}>{rejoinRef.current ? t('Rejoining the game in room {code}…', { code: rejoinRef.current }) : t('This war room is full or its game has already begun.')}</div>
               )}
 
               {/* Faction table */}
@@ -169,7 +193,7 @@ export default function LobbyScreen() {
                     const mine = owner?.peerId === ses.selfId;
                     const free = !owner;
                     return (
-                      <button key={f} onClick={() => { play('click'); ses.claim(mine ? null : f); }} disabled={!free && !mine}
+                      <button key={f} onClick={() => { play('click'); ses.claim(mine ? null : f); }} disabled={(!free && !mine) || ses.resumed || !!rejoinRef.current}
                         className="relative rounded-lg overflow-hidden text-left transition-all"
                         style={{ aspectRatio: '3/4', border: `2px solid ${mine ? c.color : owner ? `${c.color}88` : 'var(--border-light)'}`, boxShadow: mine ? `0 0 24px ${c.color}77` : 'none', transform: mine ? 'translateY(-4px)' : 'none', cursor: free || mine ? 'pointer' : 'default' }}>
                         <div className="absolute inset-0" style={{ backgroundImage: `url(${CARD[f]})`, backgroundSize: 'cover', backgroundPosition: 'center top', filter: owner ? 'brightness(0.75)' : 'brightness(0.35) grayscale(0.7)' }} />

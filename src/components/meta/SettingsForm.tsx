@@ -108,6 +108,35 @@ export default function SettingsForm({ accent = 'var(--cyan)' }: { accent?: stri
         <Toggle label={t('Yearly report')} accent={accent} on={s.yearReport} onChange={v => set({ yearReport: v })} />
       </Row>
 
+      <Heading accent={accent}>{t('MULTIPLAYER')}</Heading>
+      <Row label={t('TURN SERVER')} hint={t('Optional relay for strict networks. Leave empty to connect directly.')}>
+        <input
+          type="text" value={s.turnUrl} placeholder="turn:host:3478"
+          onChange={e => set({ turnUrl: e.target.value })}
+          aria-label={t('TURN server URL')} autoComplete="off" spellCheck={false}
+          className="font-mono-data text-[10px] rounded px-1 py-0.5 w-[150px]"
+          style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-light)' }}
+        />
+      </Row>
+      <Row label={t('TURN USERNAME')}>
+        <input
+          type="text" value={s.turnUser}
+          onChange={e => set({ turnUser: e.target.value })}
+          aria-label={t('TURN username')} autoComplete="off" spellCheck={false}
+          className="font-mono-data text-[10px] rounded px-1 py-0.5 w-[150px]"
+          style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-light)' }}
+        />
+      </Row>
+      <Row label={t('TURN CREDENTIAL')}>
+        <input
+          type="text" value={s.turnCred}
+          onChange={e => set({ turnCred: e.target.value })}
+          aria-label={t('TURN credential')} autoComplete="off" spellCheck={false}
+          className="font-mono-data text-[10px] rounded px-1 py-0.5 w-[150px]"
+          style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-light)' }}
+        />
+      </Row>
+
       <Heading accent={accent}>{t('ACCESSIBILITY')}</Heading>
       <Row label={t('COLOUR VISION')} hint={t('Recolours status lights and adds shape cues')}>
         <select

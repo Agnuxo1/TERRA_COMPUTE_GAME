@@ -19,6 +19,9 @@ export interface Settings {
   colorblind: ColorblindMode;  // status-colour remap (src/lib/accessibility.ts)
   textScale: TextScale;        // root font-size multiplier
   subtitles: boolean;          // captions for voiced lines (read by VideoPlayer when present)
+  turnUrl: string;             // optional TURN relay for multiplayer (empty = none)
+  turnUser: string;
+  turnCred: string;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -34,6 +37,9 @@ export const DEFAULT_SETTINGS: Settings = {
   colorblind: 'off',
   textScale: 1,
   subtitles: true,
+  turnUrl: '',
+  turnUser: '',
+  turnCred: '',
 };
 
 const KEY = 'terra_compute_settings';
@@ -49,6 +55,7 @@ function sanitize(raw: Partial<Settings> | null | undefined): Settings {
   const r = raw ?? {};
   const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
   const bool = (v: unknown, d: boolean) => (typeof v === 'boolean' ? v : d);
+  const str = (v: unknown, d: string) => (typeof v === 'string' ? v.trim().slice(0, 200) : d);
   const auto = num(r.autosaveYears, DEFAULT_SETTINGS.autosaveYears);
   return {
     masterVolume: clamp(num(r.masterVolume, DEFAULT_SETTINGS.masterVolume), 0, 1),
@@ -63,6 +70,9 @@ function sanitize(raw: Partial<Settings> | null | undefined): Settings {
     colorblind: COLORBLIND_MODES.find(m => m === r.colorblind) ?? DEFAULT_SETTINGS.colorblind,
     textScale: TEXT_SCALES.find(v => v === r.textScale) ?? DEFAULT_SETTINGS.textScale,
     subtitles: bool(r.subtitles, DEFAULT_SETTINGS.subtitles),
+    turnUrl: str(r.turnUrl, ''),
+    turnUser: str(r.turnUser, ''),
+    turnCred: str(r.turnCred, ''),
   };
 }
 

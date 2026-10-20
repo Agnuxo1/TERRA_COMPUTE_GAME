@@ -34,7 +34,10 @@ export type MPMsg =
   | { t: 'first'; key: string; who: string; year: number }
   | { t: 'defcon1'; year: number; culprit?: string }
   /** Phase D1: a guest's influence (delta > 0) or successful coup (delta < 0 on target) in a zone, applied by the host. */
-  | { t: 'zone'; from: string; zone: ZoneId; delta: number; target?: string };
+  | { t: 'zone'; from: string; zone: ZoneId; delta: number; target?: string }
+  /** G4: a deal offered to another human, and that human's answer. */
+  | { t: 'deal'; from: string; to: string; deal: import('./deals').Deal }
+  | { t: 'dealr'; from: string; to: string; id: string; accept: boolean };
 
 export const isHuman = (s: GameState, id: string) =>
   !!s.mp && !s.mp.offline && id !== s.mp.me && s.mp.players.some(p => p.faction === id && p.online);
