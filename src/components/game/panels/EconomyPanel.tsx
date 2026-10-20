@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useGame } from '../../../App';
 import { techById } from '../../../game/data';
-import { marketPrice, marketSpread, pol, policyAvailability } from '../../../game/engine';
+import { MOBILISE_YEAR, marketPrice, marketSpread, mobiliseAvailable, pol, policyAvailability } from '../../../game/engine';
 import { fmtMoney, fmtSigned } from '../../../game/format';
 import { basePrice, GOOD_INFO, type Good } from '../../../game/market';
 import { POLICIES, POLICY_COOLDOWN, POLICY_GDP_COST, policyById, policySlots, type PolicyDef } from '../../../game/policies';
@@ -113,6 +113,24 @@ function Decrees() {
         )}
         {nextSlotYear && <KV k={t('Next slot')} v={`${nextSlotYear}`} tone="dim" />}
         {state.eco.policyCost > 0 && <KV k={t('Decree spending')} v={t('−{cost}/yr', { cost: fmtMoney(state.eco.policyCost) })} tone="bad" />}
+      </Section>
+
+      {/* Total mobilisation (from 2010) */}
+      <Section title={t('TOTAL MOBILISATION')} accent="var(--rose)">
+        <div className="font-rajdhani text-[12px] leading-snug mb-1.5" style={{ color: 'var(--text-tertiary)' }}>
+          {t('From 2010 the state can put the whole economy on a war footing: compute +50%, approval −8, alignment −0.5 and world tension +2 per year. It cannot be changed again for 3 years.')}
+        </div>
+        <KV k={t('Status')} v={state.mobilised ? t('MOBILISED') : t('Peacetime')} tone={state.mobilised ? 'bad' : 'dim'} />
+        {state.mobiliseLockUntil !== undefined && state.year < state.mobiliseLockUntil && (
+          <KV k={t('Next change')} v={t('in {years} yrs', { years: (state.mobiliseLockUntil - state.year).toFixed(1) })} tone="dim" />
+        )}
+        <div className="mt-1.5">
+          <DecreeButton color="var(--rose)" disabled={!mobiliseAvailable(state)}
+            title={state.year < MOBILISE_YEAR ? t('Available from 2010') : t('Toggle total mobilisation')}
+            onClick={() => { play('alert'); dispatch({ type: 'TOGGLE_MOBILISE' }); }}>
+            {state.mobilised ? t('STAND DOWN') : t('MOBILISE')}
+          </DecreeButton>
+        </div>
       </Section>
 
       {/* Active decrees */}

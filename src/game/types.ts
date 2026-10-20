@@ -344,9 +344,28 @@ export interface GameState {
 
   // Stats / outcome
   gameOverReason: string;
-  outcome: 'safe_asi' | 'rival_asi' | 'rogue_rival' | 'rogue_self' | 'climate' | 'revolution' | 'bankrupt' | 'timeout' | null;
+  outcome: 'safe_asi' | 'rival_asi' | 'rogue_rival' | 'rogue_self' | 'climate' | 'revolution' | 'bankrupt' | 'timeout' | 'governance' | 'silicon' | 'custodian' | null;
   victoryYear: number;
   totalBuildings: number;
   totalTechs: number;
   peakCapability: number;
+
+  // Phase B: doctrines, alternative victories, total mobilisation (all optional so older saves load)
+  /** One-time doctrine forks chosen so far: research_model | compute_arch | model_policy | safety_path -> option a | b. */
+  doctrines?: Record<string, 'a' | 'b'>;
+  /** Total mobilisation decree is in force (from 2010). */
+  mobilised?: boolean;
+  /** Mobilisation cannot be toggled again before this year. */
+  mobiliseLockUntil?: number;
+  /** The player has put an AI Control Treaty on the agenda of the next World Assembly. */
+  aiControlProposed?: boolean;
+  /** Year of the next World Assembly (every 4 years from 1995). */
+  assemblyNext?: number;
+  /** Consecutive years with a chip share of at least 60% of the world estimate. */
+  siliconYears?: number;
+}
+
+/** Outcomes that end the game as a win (shared or alone). */
+export function isVictory(o: GameState['outcome']): boolean {
+  return o === 'safe_asi' || o === 'governance' || o === 'silicon' || o === 'custodian';
 }

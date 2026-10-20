@@ -5,6 +5,16 @@ import EndStats from '../components/meta/EndStats';
 import ScoreCard from '../components/meta/ScoreCard';
 import { t } from '../i18n';
 
+// Built at render time so the copy follows the active language.
+function victoryTitles(): Record<string, string> {
+  return {
+    safe_asi: t('VICTORY'),
+    governance: t('WORLD ASSEMBLY VICTORY'),
+    silicon: t('SILICON HEGEMONY'),
+    custodian: t('SHARED VICTORY'),
+  };
+}
+
 function fmtNumber(n: number): string {
   if (n >= 1e24) return (n / 1e24).toFixed(1) + 'Y';
   if (n >= 1e21) return (n / 1e21).toFixed(1) + 'Z';
@@ -102,7 +112,7 @@ export default function VictoryScreen() {
           color: '#FFD700',
           textShadow: '0 0 30px rgba(255,215,0,0.4)',
         }}>
-          {t('VICTORY')}
+          {victoryTitles()[state.outcome ?? ''] ?? t('VICTORY')}
         </h1>
 
         <p className="font-rajdhani text-sm text-center leading-snug" style={{color:'var(--text-secondary)', maxWidth:'640px'}}>

@@ -19,7 +19,9 @@ import { mulberry32 } from './rng.ts';
 import { applyDynamic, leaderOf, projectEvent, rollDynamic, type DynHelpers } from './dynamic-events.ts';
 import { isHuman, isRemote, lagFor, outbox, playerName, type AIState, type MPMsg, type MPPlayer, type Snapshot } from './mp.ts';
 import { aggression, applyNation, cloneNation, initNation, memoryScore, planYear, remember, sabotaged, type PlanHelpers } from './ai/nation.ts';
+import { DOCTRINES, type DoctrineDef } from './doctrines.ts';
 import { t } from '../i18n/index.ts';
+import { isVictory } from './types.ts';
 import type {
   AIStrategy, BuildingId, Difficulty, Economy, ForecastWarning, GameEvent, GameMode, GameState, LogEntry, MapData, Modifier,
   Notification, PlacedBuilding, Rival, Tile, TreatyId,
@@ -77,7 +79,9 @@ export type Action =
   | { type: 'MP_CLOCK'; speed: number; paused: boolean }
   | { type: 'MP_CLOCK_TENSION'; tension: number }
   | { type: 'MP_PLAYERS'; players: MPPlayer[]; offline?: boolean }
-  | { type: 'MP_OUTBOX_CLEAR'; n: number };
+  | { type: 'MP_OUTBOX_CLEAR'; n: number }
+  | { type: 'PROPOSE_AI_CONTROL' }
+  | { type: 'TOGGLE_MOBILISE' };
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  INITIAL STATE
@@ -121,6 +125,19 @@ function bonus<K extends string>(s: GameState, key: K): number | undefined {
 
 export const has = (s: GameState, tech: string) => s.unlockedTechs.includes(tech);
 export const pol = (s: GameState, policy: string) => s.policies.includes(policy);
+/** Doctrine option chosen for a fork ('a' | 'b'); undefined until the fork is decided. */
+export function doctrine(s: GameState, id: string): 'a' | 'b' | undefined { return s.doctrines?.[id]; }
+/** Immediate research windfall, on the same era curve as the other breakthroughs. */
+const rpScale = (s: GameState, k: number) => Math.round(k * (80 + 40 * Math.max(0, s.year - 1960)));
+/** Total mobilisation can be decreed from this year, and then at most once every 3 years. */
+export const MOBILISE_YEAR = 2010;
+export function mobiliseAvailable(s: GameState): boolean {
+  return s.year >= MOBILISE_YEAR && s.year >= (s.mobiliseLockUntil ?? 0);
+}
+/** Compute-architecture doctrine: how many buildings one sabotage hits (centralised: 2, otherwise 1). */
+function sabotageHits(s: GameState): number { return doctrine(s, 'compute_arch') === 'a' ? 2 : 1; }
+/** Progress a sabotaged building is left with (distributed repairs twice as fast: 0.7, otherwise 0.4). */
+function repairProgress(s: GameState): number { return doctrine(s, 'compute_arch') === 'b' ? 0.7 : 0.4; }
 
 function modProduct(s: GameState, key: keyof Modifier): number {
   let v = 1;
@@ -167,6 +184,9 @@ export function scaledCost(s: GameState, type: BuildingId): number {
   if (type === 'chipfab') cost *= modProduct(s, 'chipCost');
   if (type === 'gpucluster' && s.modifiers.some(m => m.id === 'alexnet_gpu')) cost *= 0.7;
   if ((type === 'solar' || type === 'nuclear') && s.modifiers.some(m => m.id === 'ukr_renew')) cost *= 0.7;
+  const arch = doctrine(s, 'compute_arch');
+  if (arch === 'a' && (type === 'aifactory' || type === 'datacenter')) cost *= 0.92;
+  if (arch === 'b' && isCompute(type)) cost *= 1.04;
   cost *= policyCostMult(s, type);
   return Math.round(cost);
 }
@@ -409,6 +429,12 @@ export function techComputeMult(s: GameState): number {
   return m;
 }
 
+/** Compute multiplier from the safety-path doctrine and total mobilisation (+50%). */
+function computeDoctrineMult(s: GameState): number {
+  const safety = doctrine(s, 'safety_path');
+  return (safety === 'a' ? 0.9 : safety === 'b' ? 1.1 : 1) * (s.mobilised ? 1.5 : 1);
+}
+
 export function computeEconomy(s: GameState): Economy {
   const map = s.map;
   const ps = popScale(s.playerContinent);
@@ -548,11 +574,15 @@ export function computeEconomy(s: GameState): Economy {
   if (pol(s, 'space_race')) researchMult *= 1.1;
   if (pol(s, 'propaganda')) researchMult *= 0.95;
   if (pol(s, 'manhattan_ai')) researchMult *= 1.15;
+  const rModel = doctrine(s, 'research_model');
+  if (rModel === 'a') researchMult *= 1.08;
+  else if (rModel === 'b') researchMult *= 0.95;
   const policyCompute = (pol(s, 'manhattan_ai') ? 1.35 : 1) * (pol(s, 'safety_first') ? 0.9 : 1);
   const chipFactor = s.eco.chipFactor ?? 1;
   const baseRP = 15 + (continentById(s.playerContinent)?.techLevel ?? 4) * 3;
   const humanRP = (baseRP + (labRP + uniRP + spaceRP) * staffing * energyRatio) * (0.4 + s.education / 100);
-  const compute = computeRaw * techComputeMult(s) * (1 + 0.12 * Math.min(4, chipfabs)) * policyCompute * chipFactor * energyRatio * Math.sqrt(staffing);
+  const computeDoc = computeDoctrineMult(s);
+  const compute = computeRaw * techComputeMult(s) * (1 + 0.12 * Math.min(4, chipfabs)) * policyCompute * computeDoc * chipFactor * energyRatio * Math.sqrt(staffing);
   const capability = Math.log10(Math.max(1, compute));
   const computeRP = has(s, 'dl') ? 30 * Math.max(0, capability - 14) ** 2 : 0;
   const researchRate = (humanRP + computeRP) * researchMult;
@@ -586,12 +616,13 @@ export function computeEconomy(s: GameState): Economy {
   const polApproval = (pol(s, 'welfare') ? 8 : 0) + (pol(s, 'austerity') ? -8 : 0) + (pol(s, 'five_year_plan') ? -4 : 0) + (pol(s, 'free_market') ? -2 : 0)
     + (pol(s, 'autarky') ? 3 : 0) + (pol(s, 'open_trade') ? -2 : 0) + (pol(s, 'propaganda') ? 7 : 0) + (pol(s, 'security_state') ? -5 : 0);
   if (polApproval) f.push({ label: t('Policies'), value: polApproval });
+  if (s.mobilised) f.push({ label: t('Mobilisation'), value: -8 });
   if (s.budget < 0) f.push({ label: t('Debt'), value: -8 });
   const approvalTarget = clamp(f.reduce((a, b) => a + b.value, 0), 0, 100);
 
   return {
     gdp, income, upkeep, netBudget, foodSupply, foodDemand, housingCap: totalHousing, jobs, workers, unemployment,
-    energySupply, energyDemand, energyRatio, researchRate, computeRaw, computeMult: techComputeMult(s) * (1 + 0.12 * Math.min(4, chipfabs)) * policyCompute,
+    energySupply, energyDemand, energyRatio, researchRate, computeRaw, computeMult: techComputeMult(s) * (1 + 0.12 * Math.min(4, chipfabs)) * policyCompute * computeDoc,
     emissions, alignmentGain, alignmentPressure: pressure, approvalTarget, approvalFactors: f, eduTarget, comfort, staffing,
     steelProd, steelUse: 0, chipProd, chipUse, chipFactor, policyCost, imports,
   };
@@ -761,10 +792,13 @@ function tickRivals(s: GameState, dt: number) {
       r.asiLaunched = true;
       const rogue = rand() < Math.max(0, (SAFE_ALIGNMENT - r.alignment) / SAFE_ALIGNMENT);
       outbox(s, { t: 'end', who: r.id, human: false, safe: !rogue, year: Math.floor(year) });
-      s.outcome = rogue ? 'rogue_rival' : 'rival_asi';
+      const custodian = !rogue && custodianReady(s);
+      s.outcome = rogue ? 'rogue_rival' : custodian ? 'custodian' : 'rival_asi';
       s.gameOverReason = rogue
         ? t('{name} ignited an unaligned superintelligence in {year} (alignment {alignment}%). It optimised the planet for its own goals. Humanity\'s story ended with a prompt.', { name: rivalName(r.id), year: Math.floor(year), alignment: Math.round(r.alignment) })
-        : t('{name} ignited a safe superintelligence in {year}. The future is theirs to write — your bloc becomes a footnote.', { name: rivalName(r.id), year: Math.floor(year) });
+        : custodian
+          ? t('{name} ignited a safe superintelligence in {year}, and it chose your bloc as its custodian: your alignment work and safety treaties made it trustworthy. A shared victory.', { name: rivalName(r.id), year: Math.floor(year) })
+          : t('{name} ignited a safe superintelligence in {year}. The future is theirs to write — your bloc becomes a footnote.', { name: rivalName(r.id), year: Math.floor(year) });
     }
     return r;
   });
@@ -779,14 +813,22 @@ function rivalAction(s: GameState, r: Rival, pioneer: boolean) {
     const sweep = s.modifiers.some(m => m.id === 'counterintel') ? 0.6 : 1;
     raiseTension(s, 3);
     const success = clamp((0.55 - defense * 0.08) * opsMult * powers * sweep * (pol(s, 'security_state') ? 0.5 : 1), 0.05, 0.9);
-    if (rand() < success) {
-      if (s.capability > 12 && chance(0.5)) {
+    // Research-model doctrine scales their theft odds (open science +15%, secret labs -30%).
+    const rModel = doctrine(s, 'research_model');
+    const theftMult = rModel === 'a' ? 1.15 : rModel === 'b' ? 0.7 : 1;
+    // A sabotage lands at the operation's odds; a theft at its own, doctrine-scaled odds.
+    const sabotageTry = s.capability > 12 && chance(0.5);
+    if (rand() < (sabotageTry ? success : clamp(success * theftMult, 0.05, 0.95))) {
+      if (sabotageTry) {
         const targets = s.map!.tiles.filter(t => t.building && isCompute(t.building.type) && t.building.progress >= 1);
         if (targets.length) {
-          const tile = pick(targets);
-          tile.building = { ...tile.building!, progress: 0.4 };
-          pushLog(s, name, t('Cyber-sabotage hit your {building}. Repairs underway.', { building: t(buildingById[tile.building.type].name) }), 'danger');
-          notify(s, t('⚠ {name} sabotaged a {building}! Build AI Safety Institutes to defend.', { name, building: t(buildingById[tile.building.type].short) }), 'danger');
+          const hit: Tile[] = [];
+          for (let i = 0; i < sabotageHits(s) && targets.length; i++) hit.push(targets.splice(Math.floor(rand() * targets.length), 1)[0]);
+          for (const tile of hit) {
+            tile.building = { ...tile.building!, progress: repairProgress(s) };
+            pushLog(s, name, t('Cyber-sabotage hit your {building}. Repairs underway.', { building: t(buildingById[tile.building.type].name) }), 'danger');
+            notify(s, t('⚠ {name} sabotaged a {building}! Build AI Safety Institutes to defend.', { name, building: t(buildingById[tile.building.type].short) }), 'danger');
+          }
           r.lastAction = t('Sabotaged your compute');
           return;
         }
@@ -1076,7 +1118,7 @@ function tick(prev: GameState): GameState {
   s.compute = Math.max(1e6, eco.computeRaw * eco.computeMult * s.eco.chipFactor * eco.energyRatio * Math.sqrt(eco.staffing));
   s.capability = Math.log10(s.compute);
   s.peakCapability = Math.max(s.peakCapability, s.capability);
-  s.alignment = clamp(s.alignment + (eco.alignmentGain * (s.alignment < alignmentCap(s) ? 1 : 0) - eco.alignmentPressure) * dt, 0, 100);
+  s.alignment = clamp(s.alignment + (eco.alignmentGain * (s.alignment < alignmentCap(s) ? 1 : 0) - eco.alignmentPressure - (s.mobilised ? 0.5 : 0)) * dt, 0, 100);
   if (s.alignment > alignmentCap(s)) s.alignment = Math.max(alignmentCap(s), s.alignment - 2 * dt);
 
   // 5. Research queue
@@ -1098,7 +1140,7 @@ function tick(prev: GameState): GameState {
 
   // 6. World: rivals, climate, doom clock
   tickRivals(s, dt);
-  if (!s.mp || s.mp.offline || s.mp.role === 'host') s.tension = (s.tension ?? 20) + (tensionBaseline(s.year) - (s.tension ?? 20)) * 0.15 * dt;
+  if (!s.mp || s.mp.offline || s.mp.role === 'host') s.tension = (s.tension ?? 20) + (tensionBaseline(s.year) - (s.tension ?? 20)) * 0.15 * dt + (s.mobilised ? 2 * dt : 0);
   checkFirsts(s);
   const worldEmissions = eco.emissions + s.rivals.reduce((a, b) => a + b.emissions, 0);
   s.co2 += Math.max(0, worldEmissions - 120) * dt;
@@ -1174,7 +1216,42 @@ export function techAvailable(s: GameState, techId: string): boolean {
 
 /** Alignment can only be pushed as far as your safety science allows. */
 export function alignmentCap(s: GameState): number {
-  return Math.min(98, 55 + (has(s, 'alignment') ? 15 : 0) + (has(s, 'interp') ? 15 : 0) + (has(s, 'agi') ? 10 : 0));
+  return Math.min(98, 55 + (has(s, 'alignment') ? 15 : 0) + (has(s, 'interp') ? 15 : 0) + (has(s, 'agi') ? 10 : 0)
+    + (doctrine(s, 'safety_path') === 'a' ? 10 : 0));
+}
+
+// --- Alternative victories (Phase B) -----------------------------------------
+/** Safety treaties you hold with other blocs (human or AI). */
+export function safetyTreaties(s: GameState): number {
+  return s.rivals.filter(r => r.treaties.includes('safety')).length;
+}
+/** Blocs in the World Assembly (you included); an AI Control Treaty needs this many yes votes. */
+export const ASSEMBLY_BLOCS = 8;
+export const GOVERNANCE_QUORUM = 5;
+/** Yes votes an AI Control Treaty would get if voted now. Humans vote yes only with a safety treaty; AI blocs at relation 25+ or with one. */
+export function governanceVotes(s: GameState): number {
+  let yes = 1;   // you proposed it
+  for (const r of s.rivals) {
+    const safety = r.treaties.includes('safety');
+    if (isHuman(s, r.id) ? safety : (r.relation >= 25 || safety)) yes++;
+  }
+  return yes;
+}
+export function canProposeAIControl(s: GameState): boolean {
+  return s.year >= 1995 && !s.aiControlProposed && s.budget > 0 && safetyTreaties(s) >= 4 && s.gameMode !== 'logic';
+}
+/** Share of a world chip estimate: your chip output against your own plus rivals' (GDP x 0.02, from 1990). */
+export function chipWorldShare(s: GameState): number {
+  const mine = s.eco.chipProd;
+  const rivals = s.year > 1990 ? s.rivals.reduce((a, r) => a + r.gdp * 0.02, 0) : 0;
+  const world = mine + rivals;
+  return world > 0 ? mine / world : 0;
+}
+/** Alignment and safety treaties that make a rival's safe ASI a shared victory. */
+/** Custodian (shared win): near-perfect alignment, a broad safety coalition, and you were still in the race (within 1 order of magnitude). */
+export function custodianReady(s: GameState): boolean {
+  const leader = Math.max(...s.rivals.map(r => r.capability), 0);
+  return s.alignment >= 95 && safetyTreaties(s) >= 5 && s.capability >= leader - 1;
 }
 
 export function policyAvailability(s: GameState, id: string, on = true): { ok: boolean; reason?: string } {
@@ -1197,7 +1274,24 @@ export function techCost(s: GameState, techId: string): number {
   return Math.round(t.cost * (1 + 0.1 * early) * (bonus(s, 'techCost') ?? 1));
 }
 
+/** A doctrine fork as a decision. Texts stay English source; the event modal and log translate them. */
+function doctrineEvent(d: DoctrineDef, year: number): GameEvent {
+  return {
+    id: nid('doctrine'), name: d.name, year, type: 'warning', description: d.description, choices: [
+      { label: d.a.label, detail: d.a.detail, effect: `doctrine:${d.id}:a` },
+      { label: d.b.label, detail: d.b.detail, effect: `doctrine:${d.id}:b` },
+    ],
+  };
+}
+
 function yearly(s: GameState, year: number, pioneer: boolean) {
+  // Doctrine forks: one decision per fork, once its year is reached (also in pioneer).
+  for (const d of DOCTRINES) {
+    if (year >= d.year && !s.firedEvents.includes(`doctrine-${d.id}`) && !doctrine(s, d.id)) {
+      s.firedEvents = [...s.firedEvents, `doctrine-${d.id}`];
+      queueEvent(s, doctrineEvent(d, year));
+    }
+  }
   // Historical events
   for (const ev of historicalEvents) {
     if (ev.year <= year && !s.firedEvents.includes(ev.id)) {
@@ -1209,7 +1303,7 @@ function yearly(s: GameState, year: number, pioneer: boolean) {
   // Dynamic events (at most one queued at a time)
   if (!s.eventQueue.length) {
     if (s.planetHealth < 60 && chance(s.planetHealth < 35 ? 0.35 : 0.18)) queueEvent(s, climateEvent(s));
-    else if (s.capability >= 15 && s.alignment < 45 && chance(0.3)) queueEvent(s, aiIncident(s));
+    else if (s.capability >= 15 && s.alignment < 45 && chance(doctrine(s, 'safety_path') === 'b' ? 0.6 : 0.3)) queueEvent(s, aiIncident(s));
     else {
       const d = rollDynamic(s, H);
       if (d) queueEvent(s, d);
@@ -1244,6 +1338,30 @@ function yearly(s: GameState, year: number, pioneer: boolean) {
       s.firedEvents = [...s.firedEvents, `alert-${r.id}`];
       notify(s, t('🚨 {name} is close to superintelligence ({capability}). Sabotage, treaties — or win first.', { name: rivalName(r.id), capability: capabilityWord(r.capability) }), 'danger');
     }
+  }
+  // Interpretability doctrine: alignment research keeps climbing.
+  if (doctrine(s, 'safety_path') === 'a') s.alignment = clamp(s.alignment + 1, 0, 100);
+  // World Assembly (every 4 years from 1995): votes on the AI Control Treaty if the player proposed it.
+  if (year >= (s.assemblyNext ?? 1995)) {
+    s.assemblyNext = (s.assemblyNext ?? 1995) + 4;
+    if (s.aiControlProposed) {
+      const yes = governanceVotes(s);
+      s.aiControlProposed = false;
+      if (yes >= GOVERNANCE_QUORUM && !s.outcome) {
+        s.outcome = 'governance';
+        s.gameOverReason = t('The World Assembly ratified the AI Control Treaty in {year}, with {yes} of {blocs} blocs in favour. Superintelligence is governed by many hands, not raced by one.', { year, yes, blocs: ASSEMBLY_BLOCS });
+      } else {
+        notify(s, t('🏛 World Assembly {year}: the AI Control Treaty failed with {yes} of {blocs} votes.', { year, yes, blocs: ASSEMBLY_BLOCS }), 'warning');
+        pushLog(s, t('World Assembly'), t('AI Control Treaty rejected ({yes}/{blocs}).', { yes, blocs: ASSEMBLY_BLOCS }), 'warning');
+      }
+    }
+  }
+  // Silicon hegemony: chips at 60% or more of the world estimate for five years running (counted from 1990,
+  // when rivals enter the estimate; before that a single chip fab would read as 100% of the world).
+  s.siliconYears = year > 1990 && chipWorldShare(s) >= 0.6 ? (s.siliconYears ?? 0) + 1 : 0;
+  if (!s.outcome && s.siliconYears >= 5) {
+    s.outcome = 'silicon';
+    s.gameOverReason = t('Your bloc produced {share}% of the world\'s advanced chips for five years running. Every accelerator on Earth answered to your foundries, and the race ended at their gates.', { share: Math.round(chipWorldShare(s) * 100) });
   }
 }
 
@@ -1309,7 +1427,7 @@ function forecast(s: GameState): ForecastWarning[] {
 }
 
 function endGame(s: GameState): GameState {
-  const victory = s.outcome === 'safe_asi';
+  const victory = isVictory(s.outcome);
   return { ...s, screen: victory ? 'victory' : 'gameover', victoryYear: Math.floor(s.year), paused: true, activeEvent: null };
 }
 
@@ -1336,7 +1454,27 @@ export function choiceAvailable(s: GameState, requires?: string): boolean {
   return true;
 }
 
+/** Doctrine forks: records the option and applies the one-off part (the rest is read through doctrine() where it applies). */
+function applyDoctrine(s: GameState, id: string, option: 'a' | 'b') {
+  s.doctrines = { ...(s.doctrines ?? {}), [id]: option };
+  if (id === 'model_policy') {
+    if (option === 'a') {
+      s.researchPoints += rpScale(s, 1);
+      s.rivals = s.rivals.map(r => ({ ...r, lag: r.lag - 0.8, relation: clamp(r.relation + 10, -100, 100) }));
+      raiseTension(s, -5);
+    } else {
+      s.rivals = s.rivals.map(r => ({ ...r, lag: r.lag + 0.3 }));
+      raiseTension(s, 5);
+    }
+  }
+}
+
 function applyEffect(s: GameState, effect: string) {
+  if (effect.startsWith('doctrine:')) {
+    const [, id, option] = effect.split(':');
+    applyDoctrine(s, id, option === 'b' ? 'b' : 'a');
+    return;
+  }
   if (applyDynamic(s, effect, H)) return;
   if (effect.startsWith('mp_accept:') || effect.startsWith('mp_decline:')) {
     const [kind, from, treaty] = effect.split(':') as [string, string, TreatyId];
@@ -1584,11 +1722,14 @@ function sufferOperation(s: GameState, from: string, op: CovertOp, ok: boolean) 
       notify(s, t('⚠ {who} stole research from your labs.', { who }), 'danger');
       break;
     case 'sabotage': {
-      const targets = s.map!.tiles.filter(t => t.building && isCompute(t.building.type) && t.building.progress >= 1);
-      if (targets.length) {
-        const hit = targets[Math.floor(rand() * targets.length)];
-        s.map = { ...s.map!, tiles: s.map!.tiles.map(x => x.id === hit.id ? { ...x, building: { ...x.building!, progress: 0.4 } } : x) };
-        notify(s, t('⚠ {who} sabotaged your {building}! Repairs underway.', { who, building: t(buildingById[hit.building!.type].name) }), 'danger');
+      const pool = s.map!.tiles.filter(t => t.building && isCompute(t.building.type) && t.building.progress >= 1);
+      const hit: Tile[] = [];
+      for (let i = 0; i < sabotageHits(s) && pool.length; i++) hit.push(pool.splice(Math.floor(rand() * pool.length), 1)[0]);
+      if (hit.length) {
+        const ids = hit.map(h => h.id);
+        const progress = repairProgress(s);
+        s.map = { ...s.map!, tiles: s.map!.tiles.map(x => ids.includes(x.id) ? { ...x, building: { ...x.building!, progress } } : x) };
+        for (const h of hit) notify(s, t('⚠ {who} sabotaged your {building}! Repairs underway.', { who, building: t(buildingById[h.building!.type].name) }), 'danger');
       } else notify(s, t('⚠ {who} attempted to sabotage your compute — there was nothing to hit.', { who }), 'warning');
       break;
     }
@@ -1660,10 +1801,13 @@ function receive(state: GameState, m: MPMsg): GameState {
     case 'end': {
       if (m.who === me || s.outcome) return s;
       const who = `${rivalName(m.who)}${m.human && playerName(s, m.who) ? ` (${playerName(s, m.who)})` : ''}`;
-      s.outcome = m.safe ? 'rival_asi' : 'rogue_rival';
-      s.gameOverReason = m.safe
-        ? t('{who} ignited a safe superintelligence in {year}. The future is theirs to write — your bloc becomes a footnote.', { who, year: m.year })
-        : t('{who} ignited an unaligned superintelligence in {year}. It optimised the planet for its own goals. Humanity\'s story ended with a prompt.', { who, year: m.year });
+      const custodian = m.safe && custodianReady(s);
+      s.outcome = m.safe ? (custodian ? 'custodian' : 'rival_asi') : 'rogue_rival';
+      s.gameOverReason = custodian
+        ? t('{who} ignited a safe superintelligence in {year}, and it chose your bloc as its custodian: your alignment work and safety treaties made it trustworthy. A shared victory.', { who, year: m.year })
+        : m.safe
+          ? t('{who} ignited a safe superintelligence in {year}. The future is theirs to write — your bloc becomes a footnote.', { who, year: m.year })
+          : t('{who} ignited an unaligned superintelligence in {year}. It optimised the planet for its own goals. Humanity\'s story ended with a prompt.', { who, year: m.year });
       return endGame(s);
     }
     case 'first':
@@ -1984,6 +2128,27 @@ function reduce(state: GameState, action: Action): GameState {
       }
       if (s.mp) outbox(s, { t: 'end', who: s.mp.me, human: true, safe: s.outcome === 'safe_asi', year: Math.floor(s.year) });
       return endGame(s);
+    }
+
+    case 'PROPOSE_AI_CONTROL': {
+      if (!canProposeAIControl(state)) return state;
+      const cost = Math.round(state.budget * 0.1);
+      const s = { ...state, budget: state.budget - cost, aiControlProposed: true };
+      notify(s, t('🏛 AI Control Treaty tabled for the World Assembly of {year}. Cost {amount}.', { year: s.assemblyNext ?? 1995, amount: fmtMoneyB(cost) }), 'info');
+      pushLog(s, t('World Assembly'), t('Tabled an AI Control Treaty.'), 'info');
+      return s;
+    }
+
+    case 'TOGGLE_MOBILISE': {
+      if (!mobiliseAvailable(state)) return state;
+      const on = !state.mobilised;
+      const s = { ...state, mobilised: on, mobiliseLockUntil: state.year + 3 };
+      notify(s, on
+        ? t('⚙ Total mobilisation decreed: compute +50%, approval −8, alignment and world tension under pressure.')
+        : t('Mobilisation stood down. Factories return to civilian output.'), on ? 'warning' : 'success');
+      pushLog(s, t('Government'), on ? t('Total mobilisation decreed.') : t('Mobilisation stood down.'), on ? 'warning' : 'info');
+      s.eco = computeEconomy(s);
+      return s;
     }
 
     case 'SET_SPEED':

@@ -15,6 +15,10 @@ function outcomeTitles(): Record<string, string> {
     revolution: t('REVOLUTION'),
     bankrupt: t('BANKRUPTCY'),
     timeout: t('WINDOW CLOSED'),
+    // Alternative victories normally end on the victory screen; titled here too in case one is shown.
+    governance: t('WORLD ASSEMBLY VICTORY'),
+    silicon: t('SILICON HEGEMONY'),
+    custodian: t('SHARED VICTORY'),
   };
 }
 function outcomeLessons(): Record<string, string> {

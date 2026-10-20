@@ -1,5 +1,5 @@
 // End-of-game score and rank: rewards winning early, safely, with a living planet and a content people.
-import type { GameState } from './types';
+import { isVictory, type GameState } from './types.ts';
 import { t } from '../i18n/index.ts';
 
 export interface ScoreLine { label: string; points: number }
@@ -9,11 +9,13 @@ const DIFF_MULT = { easy: 0.8, normal: 1, hard: 1.3 } as const;
 const MODE_MULT: Record<string, number> = { pioneer: 0.6, strategist: 0.9, complete: 1 };
 
 export function finalScore(s: GameState): FinalScore {
-  const won = s.outcome === 'safe_asi';
+  const won = isVictory(s.outcome);
+  // Safe superintelligence scores 4000; the alternative victories (assembly, silicon, shared custody) 3500.
+  const alt = won && s.outcome !== 'safe_asi';
   const year = s.victoryYear || Math.floor(s.year);
   const lines: ScoreLine[] = [
-    { label: won ? t('Safe superintelligence') : t('Race lost'), points: won ? 4000 : 0 },
-    { label: won ? t('Ignited in {year}', { year }) : t('Time survived'), points: won ? Math.max(0, 2040 - year) * 180 : Math.max(0, Math.min(year, 2040) - (s.startYear || 1960)) * 20 },
+    { label: won ? (alt ? t('Victory') : t('Safe superintelligence')) : t('Race lost'), points: won ? (alt ? 3500 : 4000) : 0 },
+    { label: won ? (alt ? t('Victory secured in {year}', { year }) : t('Ignited in {year}', { year })) : t('Time survived'), points: won ? Math.max(0, 2040 - year) * 180 : Math.max(0, Math.min(year, 2040) - (s.startYear || 1960)) * 20 },
     { label: t('Peak compute'), points: Math.round(Math.max(0, (s.peakCapability ?? 6) - 6) * 90) },
     { label: t('Alignment {n}%', { n: Math.round(s.alignment) }), points: Math.round(s.alignment * 12) },
     { label: t('Planet health {n}%', { n: Math.round(s.planetHealth) }), points: Math.round(s.planetHealth * 15) },
@@ -44,7 +46,7 @@ export function recordBest(continent: string, sc: FinalScore, s: GameState): boo
   const all = loadBest();
   const prev = all[continent];
   if (prev && prev.score >= sc.total) return false;
-  all[continent] = { score: sc.total, rank: sc.rank, year: s.victoryYear || Math.floor(s.year), won: s.outcome === 'safe_asi' };
+  all[continent] = { score: sc.total, rank: sc.rank, year: s.victoryYear || Math.floor(s.year), won: isVictory(s.outcome) };
   try { localStorage.setItem(BEST_KEY, JSON.stringify(all)); } catch { /* storage unavailable */ }
   return true;
 }

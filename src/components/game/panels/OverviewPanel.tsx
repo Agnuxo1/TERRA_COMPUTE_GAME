@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useGame } from '../../../App';
 import { continentById } from '../../../game/data';
-import { asiThreshold, defcon, FIRSTS, has, hasIntel, requiredAlignment, rivalEta, rogueRisk } from '../../../game/engine';
+import { DOCTRINES } from '../../../game/doctrines';
+import {
+  ASSEMBLY_BLOCS, asiThreshold, canProposeAIControl, chipWorldShare, custodianReady, defcon, doctrine, FIRSTS, GOVERNANCE_QUORUM,
+  governanceVotes, has, hasIntel, requiredAlignment, rivalEta, rogueRisk, safetyTreaties,
+} from '../../../game/engine';
 import { isHuman, playerName } from '../../../game/mp';
 import { capabilityLabel } from '../../../game/format';
 import { play } from '../../../hooks/useSound';
@@ -90,6 +94,48 @@ export default function OverviewPanel() {
         </div>
       </Section>
 
+      {/* ─── Paths to victory ─── */}
+      <Section title={t('PATHS TO VICTORY')} accent="#FFD700">
+        <div className="flex flex-col gap-2">
+          <PathRow label={t('Superintelligence')} value={t('10^{now} of 10^{target}', { now: state.capability.toFixed(1), target })}
+            progress={(state.capability - 6) / (target - 6)} color="var(--cyan)" />
+          <PathRow label={t('World Assembly: AI Control Treaty')} value={t('{yes}/{blocs} votes', { yes: governanceVotes(state), blocs: ASSEMBLY_BLOCS })}
+            progress={governanceVotes(state) / ASSEMBLY_BLOCS} color="#FFD700"
+            hint={state.aiControlProposed
+              ? t('Tabled for the World Assembly of {year}. Needs {quorum} of {blocs} votes.', { year: state.assemblyNext ?? 1995, quorum: GOVERNANCE_QUORUM, blocs: ASSEMBLY_BLOCS })
+              : t('Votes every 4 years from 1995. Needs {quorum} of {blocs} votes.', { quorum: GOVERNANCE_QUORUM, blocs: ASSEMBLY_BLOCS })}>
+            <ActionButton small color="#FFD700" disabled={!canProposeAIControl(state)}
+              title={t('Costs 10% of the budget. Needs 4 safety treaties and a free assembly.')}
+              onClick={() => { play('click'); dispatch({ type: 'PROPOSE_AI_CONTROL' }); }}>
+              {state.aiControlProposed ? t('TABLED') : t('Propose AI Control Treaty')}
+            </ActionButton>
+            {!state.aiControlProposed && <div className="font-mono-data text-[8.5px]" style={{ color: 'var(--text-tertiary)' }}>{t('Costs 10% of the budget. Needs {n}/4 safety treaties.', { n: safetyTreaties(state) })}</div>}
+          </PathRow>
+          <PathRow label={t('Silicon hegemony')}
+            value={t('{years}/5 years · {share}% of chips', { years: state.siliconYears ?? 0, share: Math.round(chipWorldShare(state) * 100) })}
+            progress={(state.siliconYears ?? 0) / 5} color="var(--green)"
+            hint={state.year <= 1990 ? t('Needs 60% of world chip output for 5 years. Counts from 1990.') : t('Needs 60% of world chip output for 5 years.')} />
+          <PathRow label={t('Custodian (shared victory)')}
+            value={t('alignment {al}%/90 · safety treaties {n}/3', { al: Math.round(state.alignment), n: safetyTreaties(state) })}
+            progress={Math.min(state.alignment / 90, safetyTreaties(state) / 3)} color={custodianReady(state) ? 'var(--green)' : 'var(--amber)'}
+            hint={t('Pays out only if a rival ignites a safe superintelligence first.')} />
+        </div>
+      </Section>
+
+      {/* ─── Doctrines ─── */}
+      <Section title={t('DOCTRINES')} accent="var(--purple)">
+        <div className="flex flex-col gap-0.5">
+          {DOCTRINES.map(d => {
+            const c = doctrine(state, d.id);
+            return (
+              <KV key={d.id} k={t(d.short)}
+                v={c ? t(d[c].label) : state.year >= d.year ? t('awaiting your decision') : t('decision in {year}', { year: d.year })}
+                tone={c ? 'good' : 'dim'} />
+            );
+          })}
+        </div>
+      </Section>
+
       {/* ─── Planet ─── */}
       <Section title={t('WORLD FIRSTS')} accent="#FFD700">
         <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
@@ -162,6 +208,20 @@ export default function OverviewPanel() {
           ))}
         </div>
       </Section>
+    </div>
+  );
+}
+
+function PathRow({ label, value, progress, color, hint, children }: { label: string; value: string; progress: number; color: string; hint?: string; children?: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div className="flex justify-between gap-2 font-mono-data text-[9.5px]">
+        <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
+        <span style={{ color }}>{value}</span>
+      </div>
+      <Bar value={Math.max(0, Math.min(1, progress)) * 100} color={color} height={4} />
+      {hint && <div className="font-mono-data text-[8.5px]" style={{ color: 'var(--text-tertiary)' }}>{hint}</div>}
+      {children}
     </div>
   );
 }

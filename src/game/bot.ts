@@ -43,6 +43,9 @@ const TECH_PRIORITY = ['transistor', 'mass_edu', 'ic', 'greenrev', 'nuclear', 'c
 
 /** A reasonable leader's pick: avoid helping rivals in the endgame, strike a project when the odds are good. */
 function pickChoice(s: GameState, choices: Array<{ effect: string; cost?: number }>): number {
+  // Doctrine forks: the bot always takes option A (it never mobilises either).
+  const docA = choices.findIndex(c => c.effect.startsWith('doctrine:') && c.effect.endsWith(':a'));
+  if (docA >= 0) return docA;
   const affordable = (i: number) => !choices[i].cost || choices[i].cost! < s.budget;
   const find = (prefix: string) => choices.findIndex((c, i) => c.effect.startsWith(prefix) && affordable(i));
   const prefer = (...ids: string[]) => { for (const id of ids) { const i = find(id); if (i >= 0) return i; } return -1; };
