@@ -1,5 +1,6 @@
 import { createContext, Suspense, useContext, useEffect, useReducer } from 'react';
 import ChunkBoundary, { lazyRetry } from './components/ChunkBoundary';
+import { useLocale } from './i18n/loader';
 import TitleScreen from './pages/TitleScreen';
 import ModeSelect from './pages/ModeSelect';
 import ContinentSelect from './pages/ContinentSelect';
@@ -83,9 +84,11 @@ function Router() {
 }
 
 export default function App() {
+  const locale = useLocale();
   return (
     <GameProvider>
-      <div className="game-container crt">
+      {/* Re-mount the screens when the language changes so every t() re-runs; game state lives above, in the provider. */}
+      <div key={locale} className="game-container crt">
         <ChunkBoundary>
           <Suspense fallback={<div className="w-full h-full" style={{ background: 'var(--bg, #0A0A0F)' }} />}>
             <Router />
