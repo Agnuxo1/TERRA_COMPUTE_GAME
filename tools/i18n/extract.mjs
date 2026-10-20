@@ -67,6 +67,12 @@ for (const f of ['engine.ts', 'dynamic-events.ts']) {
   let m; while ((m = re.exec(text))) if (!keys.has(m[1])) keys.set(m[1], `src/game/${f}`);
 }
 
+// Yearly-report lines (engine.ts reportLine) and advisor texts (advisor.ts text:) are stored as English source and rendered with t() later.
+for (const [f, re] of [['engine.ts', /reportLine\(\s*'((?:[^'\\]|\\.)+)'/g], ['advisor.ts', /\btext: '((?:[^'\\]|\\.)+)'/g]]) {
+  const text = readFileSync(join(SRC, 'game', f), 'utf8');
+  let m; while ((m = re.exec(text))) if (!keys.has(m[1])) keys.set(m[1], `src/game/${f}`);
+}
+
 // Data tables: collect the human-readable fields.
 const FIELDS = new Set(['name', 'short', 'description', 'text', 'hint', 'label', 'detail', 'title', 'subtitle', 'placement', 'note',
   'specialBonus', 'doctrine', 'motto', 'pro', 'con', 'howTo', 'rewardLabel', 'effect', 'doctrineText']);

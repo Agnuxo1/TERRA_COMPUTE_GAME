@@ -50,6 +50,8 @@ export default function TilePanel() {
     const out = describeOutput(state, tile);
     const next = b.level < MAX_LEVEL && b.progress >= 1 && !b.upgrading ? describeOutput(state, tile, b.type, b.level + 1) : null;
     const upQ = upgradeQuote(state, tile);
+    // Every other affordable building of this type that can be upgraded now (C5).
+    const upgradable = state.map!.tiles.filter(tl => tl.building?.type === b.type && tl.building.level < MAX_LEVEL && tl.building.progress >= 1 && !tl.building.upgrading && upgradeQuote(state, tl).ok).length;
     const refund = Math.round(def.cost * 0.25);
     return (
       <div className="flex flex-col">
@@ -99,6 +101,12 @@ export default function TilePanel() {
                   })}
                 </div>
               </>
+            )}
+            {upgradable > 0 && (
+              <ActionButton color="#FFD166" small onClick={() => { play('build'); dispatch({ type: 'UPGRADE_ALL', building: b.type }); }}
+                title={t('Upgrades every affordable building of this type, cheapest first.')}>
+                {t('UPGRADE ALL OF THIS TYPE · {n}', { n: upgradable })}
+              </ActionButton>
             )}
             <ActionButton color="var(--rose)" small onClick={() => { play('click'); dispatch({ type: 'DEMOLISH', tileId: tile.id }); }} title={t('Frees the tile. Refunds 25% of the base cost.')}>
               {t('DEMOLISH · refund {amount}', { amount: fmtMoney(refund) })}

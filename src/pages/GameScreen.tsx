@@ -8,6 +8,7 @@ import EvolvingMap from '../components/game/EvolvingMap';
 import CommandCard from '../components/game/CommandCard';
 import EventModal from '../components/game/EventModal';
 import NotificationFeed from '../components/game/NotificationFeed';
+import YearReport from '../components/game/YearReport';
 import TechTreeOverlay from '../components/game/TechTreeOverlay';
 import Translator from '../components/game/Translator';
 import Tutorial from '../components/game/Tutorial';
@@ -74,6 +75,11 @@ export default function GameScreen() {
         dispatch(state.overlay === OVERLAY_KEYS[k] ? { type: 'CLOSE_OVERLAY' } : { type: 'OPEN_OVERLAY', overlay: OVERLAY_KEYS[k] });
         return;
       }
+      // R: repeat the last placed building (Phase C5).
+      if (k === 'r') {
+        if (state.lastBuilt) dispatch({ type: 'SET_PLACING', building: state.lastBuilt });
+        return;
+      }
       if (k === ' ') {
         e.preventDefault();
         if (followsHost) void import('../net/session').then(({ session }) => session.broadcast({ k: 'preq' }));
@@ -86,7 +92,7 @@ export default function GameScreen() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [dispatch, state.activeEvent, state.overlay, state.placing, state.selectedTile, menuOpen, followsHost]);
+  }, [dispatch, state.activeEvent, state.overlay, state.placing, state.selectedTile, state.lastBuilt, menuOpen, followsHost]);
 
   const side = state.overlay === 'buildings' ? <BuildPanel />
     : state.overlay === 'diplomacy' ? <DiplomacyPanel />
@@ -119,6 +125,7 @@ export default function GameScreen() {
           </div>
 
           <NotificationFeed />
+          <YearReport />
           {state.overlay === 'tech' && <TechTreeOverlay />}
 
           {state.paused && !state.activeEvent && (

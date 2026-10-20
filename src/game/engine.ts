@@ -20,11 +20,12 @@ import { applyDynamic, leaderOf, projectEvent, rollDynamic, type DynHelpers } fr
 import { isHuman, isRemote, lagFor, outbox, playerName, type AIState, type MPMsg, type MPPlayer, type Snapshot } from './mp.ts';
 import { aggression, applyNation, cloneNation, initNation, memoryScore, planYear, remember, sabotaged, type PlanHelpers } from './ai/nation.ts';
 import { DOCTRINES, type DoctrineDef } from './doctrines.ts';
+import { advise } from './advisor.ts';
 import { t } from '../i18n/index.ts';
 import { isVictory } from './types.ts';
 import type {
   AIStrategy, BuildingId, Difficulty, Economy, ForecastWarning, GameEvent, GameMode, GameState, LogEntry, MapData, Modifier,
-  Notification, PlacedBuilding, Rival, Tile, TreatyId,
+  Notification, PlacedBuilding, Rival, Tile, TreatyId, YearReport, YearReportLine,
 } from './types.ts';
 
 // ─── Time ────────────────────────────────────────────────────────────────
@@ -54,6 +55,7 @@ export type Action =
   | { type: 'SET_PLACING'; building: BuildingId | null }
   | { type: 'BUILD'; tileId: number; building: BuildingId }
   | { type: 'UPGRADE'; tileId: number }
+  | { type: 'UPGRADE_ALL'; building: BuildingId }
   | { type: 'DEMOLISH'; tileId: number }
   | { type: 'DEVELOP_REGION'; regionId: string }
   | { type: 'RESEARCH'; techId: string }
@@ -1166,7 +1168,9 @@ function tick(prev: GameState): GameState {
       capability: +s.capability.toFixed(2), alignment: Math.round(s.alignment), approval: Math.round(s.approval),
       planetHealth: Math.round(s.planetHealth), emissions: Math.round(eco.emissions),
       rivalTop: +Math.max(...s.rivals.map(r => r.capability), 0).toFixed(2), research: Math.round(eco.researchRate),
+      rivals: Object.fromEntries(s.rivals.map(r => [r.id, +r.capability.toFixed(2)])),
     }].slice(-120);
+    s.yearReport = yearReportFor(s);
   }
   if (s.tickCount % 8 === 0) refreshObjectives(s);
   s.warnings = forecast(s);
@@ -1282,6 +1286,53 @@ function doctrineEvent(d: DoctrineDef, year: number): GameEvent {
       { label: d.b.label, detail: d.b.detail, effect: `doctrine:${d.id}:b` },
     ],
   };
+}
+
+// ─── Yearly report (Phase C1) ─────────────────────────────────────────────
+const reportLine = (text: string, tone: YearReportLine['tone'], params?: YearReportLine['params']): YearReportLine => ({ text, tone, params });
+
+/** What changed in the year just closed (last two history points), plus one advisor line. At most five lines. */
+function yearReportFor(s: GameState): YearReport {
+  const lines: YearReportLine[] = [];
+  const h = s.history;
+  const cur = h[h.length - 1];
+  const prev = h.length >= 2 ? h[h.length - 2] : undefined;
+  if (cur && prev) {
+    const dBudget = cur.budget - prev.budget;
+    if (Math.abs(dBudget) >= 1) lines.push(dBudget >= 0
+      ? reportLine('Treasury grew by {amount} this year', 'good', { amount: fmtMoneyB(dBudget) })
+      : reportLine('Treasury shrank by {amount} this year', 'bad', { amount: fmtMoneyB(-dBudget) }));
+
+    const dApproval = cur.approval - prev.approval;
+    if (Math.abs(dApproval) >= 1) {
+      const top = s.eco.approvalFactors.reduce<{ label: string; value: number } | null>((a, f) => (!a || Math.abs(f.value) > Math.abs(a.value) ? f : a), null);
+      const points = Math.round(Math.abs(dApproval));
+      if (top && top.value !== 0) {
+        const factor = t(top.label);
+        lines.push(dApproval > 0
+          ? reportLine('Approval rose {points} points this year, mainly {factor}', 'good', { points, factor })
+          : reportLine('Approval fell {points} points this year, mainly {factor}', 'bad', { points, factor }));
+      } else {
+        lines.push(dApproval > 0
+          ? reportLine('Approval rose {points} points this year', 'good', { points })
+          : reportLine('Approval fell {points} points this year', 'bad', { points }));
+      }
+    }
+
+    const dCap = cur.capability - prev.capability;
+    if (Math.abs(dCap) >= 0.05) lines.push(dCap > 0
+      ? reportLine('Compute rose {delta} orders of magnitude this year', 'good', { delta: dCap.toFixed(2) })
+      : reportLine('Compute fell {delta} orders of magnitude this year', 'bad', { delta: (-dCap).toFixed(2) }));
+
+    const dHealth = cur.planetHealth - prev.planetHealth;
+    if (Math.abs(dHealth) >= 1) lines.push(dHealth > 0
+      ? reportLine('Planet health rose {points} points this year', 'good', { points: Math.round(dHealth) })
+      : reportLine('Planet health fell {points} points this year', 'bad', { points: Math.round(-dHealth) }));
+  }
+  lines.splice(4);
+  const advice = advise(s);
+  if (advice) lines.push(reportLine(advice.text, 'info', advice.params));
+  return { year: Math.floor(s.year), lines };
 }
 
 function yearly(s: GameState, year: number, pioneer: boolean) {
@@ -1868,7 +1919,7 @@ function reduce(state: GameState, action: Action): GameState {
         terrain: t.terrain === 'forest' && action.building !== 'solar' ? 'plains' : t.terrain,
         building: { type: action.building, level: 1, progress: 0, upgrading: false },
       }));
-      s = { ...s, totalBuildings: s.totalBuildings + 1, selectedTile: action.tileId };
+      s = { ...s, totalBuildings: s.totalBuildings + 1, selectedTile: action.tileId, lastBuilt: action.building };
       payQuote(s, q);
       s.eco = computeEconomy(s);
       return s;
@@ -1882,6 +1933,30 @@ function reduce(state: GameState, action: Action): GameState {
       if (!q.ok) return state;
       const s = withTile(state, action.tileId, t => ({ ...t, building: { ...b, level: b.level + 1, progress: 0, upgrading: true } }));
       payQuote(s, q);
+      return s;
+    }
+
+    case 'UPGRADE_ALL': {
+      // Every affordable building of this type, cheapest first (Phase C5).
+      if (!state.map) return state;
+      const order = state.map.tiles
+        .filter(tl => tl.building?.type === action.building && tl.building.level < MAX_LEVEL && tl.building.progress >= 1 && !tl.building.upgrading)
+        .sort((a, b) => upgradeCost(state, a) - upgradeCost(state, b))
+        .map(tl => tl.id);
+      let s = state;
+      let n = 0;
+      for (const id of order) {
+        const tile = s.map!.tiles[id];
+        const b = tile.building;
+        if (!b || b.level >= MAX_LEVEL || b.progress < 1 || b.upgrading) continue;
+        const q = upgradeQuote(s, tile);
+        if (!q.ok) continue;
+        s = withTile(s, id, tl => ({ ...tl, building: { ...b, level: b.level + 1, progress: 0, upgrading: true } }));
+        payQuote(s, q);
+        n++;
+      }
+      if (n === 0) return state;
+      notify(s, t('▲ {count} {name} upgrading.', { count: n, name: t(buildingById[action.building].name) }), 'success');
       return s;
     }
 

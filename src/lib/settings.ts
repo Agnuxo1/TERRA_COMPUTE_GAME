@@ -13,6 +13,7 @@ export interface Settings {
   dayNight: boolean;
   autosaveYears: AutosaveYears;
   reduceMotion: boolean;
+  yearReport: boolean;    // yearly summary card (Phase C1)
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -24,6 +25,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dayNight: true,
   autosaveYears: 1,
   reduceMotion: false,
+  yearReport: true,
 };
 
 const KEY = 'terra_compute_settings';
@@ -47,6 +49,7 @@ function sanitize(raw: Partial<Settings> | null | undefined): Settings {
     dayNight: bool(r.dayNight, DEFAULT_SETTINGS.dayNight),
     autosaveYears: (AUTOSAVE_CHOICES as number[]).includes(auto) ? (auto as AutosaveYears) : DEFAULT_SETTINGS.autosaveYears,
     reduceMotion: bool(r.reduceMotion, DEFAULT_SETTINGS.reduceMotion),
+    yearReport: bool(r.yearReport, DEFAULT_SETTINGS.yearReport),
   };
 }
 

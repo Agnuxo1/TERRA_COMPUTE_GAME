@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGame } from '../../../App';
-import { buildings, CATEGORY_COLOR, CATEGORY_LABEL, techById } from '../../../game/data';
+import { buildingById, buildings, CATEGORY_COLOR, CATEGORY_LABEL, techById } from '../../../game/data';
 import { buildQuote, countBuildings, evaluatePlacement, isUnlocked, popScale, suggestTile } from '../../../game/engine';
 import { fmtMoney } from '../../../game/format';
 import type { BuildingCategory } from '../../../game/types';
@@ -30,6 +30,11 @@ export default function BuildPanel() {
           </button>
         ))}
       </div>
+      {state.lastBuilt && (
+        <div className="font-mono-data text-[9px] px-2 pt-1.5 shrink-0" style={{ color: 'var(--text-tertiary)' }}>
+          {t('[R] repeat last: {name}', { name: t(buildingById[state.lastBuilt].name) })}
+        </div>
+      )}
       <div className="flex-1 overflow-auto p-2 flex flex-col gap-2 [&>*]:shrink-0" style={{ WebkitOverflowScrolling: 'touch' }}>
         {list.map(b => {
           const unlocked = isUnlocked(state, b.id);

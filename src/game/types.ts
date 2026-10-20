@@ -30,6 +30,20 @@ export interface HistoryPoint {
   emissions: number;
   rivalTop: number;
   research: number;
+  /** Rival capability (log10 FLOPS) by rival id, at this year's snapshot (Phase C4). */
+  rivals?: Record<string, number>;
+}
+
+/** One line of the yearly report. `text` is an English source string rendered with t(text, params). */
+export interface YearReportLine {
+  text: string;
+  params?: Record<string, string | number>;
+  tone: 'good' | 'bad' | 'info';
+}
+
+export interface YearReport {
+  year: number;
+  lines: YearReportLine[];
 }
 
 export type AIStrategy = 'aggressive' | 'economic' | 'tech' | 'balanced' | 'defensive';
@@ -324,6 +338,10 @@ export interface GameState {
   mpOutbox?: import('./mp').MPMsg[];
   /** World tension 0..100 (DEFCON 5 -> 1). Covert operations raise it; treaties and time lower it. */
   tension?: number;
+  /** Phase C1: the report shown after each new year. */
+  yearReport?: YearReport | null;
+  /** Phase C5: the building type last placed, repeated with the R key. */
+  lastBuilt?: BuildingId | null;
   /** World firsts ("first to reach a PetaFLOP"): who claimed each one, and when. */
   firsts?: Record<string, { who: string; year: number }>;
   /** Multiplayer room chat. */
