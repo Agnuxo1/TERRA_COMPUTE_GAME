@@ -231,7 +231,7 @@ export function marketSpread(s: GameState): number {
 
 export function marketPrice(s: GameState, good: Good, side: 'buy' | 'sell'): number {
   const p = basePrice(good, s.year) * s.priceMod[good] * (good === 'chips' && s.modifiers.some(m => m.id === 'chipwar_prices') ? 1.6 : 1)
-    * (good === 'chips' && side === 'buy' ? worldBonus(s).chipImport : 1);
+    * (good === 'chips' && side === 'buy' ? worldBonus(s).chipImport : 1) * (good === 'chips' ? s.mods?.chipPrice ?? 1 : 1);
   return side === 'buy' ? p * (1 + marketSpread(s)) : p * (1 - marketSpread(s));
 }
 
@@ -302,6 +302,7 @@ export function regionCost(s: GameState, regionId: string): number {
 }
 
 export function isUnlocked(s: GameState, type: BuildingId): boolean {
+  if (type === 'coal' && s.mods?.noCoal) return false;
   const req = buildingById[type].requiresTech;
   return !req || has(s, req);
 }
@@ -823,7 +824,7 @@ function rivalAction(s: GameState, r: Rival, pioneer: boolean) {
   const name = rivalName(r.id);
   const defense = countBuildings(s, 'defense', true);
   const opsMult = bonus(s, 'enemyOps') ?? 1;
-  if (!pioneer && r.relation < -20 && (r.strategy === 'aggressive' || r.relation < -50) && s.year > 1970 && chance(Math.min(0.95, 0.6 * aggression(r)))) {
+  if (!pioneer && r.relation < -20 && (r.strategy === 'aggressive' || r.relation < -50) && s.year > 1970 && chance(Math.min(0.95, 0.6 * aggression(r) * (s.mods?.aiAggression ?? 1)))) {
     const powers = s.modifiers.some(m => m.id === 'emergency_powers') ? 0.7 : 1;
     const sweep = s.modifiers.some(m => m.id === 'counterintel') ? 0.6 : 1;
     raiseTension(s, 3);
@@ -1072,7 +1073,7 @@ function tick(prev: GameState): GameState {
   // In multiplayer the shared clock never waits for one player's decision.
   if (prev.paused || (prev.activeEvent && !prev.mp) || prev.screen !== 'game') return prev;
   const s: GameState = { ...prev, tickCount: prev.tickCount + 1 };
-  const dt = YEARS_PER_TICK * s.speed;
+  const dt = YEARS_PER_TICK * s.speed * (s.mods?.pace ?? 1);
   const lastYearInt = Math.floor(s.year);
   s.year += dt;
   const yearInt = Math.floor(s.year);
@@ -1165,7 +1166,7 @@ function tick(prev: GameState): GameState {
   const worldEmissions = eco.emissions + s.rivals.reduce((a, b) => a + b.emissions, 0);
   s.co2 += Math.max(0, worldEmissions - 120) * dt;
   s.temperature = (s.startYear === 1980 ? 0.45 : 0.3) + s.co2 * 6e-5 * DIFF_CLIMATE[s.difficulty ?? 'normal'];
-  s.planetHealth = clamp(100 - (s.temperature - 0.6) * 48, 0, 100);
+  s.planetHealth = clamp(100 - (s.temperature - 0.6) * 48 * (s.mods?.fragilePlanet ? 1.5 : 1), 0, 100);
   const risks = [
     { c: s.capability, a: s.alignment },
     ...s.rivals.map(x => ({ c: x.capability, a: x.alignment })),
@@ -1374,7 +1375,7 @@ function yearly(s: GameState, year: number, pioneer: boolean) {
     if (s.planetHealth < 60 && chance(s.planetHealth < 35 ? 0.35 : 0.18)) queueEvent(s, climateEvent(s));
     else if (s.capability >= 15 && s.alignment < 45 && chance(doctrine(s, 'safety_path') === 'b' ? 0.6 : 0.3)) queueEvent(s, aiIncident(s));
     else {
-      const d = rollDynamic(s, H);
+      const d = s.mods?.noDynamicEvents ? null : rollDynamic(s, H);
       if (d) queueEvent(s, d);
     }
   }
@@ -1946,8 +1947,13 @@ function reduce(state: GameState, action: Action): GameState {
   switch (action.type) {
     case 'SET_MODE':
       return { ...state, screen: action.mode === 'logic' ? 'logic' : 'select', gameMode: action.mode };
-    case 'START_GAME':
-      return startGame(state, action.continentId, action.seed, action.difficulty);
+    case 'START_GAME': {
+      const s = startGame(state, action.continentId, action.seed, action.difficulty);
+      // Phase H: modifiers and challenge id ride along with the new game (absent = neutral).
+      if (action.mods) s.mods = { ...action.mods };
+      if (action.challenge) s.challenge = action.challenge;
+      return s;
+    }
     case 'TICK':
       return tick(state);
     case 'SELECT_TILE':
