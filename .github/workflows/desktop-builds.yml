@@ -1,0 +1,46 @@
+# Desktop packages for itch.io / GOG. macOS can only be packaged on macOS, so it runs here;
+# Linux runs here too so the AppImage is built natively. Windows is packaged locally (npx electron-builder --win).
+# Run from the Actions tab (workflow_dispatch) or with: gh workflow run desktop-builds.yml --ref v4
+name: desktop-builds
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: --mac
+            name: mac
+          - os: ubuntu-22.04
+            target: --linux
+            name: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vite build
+      - name: Package (unsigned)
+        run: npx electron-builder ${{ matrix.target }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: terra-compute-${{ matrix.name }}
+          path: |
+            release/*.zip
+            release/*.dmg
+            release/*.AppImage
+            release/*.tar.gz
+          if-no-files-found: error
+          retention-days: 14

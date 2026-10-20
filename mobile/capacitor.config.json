@@ -1,0 +1,11 @@
+{
+  "appId": "com.agnuxo.terracompute",
+  "appName": "Terra Compute",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "server": { "androidScheme": "https" }
+}

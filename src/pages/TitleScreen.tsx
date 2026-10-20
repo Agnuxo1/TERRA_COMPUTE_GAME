@@ -155,7 +155,7 @@ export default function TitleScreen() {
           <div className="flex items-center gap-1 mt-1 px-1">
             <div style={{width:'100%',height:'1px',background:'var(--border)'}}/>
             <span className="font-mono-data text-[8px]" style={{color:'#33FF33',whiteSpace:'nowrap',opacity:0.5}}>
-              {t('v1.0 — Built with AI')}
+              {t('v{version} — Built with AI', { version: __APP_VERSION__ })}
             </span>
             <div style={{width:'100%',height:'1px',background:'var(--border)'}}/>
           </div>

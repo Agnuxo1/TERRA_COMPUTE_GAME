@@ -10,6 +10,8 @@ import { startMultiplayer } from '../net/MPBridge';
 import { RIVAL_LEADERS } from '../game/dynamic-events';
 import { t } from '../i18n';
 
+const PUBLIC_URL = 'https://agnuxo1.github.io/TERRA_COMPUTE_GAME/';
+
 const CARD: Record<string, string> = {
   na: './assets/cards/continent-usa.png', eu: './assets/cards/continent-europe.png', su: './assets/cards/continent-ussr.png',
   cn: './assets/cards/continent-china.png', af: './assets/cards/continent-africa.png', sa: './assets/cards/continent-southamerica.png',
@@ -69,7 +71,13 @@ export default function LobbyScreen() {
     const s = startMultiplayer(l, ses.selfId);
     if (s) { startedRef.current = true; play('alert'); dispatch({ type: 'LOAD_STATE', state: s }); }
   };
-  const link = useMemo(() => lobby ? `${window.location.origin}${window.location.pathname}?room=${lobby.code}` : '', [lobby]);
+  // Packaged builds (desktop file://, Android https://localhost) invite friends to the public web version.
+  const link = useMemo(() => {
+    if (!lobby) return '';
+    const { protocol, hostname, origin, pathname } = window.location;
+    const local = !/^https?:$/.test(protocol) || hostname === 'localhost' && !import.meta.env.DEV;
+    return `${local ? PUBLIC_URL : origin + pathname}?room=${lobby.code}`;
+  }, [lobby]);
   const copy = async () => { try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* clipboard blocked */ } };
 
   const claimed = (f: string) => lobby?.players.find(p => p.faction === f);
