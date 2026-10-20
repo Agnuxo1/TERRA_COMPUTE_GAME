@@ -3,7 +3,7 @@
 // receives new snapshots of the state, so animation stays smooth between simulation ticks.
 
 import { buildingById, CATEGORY_COLOR, depositInfo, SPRITE_FOR, terrainInfo } from '../../../game/data';
-import { housingComfort, operational, regionCost, type Placement } from '../../../game/engine';
+import { FIRSTS, housingComfort, operational, regionCost, type Placement } from '../../../game/engine';
 import { TILE_H, TILE_W, edgeNeighbours, allNeighbours, tileCenter } from '../../../game/mapgen';
 import type { BuildingId, GameState, MapData, Tile } from '../../../game/types';
 import { t } from '../../../i18n';
@@ -49,6 +49,12 @@ const rpText = () => t('+RP');
 const foodText = () => t('+FOOD');
 const alignText = () => t('+ALIGN');
 const undevelopedText = (cost: number) => t('UNDEVELOPED · {price}B', { price: `$${cost}` });
+const worldFirstText = (label: string) => t('WORLD FIRST: {label}', { label });
+
+/** Buildings that go dark in a blackout (energy ratio under 0.85). */
+const CITY: BuildingId[] = ['housing', 'school', 'hospital', 'uni', 'market'];
+/** Height of a world-first launch streak's head above its pad: a fast climb, then it hangs and fades. */
+const streakY = (pad: number, age: number) => pad - 260 * (1 - (1 - Math.min(1, age / 1.6)) ** 2);
 
 /** Which neighbours help (+) or hurt (−) a building type — drives the adjacency lines of the placement ghost. */
 export function adjacencyRelation(type: BuildingId, neighbour: BuildingId): 1 | -1 | 0 {
@@ -134,6 +140,14 @@ export class MapRenderer {
   private prevBuildings = new Map<number, { type: BuildingId; progress: number; level: number }>();
   private lastYear = -1;
   private emitAcc = 0;
+  // Map life (F5): derived from the state in trackMapLife(); the per-frame code only reads these.
+  private protestIds: number[] = [];
+  private blackoutIds = new Set<number>();
+  private worldKey = '';
+  private firstsSeen = new Set<string>();
+  private streaks: Array<{ x: number; y: number; age: number }> = [];
+  private parade = { left: 0, acc: 0, x: 0, y: 0 };
+  private viewRect = { x0: 0, y0: 0, x1: 0, y1: 0 };
   bounds = { minX: 0, minY: 0, maxX: 1, maxY: 1 };
   onCameraChange?: () => void;
   /** Audio hook for visual events: 'complete' | 'damage' | 'launch'. */
@@ -192,6 +206,7 @@ export class MapRenderer {
       this.buildRoads();
     }
     this.diffBuildings(s);
+    this.trackMapLife(s);
     // Yearly economic feedback: floating numbers over productive buildings.
     const y = Math.floor(s.year);
     if (this.lastYear >= 0 && y !== this.lastYear) this.yearlyFloaters(s);
@@ -589,6 +604,57 @@ export class MapRenderer {
     this.prevBuildings = now;
   }
 
+  /** F5 map life: who protests, which city blocks are dark, and which world firsts were just claimed. */
+  private trackMapLife(s: GameState) {
+    const map = s.map!;
+    const key = `${s.seed}|${s.startYear}|${s.playerContinent ?? ''}`;
+    const fresh = key !== this.worldKey;   // a new game or a loaded save: no events for what was already there
+    this.worldKey = key;
+    // Protests: approval under 40 puts 1-3 crowds on housing blocks (chosen by hash, so they stay put).
+    this.protestIds = [];
+    if (s.approval < 40) {
+      const houses = map.tiles.filter(t => t.building?.type === 'housing' && t.building.progress >= 1);
+      houses.sort((a, b) => hash(a.id + 0.5) - hash(b.id + 0.5));
+      const n = s.approval < 25 ? 3 : s.approval < 33 ? 2 : 1;
+      this.protestIds = houses.slice(0, n).map(t => t.id);
+    }
+    // Blackouts: energy short by more than 15 % darkens the city blocks.
+    this.blackoutIds.clear();
+    if (s.eco.energyRatio < 0.85) {
+      for (const t of map.tiles) {
+        const b = t.building;
+        if (b && b.progress >= 1 && CITY.includes(b.type)) this.blackoutIds.add(t.id);
+      }
+    }
+    // World firsts that appeared since the last state.
+    const firsts = s.firsts ?? {};
+    if (fresh) this.firstsSeen = new Set(Object.keys(firsts));
+    else {
+      for (const k of Object.keys(firsts)) {
+        if (this.firstsSeen.has(k)) continue;
+        this.firstsSeen.add(k);
+        this.onWorldFirst(s, k, firsts[k].who);
+      }
+    }
+  }
+
+  private onWorldFirst(s: GameState, key: string, who: string) {
+    const label = FIRSTS.find(f => f.key === key)?.label ?? key;
+    const mine = who === (s.mp?.me ?? s.playerContinent);
+    const pad = s.map!.tiles.find(tl => tl.building?.type === 'satellite');
+    if (pad) {
+      const [cx, cy] = tileCenter(pad.col, pad.row);
+      const x = cx + 10;
+      const y = cy - spriteSize('satellite') * 0.35;
+      this.floaters.push({ x, y: y - 40, text: worldFirstText(label), color: mine ? '#FFD166' : '#FF8FB1', age: 0 });
+      if (!this.ui.reduceMotion) this.streaks.push({ x, y, age: 0 });
+    }
+    if (mine) {
+      const cap = s.map!.regions.find(r => r.id === s.ownedRegions[0]);
+      if (cap) this.parade = { left: 3, acc: 0, x: cap.center[0], y: cap.center[1] };
+    }
+  }
+
   private yearlyFloaters(s: GameState) {
     if (this.ui.reduceMotion) return;
     const map = s.map!;
@@ -665,6 +731,25 @@ export class MapRenderer {
       if (Math.random() < 0.9) this.particles.push({ x: r.x + (Math.random() - 0.5) * 2, y: r.y + 6, vx: (Math.random() - 0.5) * 6, vy: 6, life: 0, max: 1.6, r: 2.5, color: 'rgba(225,225,230,0.8)', kind: 'trail' });
     }
     this.rockets = this.rockets.filter(r => r.age < 4.5);
+    // world-first launch streaks (<= 2.6 s) and the capital parade (3 s, sparks only when motion is allowed)
+    for (const st of this.streaks) {
+      st.age += dt;
+      if (st.age < 1.6 && Math.random() < dt * 40) {
+        this.particles.push({ x: st.x + (Math.random() - 0.5) * 3, y: streakY(st.y, st.age) + 6, vx: (Math.random() - 0.5) * 6, vy: 4, life: 0, max: 1.4, r: 2.2, color: 'rgba(225,225,230,0.8)', kind: 'trail' });
+      }
+    }
+    this.streaks = this.streaks.filter(st => st.age < 2.6);
+    if (this.parade.left > 0) {
+      this.parade.left -= dt;
+      if (!this.ui.reduceMotion) {
+        this.parade.acc += dt;
+        while (this.parade.acc > 0.05) {
+          this.parade.acc -= 0.05;
+          const rnd = Math.random;
+          this.particles.push({ x: this.parade.x + (rnd() - 0.5) * 110, y: this.parade.y + (rnd() - 0.5) * 40, vx: (rnd() - 0.5) * 16, vy: -(26 + rnd() * 34), life: 0, max: 0.9 + rnd() * 0.7, r: 1.4 + rnd() * 1.6, color: '#FFD166', kind: 'spark' });
+        }
+      }
+    }
     for (const f of this.floaters) { f.age += dt; f.y -= 14 * dt; }
     this.floaters = this.floaters.filter(f => f.age < 2.2);
     for (const p of this.pings) p.age += dt;
@@ -1019,7 +1104,18 @@ export class MapRenderer {
     // buildings, vehicles and ghost in painter's order (by row)
     const hover = this.ui.hover !== null ? map.tiles[this.ui.hover] : null;
     const drawables: Array<{ row: number; fn: () => void }> = [];
-    for (const t of map.tiles) if (t.building) drawables.push({ row: t.row + 0.5, fn: () => this.drawBuilding(ctx, t, s) });
+    const v0 = this.screenToWorld(0, 0);
+    const v1 = this.screenToWorld(this.viewW, this.viewH);
+    this.viewRect = { x0: v0.x, y0: v0.y, x1: v1.x, y1: v1.y };
+    for (const t of map.tiles) {
+      if (!t.building) continue;
+      const dark = this.blackoutIds.has(t.id);
+      drawables.push({ row: t.row + 0.5, fn: () => { this.drawBuilding(ctx, t, s); if (dark) this.drawBlackout(ctx, t); } });
+    }
+    for (const id of this.protestIds) {
+      const tile = map.tiles[id];
+      if (tile) drawables.push({ row: tile.row + 0.6, fn: () => this.drawCrowd(ctx, tile) });
+    }
     for (const v of this.vehicles) {
       const a = map.tiles[v.path[0]];
       const b = map.tiles[v.path[1]];
@@ -1040,6 +1136,29 @@ export class MapRenderer {
         this.ctx.globalAlpha = 0.9;
         this.ctx.drawImage(this.glowSprite('rgba(255,170,60,1)'), r.x - 6, r.y, 12, 16);
       });
+    }
+
+    // world-first launch streaks (F5): an exhaust column climbing from the Space Center
+    for (const st of this.streaks) {
+      ctx.globalAlpha = st.age < 1.6 ? 1 : Math.max(0, 1 - (st.age - 1.6));
+      const hy = streakY(st.y, st.age);
+      ctx.drawImage(this.glowSprite('rgba(255,236,190,1)'), st.x - 5, hy, 10, 90);
+      ctx.fillStyle = '#FFF4C2';
+      ctx.fillRect(st.x - 0.8, hy, 1.6, 12);
+    }
+    ctx.globalAlpha = 1;
+
+    // capital parade (F5): a gold ring that widens over the 3 seconds after a player's first (static when motion is reduced)
+    if (this.parade.left > 0) {
+      const k = 1 - this.parade.left / 3;
+      ctx.save();
+      ctx.translate(this.parade.x, this.parade.y);
+      ctx.scale(1, 0.5);
+      ctx.strokeStyle = '#FFD166';
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = Math.min(1, this.parade.left) * (1 - k * 0.5);
+      ctx.beginPath(); ctx.arc(0, 0, this.ui.reduceMotion ? 36 : 30 + k * 60, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
     }
 
     // soft particles (smoke, steam, vapor, rocket trails)
@@ -1068,7 +1187,7 @@ export class MapRenderer {
         ctx.globalAlpha = Math.min(1, night * 1.8);
         for (const t of map.tiles) {
           const b = t.building;
-          if (!b || !operational(b)) continue;
+          if (!b || !operational(b) || this.blackoutIds.has(t.id)) continue;
           const [cx, cy] = tileCenter(t.col, t.row);
           const col = COMPUTE.includes(b.type) || b.type === 'lab' ? 'rgba(0,240,255,0.55)' : b.type === 'farm' || b.type === 'solar' ? 'rgba(0,0,0,0)' : 'rgba(255,190,90,0.6)';
           const g = this.glowSprite(col);
@@ -1358,6 +1477,66 @@ export class MapRenderer {
         ctx.strokeStyle = '#000'; ctx.lineWidth = 0.5; ctx.stroke();
       }
     }
+  }
+
+  private inView(wx: number, wy: number) {
+    const v = this.viewRect;
+    return wx > v.x0 - 80 && wx < v.x1 + 80 && wy > v.y0 - 120 && wy < v.y1 + 80;
+  }
+
+  /** F5 protest: three small figures and a waving red flag on a housing block. Static when motion is reduced. */
+  private drawCrowd(ctx: CanvasRenderingContext2D, tile: Tile) {
+    const [cx, cy] = tileCenter(tile.col, tile.row);
+    if (!this.inView(cx, cy)) return;
+    const still = this.ui.reduceMotion;
+    const ph = tile.id * 0.9;
+    // Drawn at 1.8× over a faint red glow so the unrest reads at normal zoom.
+    ctx.save();
+    ctx.translate(cx, cy); ctx.scale(1.8, 1.8); ctx.translate(-cx, -cy);
+    ctx.fillStyle = 'rgba(255,71,126,0.18)';
+    ctx.beginPath(); ctx.ellipse(cx - 4, cy - 1, 16, 6, 0, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 3; i++) {
+      const x = cx - 10 + i * 6;
+      const y = cy - 2 - (still ? 0 : Math.abs(Math.sin(this.time * 4 + ph + i)) * 1.6);
+      ctx.fillStyle = '#1B1F2A';
+      ctx.fillRect(x - 2, y - 6, 4, 6);
+      ctx.fillStyle = '#E8C9A0';
+      ctx.beginPath(); ctx.arc(x, y - 8, 1.8, 0, Math.PI * 2); ctx.fill();
+    }
+    const px = cx + 14;
+    const py = cy - 16;
+    const wave = still ? 0 : Math.sin(this.time * 6 + ph) * 1.4;
+    ctx.strokeStyle = '#C9CED8';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(px, py + 14); ctx.lineTo(px, py); ctx.stroke();
+    ctx.fillStyle = '#FF477E';
+    ctx.beginPath();
+    ctx.moveTo(px, py); ctx.lineTo(px + 8, py + 1.5 + wave); ctx.lineTo(px + 8, py + 5.5 + wave); ctx.lineTo(px, py + 7);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  /** F5 blackout: a dark, flickering veil over a city block that lost power. Drawn right after the block. */
+  private drawBlackout(ctx: CanvasRenderingContext2D, tile: Tile) {
+    const b = tile.building!;
+    const [cx, cy] = tileCenter(tile.col, tile.row);
+    if (!this.inView(cx, cy)) return;
+    const size = spriteSize(b.type);
+    const x = cx - size / 2;
+    const y = cy - size * 0.7;
+    let a = 0.5;
+    if (!this.ui.reduceMotion) a += Math.sin(this.time * 13 + tile.id) * 0.05 + (hash(tile.id + Math.floor(this.time * 4)) > 0.92 ? 0.3 : 0);
+    ctx.save();
+    // clip to the tile footprint united with the block's silhouette, so the veil stays on the block and its tile
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - HH); ctx.lineTo(cx + HW, cy); ctx.lineTo(cx, cy + HH); ctx.lineTo(cx - HW, cy); ctx.closePath();
+    ctx.moveTo(x, y); ctx.lineTo(x + size, y); ctx.lineTo(x + size, cy); ctx.lineTo(x, cy); ctx.closePath();
+    ctx.clip();
+    // source-atop only darkens pixels that are already painted (block and terrain), never the sky
+    ctx.globalCompositeOperation = 'source-atop';
+    ctx.fillStyle = `rgba(3,6,18,${Math.min(0.9, Math.max(0, a))})`;
+    ctx.fillRect(x, y, size, cy + HH - y);
+    ctx.restore();
   }
 
   private drawVehicle(ctx: CanvasRenderingContext2D, v: Vehicle, a: Tile, b: Tile, faction: string | null) {

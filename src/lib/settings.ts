@@ -3,17 +3,22 @@
 import { useSyncExternalStore } from 'react';
 
 export type AutosaveYears = 0 | 1 | 2 | 5;
+export type ColorblindMode = 'off' | 'deuteranopia' | 'protanopia' | 'tritanopia';
+export type TextScale = 1 | 1.15 | 1.3;
 
 export interface Settings {
   masterVolume: number;   // 0..1
   sfx: boolean;
-  ambient: boolean;
+  ambient: boolean;       // also gates the adaptive music
   edgeScroll: boolean;
   scrollSpeed: number;    // 0.5..2
   dayNight: boolean;
   autosaveYears: AutosaveYears;
   reduceMotion: boolean;
   yearReport: boolean;    // yearly summary card (Phase C1)
+  colorblind: ColorblindMode;  // status-colour remap (src/lib/accessibility.ts)
+  textScale: TextScale;        // root font-size multiplier
+  subtitles: boolean;          // captions for voiced lines (read by VideoPlayer when present)
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -26,10 +31,15 @@ export const DEFAULT_SETTINGS: Settings = {
   autosaveYears: 1,
   reduceMotion: false,
   yearReport: true,
+  colorblind: 'off',
+  textScale: 1,
+  subtitles: true,
 };
 
 const KEY = 'terra_compute_settings';
 const AUTOSAVE_CHOICES: AutosaveYears[] = [0, 1, 2, 5];
+export const COLORBLIND_MODES: ColorblindMode[] = ['off', 'deuteranopia', 'protanopia', 'tritanopia'];
+export const TEXT_SCALES: TextScale[] = [1, 1.15, 1.3];
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
@@ -50,6 +60,9 @@ function sanitize(raw: Partial<Settings> | null | undefined): Settings {
     autosaveYears: (AUTOSAVE_CHOICES as number[]).includes(auto) ? (auto as AutosaveYears) : DEFAULT_SETTINGS.autosaveYears,
     reduceMotion: bool(r.reduceMotion, DEFAULT_SETTINGS.reduceMotion),
     yearReport: bool(r.yearReport, DEFAULT_SETTINGS.yearReport),
+    colorblind: COLORBLIND_MODES.find(m => m === r.colorblind) ?? DEFAULT_SETTINGS.colorblind,
+    textScale: TEXT_SCALES.find(v => v === r.textScale) ?? DEFAULT_SETTINGS.textScale,
+    subtitles: bool(r.subtitles, DEFAULT_SETTINGS.subtitles),
   };
 }
 

@@ -1,6 +1,6 @@
 // Settings form shared by the title screen side panel and the in-game pause menu.
 import { useState, type ReactNode } from 'react';
-import { DEFAULT_SETTINGS, useSettings, type AutosaveYears } from '../../lib/settings';
+import { COLORBLIND_MODES, DEFAULT_SETTINGS, TEXT_SCALES, useSettings, type AutosaveYears, type ColorblindMode, type TextScale } from '../../lib/settings';
 import { enableAudio, isAudioEnabled, play } from '../../hooks/useSound';
 import { t } from '../../i18n';
 
@@ -106,6 +106,42 @@ export default function SettingsForm({ accent = 'var(--cyan)' }: { accent?: stri
       </Row>
       <Row label={t('YEARLY REPORT')} hint={t('A short summary after each year, bottom-left')}>
         <Toggle label={t('Yearly report')} accent={accent} on={s.yearReport} onChange={v => set({ yearReport: v })} />
+      </Row>
+
+      <Heading accent={accent}>{t('ACCESSIBILITY')}</Heading>
+      <Row label={t('COLOUR VISION')} hint={t('Recolours status lights and adds shape cues')}>
+        <select
+          value={s.colorblind}
+          onChange={e => { set({ colorblind: e.target.value as ColorblindMode }); play('click'); }}
+          aria-label={t('Colour vision mode')}
+          className="font-mono-data text-[10px] rounded px-1 py-0.5"
+          style={{ background: 'var(--surface)', color: 'var(--text-primary)', border: '1px solid var(--border-light)' }}
+        >
+          {COLORBLIND_MODES.map(m => (
+            <option key={m} value={m}>
+              {m === 'off' ? t('Standard') : m === 'deuteranopia' ? t('Deuteranopia') : m === 'protanopia' ? t('Protanopia') : t('Tritanopia')}
+            </option>
+          ))}
+        </select>
+      </Row>
+      <Row label={t('TEXT SIZE')} hint={t('Scales the interface text')}>
+        <div className="flex rounded overflow-hidden" style={{ border: '1px solid var(--border-light)' }}>
+          {TEXT_SCALES.map((v: TextScale) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => { set({ textScale: v }); play('click'); }}
+              aria-pressed={s.textScale === v}
+              className="font-mono-data text-[9.5px] px-1.5 py-0.5"
+              style={{ background: s.textScale === v ? accent : 'transparent', color: s.textScale === v ? '#05070A' : 'var(--text-secondary)' }}
+            >
+              {Math.round(v * 100)}%
+            </button>
+          ))}
+        </div>
+      </Row>
+      <Row label={t('SUBTITLES')} hint={t('Captions for spoken lines')}>
+        <Toggle label={t('Subtitles')} accent={accent} on={s.subtitles} onChange={v => set({ subtitles: v })} />
       </Row>
 
       <button

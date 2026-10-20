@@ -5,6 +5,8 @@ import EndStats from '../components/meta/EndStats';
 import ScoreCard from '../components/meta/ScoreCard';
 import Newspaper from '../components/game/Newspaper';
 import { pickEnding } from '../game/endings';
+import { recordFinishedGame } from '../game/dossier';
+import { ChallengeResultBox } from './ChallengeScreen';
 import { t } from '../i18n';
 
 // Built at render time so the copy follows the active language.
@@ -39,6 +41,11 @@ export default function VictoryScreen() {
       // storage unavailable
     }
   }, []);
+
+  // Faction dossier: recorded once per finished game (recordFinishedGame guards repeats).
+  useEffect(() => {
+    recordFinishedGame(state);
+  }, [state]);
 
   // Golden particles
   useEffect(() => {
@@ -152,6 +159,8 @@ export default function VictoryScreen() {
             </div>
           </div>
         </div>
+
+        <ChallengeResultBox state={state} />
 
         <Newspaper year={state.victoryYear || Math.floor(state.year)} headline={ending.headline} text={ending.text} />
 
