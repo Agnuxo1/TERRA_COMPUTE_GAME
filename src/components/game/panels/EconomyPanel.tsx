@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from 'react';
 import { useGame } from '../../../App';
-import { techById } from '../../../game/data';
+import { continentById, techById } from '../../../game/data';
 import { MOBILISE_YEAR, marketPrice, marketSpread, mobiliseAvailable, pol, policyAvailability } from '../../../game/engine';
 import { fmtMoney, fmtSigned } from '../../../game/format';
 import { basePrice, GOOD_INFO, type Good } from '../../../game/market';
 import { POLICIES, POLICY_COOLDOWN, POLICY_GDP_COST, policyById, policySlots, type PolicyDef } from '../../../game/policies';
+import { PROJECTS, STAGES, canStartStage, initProjects, leadingRival, stageCost } from '../../../game/projects';
 import type { GameState } from '../../../game/types';
 import { play } from '../../../hooks/useSound';
 import { t } from '../../../i18n';
@@ -155,6 +156,9 @@ function Decrees() {
         )}
       </Section>
 
+      {/* National projects (one per world) */}
+      <Projects />
+
       {/* Catalogue */}
       <Section title={t('ALL DECREES')} accent={GOLD}>
         <div className="flex flex-col gap-1.5">
@@ -223,7 +227,79 @@ function PolicyCard({ p, active, excluded, locked, cost, note, action }: {
   );
 }
 
-function DecreeButton({ children, color, disabled, title, onClick }: { children: ReactNode; color: string; disabled?: boolean; title?: string; onClick: () => void }) {
+/** National projects (Phase D2): one per world, three stages each; the first bloc to finish owns it. */
+function Projects() {
+  const { state, dispatch } = useGame();
+  const me = state.mp?.me ?? state.playerContinent ?? '';
+  const ps = state.projects ?? initProjects();
+  const cost = stageCost(state);
+  return (
+    <Section title={t('PROJECTS')} accent={GOLD}>
+      <div className="font-rajdhani text-[12px] leading-snug mb-1.5" style={{ color: 'var(--text-tertiary)' }}>
+        {t('One per world: the first bloc to finish all three stages owns it. Each stage costs a quarter of a year\'s income and takes 2 years.')}
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {PROJECTS.map(def => {
+          const st = ps[def.id];
+          const av = canStartStage(state, def.id, me);
+          const locked = state.year < def.from;
+          const owner = st.owner;
+          const busyMine = st.busyUntil[me];
+          const rival = leadingRival(state, def.id);
+          const rivalCol = rival ? continentById(rival.id)?.color ?? 'var(--text-secondary)' : undefined;
+          const accent = owner === me ? 'var(--green)' : owner ? 'var(--rose)' : locked ? 'var(--text-tertiary)' : GOLD;
+          return (
+            <div key={def.id} className="rounded p-2" style={{ border: '1px solid var(--border-light)', borderLeft: `3px solid ${accent}`, background: 'rgba(255,255,255,0.025)', opacity: locked && !owner ? 0.72 : 1 }}>
+              <div className="flex items-baseline justify-between gap-1">
+                <span className="font-rajdhani text-[14px] font-bold leading-tight truncate" style={{ color: CREAM }}>{t(def.name)}</span>
+                {owner ? (
+                  <span className="font-mono-data text-[8.5px] px-1 rounded whitespace-nowrap" style={{ color: '#050508', background: owner === me ? 'var(--green)' : 'var(--rose)' }}>
+                    {owner === me ? t('Yours') : t('Built by {bloc}', { bloc: t(continentById(owner)?.name ?? owner) })}
+                  </span>
+                ) : locked ? (
+                  <span className="font-mono-data text-[9px] whitespace-nowrap" style={{ color: 'var(--amber)' }}>🔒 {t('From {year}', { year: def.from })}</span>
+                ) : null}
+              </div>
+              <div className="font-mono-data text-[9.5px] leading-snug mt-0.5" style={{ color: 'var(--green)' }}>▲ {t(def.effect)}</div>
+
+              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                <span className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>{t('YOU')}</span>
+                <Pips done={st.stages[me] ?? 0} total={STAGES} color={GOLD} />
+                {busyMine !== undefined && <span className="font-mono-data text-[9px]" style={{ color: 'var(--amber)' }}>{t('building — ready in {year}', { year: busyMine })}</span>}
+              </div>
+              {rival && rivalCol && (
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="font-mono-data text-[9px]" style={{ color: rivalCol }}>{t('RIVAL')} · {t(continentById(rival.id)?.name ?? rival.id)}</span>
+                  <Pips done={rival.stages} total={STAGES} color={rivalCol} />
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-2 mt-1.5 pt-1.5" style={{ borderTop: '1px solid var(--border)' }}>
+                <span className="font-mono-data text-[9px] leading-tight min-w-0" style={{ color: 'var(--amber)' }}>{!av.ok && av.reason ? av.reason : ''}</span>
+                <DecreeButton color={GOLD} disabled={!av.ok} title={av.reason ?? t('Start the next stage')}
+                  onClick={() => { play('coin'); dispatch({ type: 'PROJECT_STAGE', project: def.id }); }}>
+                  {t('START STAGE ({cost})', { cost: fmtMoney(cost) })}
+                </DecreeButton>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+function Pips({ done, total, color }: { done: number; total: number; color: string }) {
+  return (
+    <span className="inline-flex gap-0.5" aria-label={t('{done} of {total} stages', { done, total })}>
+      {Array.from({ length: total }, (_, i) => (
+        <span key={i} className="w-3 h-2 rounded-sm" style={{ background: i < done ? color : 'rgba(255,255,255,0.08)', boxShadow: i < done ? `0 0 6px ${color}` : 'none', border: `1px solid ${color}66` }} />
+      ))}
+    </span>
+  );
+}
+
+function DecreeButton({ children, color, disabled, title, onClick }:{ children: ReactNode; color: string; disabled?: boolean; title?: string; onClick: () => void }) {
   return (
     <button onClick={onClick} disabled={disabled} title={title}
       className={`shrink-0 font-orbitron text-[8.5px] font-bold tracking-widest px-2.5 py-1 rounded transition-all ${disabled ? 'opacity-35 cursor-not-allowed' : 'hover:brightness-125 active:scale-95'}`}

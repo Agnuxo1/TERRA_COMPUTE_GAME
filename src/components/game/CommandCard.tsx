@@ -23,6 +23,8 @@ function buildActions(): CommandAction[] {
     { key: 'A', label: t('ATTACK'), iconImg: './assets/cards/action-attack.png', overlay: 'attack', color: '#FF477E' },
     { key: 'S', label: t('SPY'), iconImg: './assets/cards/action-spy.png', overlay: 'spy', color: '#FFB84D' },
     { key: 'E', label: t('ECONOMY'), iconImg: './assets/cards/action-automation.png', overlay: 'economy', color: '#FFD166' },
+    { key: 'Z', label: t('ZONES'), iconImg: './assets/cards/build-satellite.png', overlay: 'zones', color: '#38BDF8' },
+    { key: 'H', label: t('TALENT'), iconImg: './assets/cards/build-uni.png', overlay: 'talent', color: '#F472B6' },
     { key: 'SPACE', label: t('PAUSE'), iconImg: './assets/cards/action-pause.png', overlay: null, color: '#FFB84D', action: 'pause' },
   ];
 }

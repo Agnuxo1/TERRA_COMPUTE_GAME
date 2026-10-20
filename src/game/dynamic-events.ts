@@ -42,6 +42,20 @@ const calm = (s: GameState) => s.year < 2028 && !s.rivals.some(r => r.project !=
 /** An event with a price is only offered when the treasury could pay it. */
 const affords = (s: GameState, share: number) => s.budget >= sum(s, share);
 
+// ─── E1 story flags ────────────────────────────────────────────────────────
+/** Sets a story flag to the current year (immutable: assigns a new flags object). */
+export function setFlag(s: GameState, flag: string): void {
+  s.flags = { ...(s.flags ?? {}), [flag]: Math.floor(s.year) };
+}
+/** Years since the flag was set, or -1 if it has never been set. */
+export function flagAge(s: GameState, flag: string): number {
+  const y = s.flags?.[flag];
+  return y === undefined ? -1 : Math.floor(s.year) - y;
+}
+const DEFECTOR_FLAG = 'defector_from:';
+/** The rival id a defector came from (stored by the asylum choice), or '' if none. */
+const defectorSource = (s: GameState) => Object.keys(s.flags ?? {}).find(k => k.startsWith(DEFECTOR_FLAG))?.slice(DEFECTOR_FLAG.length) ?? '';
+
 interface DynEvent {
   key: string;
   /** Minimum years before the same event can return (Infinity = once per game). */
@@ -141,6 +155,83 @@ const DECK: DynEvent[] = [
       { label: t('Approve it'), detail: t('Covert operations +15% success for the rest of the game · alignment −5 · relations −6'), effect: 'cyber_yes' },
       { label: t('Refuse'), detail: t('Alignment +3'), effect: 'cyber_no' },
     ]) },
+
+  // ─── E1 follow-up chains: each fires once, some years after the choice that set its flag ───
+  { key: 'chain_defector', every: Infinity, when: s => calm(s) && flagAge(s, 'defector_asylum') >= 3,
+    build: (s, h) => { const rid = defectorSource(s); const name = rid ? h.rivalName(rid) : t('a rival');
+      return ev(s, 'chain_defector', t('The Defector Cracks a Cipher'), 'info',
+        t('The scientist who fled {rival} has settled into our labs. Her notebooks hold the key to a cipher {rival} still trusts.', { rival: name }), [
+          { label: t('Keep the cipher'), detail: t('Intelligence on {rival} for 10 years', { rival: name }), effect: `chain_defector_cipher:${rid}` },
+          { label: t('Trade it back'), detail: t('Relations with {rival} +10', { rival: name }), effect: `chain_defector_trade:${rid}` },
+        ]); } },
+
+  { key: 'chain_reactor', every: Infinity, when: s => calm(s) && flagAge(s, 'reactor_coverup') >= 4,
+    build: s => ev(s, 'chain_reactor', t('The Reactor Cover-up Leaks'), 'danger',
+      t('A former technician has posted the maintenance logs online. The reactor incident is no longer a rumour, and reporters want to know why it was hidden.'), [
+        { label: t('Pay to bury it'), detail: t('−{cost} · the story dies', { cost: money(sum(s, 0.3)) }), cost: sum(s, 0.3), effect: `chain_reactor_bury:${sum(s, 0.3)}` },
+        { label: t('Let it run'), detail: t('Approval −10 for 3 years'), effect: 'chain_reactor_leak' },
+      ]) },
+
+  { key: 'chain_leak', every: Infinity, when: s => calm(s) && flagAge(s, 'leak_open') >= 3,
+    build: s => ev(s, 'chain_leak', t('Open-Source Community Breakthrough'), 'info',
+      t('Volunteers around the world have reproduced parts of your open release and improved them. Their fixes are flowing back into your repositories.'), [
+        { label: t('Harvest the fixes'), detail: t('+{amount} research now', { amount: rpScale(s, 1.5) }), effect: `chain_leak_windfall:${rpScale(s, 1.5)}` },
+        { label: t('Fund the contributors'), detail: t('Research +8% for 5 years'), effect: 'chain_leak_boost' },
+      ]) },
+
+  { key: 'chain_martyrs', every: Infinity, when: s => calm(s) && flagAge(s, 'strike_broken') >= 2,
+    build: s => ev(s, 'chain_martyrs', t('Union Martyrs'), 'warning',
+      t('A striker injured at the gates has died in hospital. Her union has called the whole district into the streets.'), [
+        { label: t('Stand firm'), detail: t('Approval −5 for 4 years'), effect: 'chain_martyrs_stand' },
+        { label: t('Pay a settlement'), detail: t('−{cost} · approval −2 for 4 years', { cost: money(sum(s, 0.2)) }), cost: sum(s, 0.2), effect: `chain_martyrs_settle:${sum(s, 0.2)}` },
+      ]) },
+
+  { key: 'chain_olympic', every: Infinity, when: s => calm(s) && flagAge(s, 'olympics_hosted') >= 1,
+    build: s => ev(s, 'chain_olympic', t('Olympic Tourism Boom'), 'info',
+      t('Visitors from every continent fill the hotels and the trains. The Games are over, but the crowds have not gone home.'), [
+        { label: t('Ride the tourist wave'), detail: t('GDP +4% for 3 years'), effect: 'chain_olympic_boom' },
+        { label: t('Sell the broadcast rights'), detail: t('+{amount} now', { amount: money(sum(s, 0.2)) }), effect: `chain_olympic_rights:${sum(s, 0.2)}` },
+      ]) },
+
+  { key: 'chain_thanks', every: Infinity, when: s => calm(s) && flagAge(s, 'interp_open') >= 3,
+    build: s => ev(s, 'chain_thanks', t('Rivals Thank You'), 'info',
+      t('Safety teams in rival labs have adopted your interpretability tools, and their ministers want to say so in public.'), [
+        { label: t('Accept the thanks'), detail: t('Relations with all rivals +8'), effect: 'chain_thanks_relations' },
+        { label: t('Ask for a safety pledge'), detail: t('Your alignment +4'), effect: 'chain_thanks_pledge' },
+      ]) },
+
+  { key: 'chain_cyber', every: Infinity, when: s => calm(s) && flagAge(s, 'cyber_yes') >= 4,
+    build: s => {
+      const contained = s.modifiers.some(m => m.id === 'counterintel');
+      const patch = sum(s, contained ? 0.1 : 0.3);
+      return ev(s, 'chain_cyber', t('Your Cyber Weapon Escapes'), 'danger',
+        contained
+          ? t('A copy of your cyber weapon reached the grid control network, but your counter-intelligence sweep caught it at the edge. The clean-up still has to be paid for.')
+          : t('A copy of your cyber weapon escaped its test range and reached the national grid. Operators are watching the load curves fall.'), [
+          { label: t('Patch the grid now'), detail: t('−{cost} · the worm is removed', { cost: money(patch) }), cost: patch, effect: `chain_cyber_patch:${patch}` },
+          { label: t('Ride it out'), detail: contained ? t('Counter-intelligence holds · no blackout') : t('Energy supply −30% for 1 year (blackout)'), effect: `chain_cyber_ride:${contained ? 0 : 1}` },
+        ]); } },
+
+  { key: 'chain_brain', every: Infinity, when: s => calm(s) && flagAge(s, 'brain_go') >= 4,
+    build: s => ev(s, 'chain_brain', t('Returning Scientists'), 'info',
+      t('Some of the scientists who left for foreign labs are knocking on the door. They bring new methods and want to work at home.'), [
+        { label: t('Welcome them home'), detail: t('Research +10% for 4 years'), effect: 'chain_brain_research' },
+        { label: t('Fund their schools'), detail: t('Education +5'), effect: 'chain_brain_education' },
+      ]) },
+
+  { key: 'chain_farm', every: Infinity, when: s => calm(s) && flagAge(s, 'water_ignore') >= 3,
+    build: s => ev(s, 'chain_farm', t('Farmers Revolt'), 'danger',
+      t('Dry fields and empty wells have turned the villages against the server farms. Tractors block the highways while the harvest is already late.'), [
+        { label: t('Let the revolt run'), detail: t('Farms −15% for 3 years'), effect: 'chain_farm_revolt' },
+        { label: t('Compensate the farmers'), detail: t('−{cost} · farms unaffected', { cost: money(sum(s, 0.2)) }), cost: sum(s, 0.2), effect: `chain_farm_compensate:${sum(s, 0.2)}` },
+      ]) },
+
+  { key: 'chain_reserve', every: Infinity, when: s => calm(s) && flagAge(s, 'harvest_keep') >= 5 && s.eco.foodSupply / s.eco.foodDemand < 1,
+    build: s => ev(s, 'chain_reserve', t('The Reserve Saves a Famine'), 'warning',
+      t('A failed season has emptied the markets. The granaries you filled years ago are the only food left in the region.'), [
+        { label: t('Release the reserve'), detail: t('Food +10% for 2 years'), effect: 'chain_reserve_release' },
+        { label: t('Sell the reserve for cash'), detail: t('+{amount} now', { amount: money(sum(s, 0.2)) }), effect: `chain_reserve_sell:${sum(s, 0.2)}` },
+      ]) },
 ];
 
 /** Elections / party congress: a fixed rhythm every 8 years, outcome shaped by approval. */
@@ -220,34 +311,34 @@ export function applyDynamic(s: GameState, effect: string, h: DynHelpers): boole
   switch (id) {
     case 'none': break;
     case 'brain_keep': s.budget -= n1; h.addMod(s, { id: 'brain_keep', label: t('Scientists stayed'), years: 6, research: 1.1 }); break;
-    case 'brain_go': h.addMod(s, { id: 'brain_go', label: t('Brain drain'), years: 4, research: 0.9 }); if (a1) relOne(a1, 8); break;
+    case 'brain_go': setFlag(s, 'brain_go'); h.addMod(s, { id: 'brain_go', label: t('Brain drain'), years: 4, research: 0.9 }); if (a1) relOne(a1, 8); break;
     case 'rare_mine': s.chips += 60; s.steel += 40; h.addMod(s, { id: 'rare_mine', label: t('Mining protests'), years: 4, approval: -4 }); break;
     case 'rare_protect': h.addMod(s, { id: 'rare_protect', label: t('Protected valleys'), years: 5, approval: 3 }); break;
     case 'strike_pay': s.budget -= n1; h.addMod(s, { id: 'strike', label: t('Wage deal'), years: 4, approval: 6 }); break;
-    case 'strike_break': h.addMod(s, { id: 'strike', label: t('Strike broken'), years: 3, approval: -9 }); break;
+    case 'strike_break': setFlag(s, 'strike_broken'); h.addMod(s, { id: 'strike', label: t('Strike broken'), years: 3, approval: -9 }); break;
     case 'strike_wait': s.steel = Math.max(0, s.steel - 30); h.addMod(s, { id: 'strike', label: t('Long strike'), years: 2, gdp: 0.94 }); break;
-    case 'defect_keep': s.researchPoints += rpScale(s, 1.5); relOne(a1, -12); h.pushLog(s, h.rivalName(a1), t('Protests the asylum granted to its scientist.'), 'warning'); break;
+    case 'defect_keep': setFlag(s, 'defector_asylum'); setFlag(s, `${DEFECTOR_FLAG}${a1}`); s.researchPoints += rpScale(s, 1.5); relOne(a1, -12); h.pushLog(s, h.rivalName(a1), t('Protests the asylum granted to its scientist.'), 'warning'); break;
     case 'defect_return': relOne(a1, 12); h.addMod(s, { id: 'defect_return', label: t('Handed back a defector'), years: 2, approval: -2 }); break;
-    case 'olympics_host': s.budget -= n1; relAll(6); h.addMod(s, { id: 'olympics', label: t('Olympic Games'), years: 3, approval: 8 }); break;
+    case 'olympics_host': setFlag(s, 'olympics_hosted'); s.budget -= n1; relAll(6); h.addMod(s, { id: 'olympics', label: t('Olympic Games'), years: 3, approval: 8 }); break;
     case 'harvest_sell': s.budget += n1; relAll(3); break;
-    case 'harvest_keep': h.addMod(s, { id: 'harvest_keep', label: t('Grain reserve'), years: 4, approval: 4, farms: 1.05 }); break;
+    case 'harvest_keep': setFlag(s, 'harvest_keep'); h.addMod(s, { id: 'harvest_keep', label: t('Grain reserve'), years: 4, approval: 4, farms: 1.05 }); break;
     case 'startup_free': s.budget -= n1; h.addMod(s, { id: 'startups', label: t('Start-up boom'), years: 6, gdp: 1.06 }); break;
     case 'startup_tax': s.budget += n1; break;
     case 'reactor_inspect': offline('nuclear', 0.75); h.addMod(s, { id: 'reactor', label: t('Safety culture'), years: 3, approval: 2 }); break;
-    case 'reactor_hide': h.addMod(s, { id: 'reactor', label: t('Reactor cover-up'), years: 4, approval: -7 }); break;
+    case 'reactor_hide': setFlag(s, 'reactor_coverup'); h.addMod(s, { id: 'reactor', label: t('Reactor cover-up'), years: 4, approval: -7 }); break;
     case 'auto_dividend': s.budget -= n1; h.addMod(s, { id: 'automation', label: t('Universal dividend'), years: 4, approval: 8 }); break;
     case 'auto_retrain': s.budget -= n1; s.education = clamp(s.education + 5, 0, 100); break;
     case 'auto_ignore': h.addMod(s, { id: 'automation', label: t('Automation riots'), years: 3, approval: -8 }); break;
     case 'water_fix': s.budget -= n1; break;
-    case 'water_ignore': h.addMod(s, { id: 'water', label: t('Thirsty farms'), years: 4, approval: -5, farms: 0.9 }); break;
+    case 'water_ignore': setFlag(s, 'water_ignore'); h.addMod(s, { id: 'water', label: t('Thirsty farms'), years: 4, approval: -5, farms: 0.9 }); break;
     case 'leak_open':
-      s.researchPoints += rpScale(s, 2); relAll(8); s.alignment = clamp(s.alignment - 4, 0, 100);
+      setFlag(s, 'leak_open'); s.researchPoints += rpScale(s, 2); relAll(8); s.alignment = clamp(s.alignment - 4, 0, 100);
       rivalMap(r => ({ ...r, lag: r.lag - 1 }));
       break;
     case 'leak_hunt': s.budget -= n1; s.alignment = clamp(s.alignment + 5, 0, 100); h.addMod(s, { id: 'leak_hunt', label: t('Leak investigation'), years: 3, approval: -4 }); break;
-    case 'interp_open': relAll(8); s.alignment = clamp(s.alignment + 4, 0, 100); rivalMap(r => ({ ...r, alignment: clamp(r.alignment + 8, 0, 100) })); break;
+    case 'interp_open': setFlag(s, 'interp_open'); relAll(8); s.alignment = clamp(s.alignment + 4, 0, 100); rivalMap(r => ({ ...r, alignment: clamp(r.alignment + 8, 0, 100) })); break;
     case 'interp_keep': s.alignment = clamp(s.alignment + 10, 0, 100); break;
-    case 'cyber_yes': s.alignment = clamp(s.alignment - 5, 0, 100); relAll(-6); h.addMod(s, { id: 'cyber_arms', label: t('Cyber-weapons programme'), years: 9999 }); break;
+    case 'cyber_yes': setFlag(s, 'cyber_yes'); s.alignment = clamp(s.alignment - 5, 0, 100); relAll(-6); h.addMod(s, { id: 'cyber_arms', label: t('Cyber-weapons programme'), years: 9999 }); break;
     case 'cyber_no': s.alignment = clamp(s.alignment + 3, 0, 100); break;
     case 'elect_bold': s.policyCooldown = 0; h.addMod(s, { id: 'mandate', label: t('Reform mandate'), years: 4, gdp: 1.05, approval: -3 }); break;
     case 'elect_steady': h.addMod(s, { id: 'mandate', label: t('Steady government'), years: 4, approval: 5 }); break;
@@ -280,6 +371,27 @@ export function applyDynamic(s: GameState, effect: string, h: DynHelpers): boole
       break;
     }
     case 'proj_race': h.addMod(s, { id: 'crash_programme', label: t('National crash programme'), years: 4, research: 1.2, approval: -5 }); s.alignment = clamp(s.alignment - 3, 0, 100); break;
+    // E1 follow-up chains
+    case 'chain_defector_cipher': rivalMap(r => r.id === a1 ? { ...r, intelUntil: Math.max(r.intelUntil, s.year + 10) } : r); break;
+    case 'chain_defector_trade': relOne(a1, 10); break;
+    case 'chain_reactor_bury': s.budget -= n1; break;
+    case 'chain_reactor_leak': h.addMod(s, { id: 'reactor_leak', label: t('Reactor cover-up exposed'), years: 3, approval: -10 }); break;
+    case 'chain_leak_windfall': s.researchPoints += n1; break;
+    case 'chain_leak_boost': h.addMod(s, { id: 'leak_boost', label: t('Open-source momentum'), years: 5, research: 1.08 }); break;
+    case 'chain_martyrs_stand': h.addMod(s, { id: 'martyrs', label: t('Union martyrs'), years: 4, approval: -5 }); break;
+    case 'chain_martyrs_settle': s.budget -= n1; h.addMod(s, { id: 'martyrs', label: t('Strike settlement'), years: 4, approval: -2 }); break;
+    case 'chain_olympic_boom': h.addMod(s, { id: 'olympic_boom', label: t('Olympic tourism'), years: 3, gdp: 1.04 }); break;
+    case 'chain_olympic_rights': s.budget += n1; break;
+    case 'chain_thanks_relations': relAll(8); break;
+    case 'chain_thanks_pledge': s.alignment = clamp(s.alignment + 4, 0, 100); break;
+    case 'chain_cyber_patch': s.budget -= n1; break;
+    case 'chain_cyber_ride': if (n1) h.addMod(s, { id: 'cyber_blackout', label: t('Grid blackout'), years: 1, energySupply: 0.7 }); break;
+    case 'chain_brain_research': h.addMod(s, { id: 'brain_return', label: t('Returning scientists'), years: 4, research: 1.1 }); break;
+    case 'chain_brain_education': s.education = clamp(s.education + 5, 0, 100); break;
+    case 'chain_farm_revolt': h.addMod(s, { id: 'farm_revolt', label: t('Farmers in revolt'), years: 3, farms: 0.85 }); break;
+    case 'chain_farm_compensate': s.budget -= n1; break;
+    case 'chain_reserve_release': h.addMod(s, { id: 'reserve_release', label: t('Reserve released'), years: 2, farms: 1.1 }); break;
+    case 'chain_reserve_sell': s.budget += n1; break;
     default: return false;
   }
   return true;

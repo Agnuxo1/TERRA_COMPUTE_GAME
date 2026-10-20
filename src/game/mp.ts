@@ -3,7 +3,7 @@
 // Federated model: every human simulates their own nation (map, economy, research) exactly as in single player.
 // The host owns the clock and simulates the AI blocs; everyone shares the race, the planet, diplomacy and covert
 // operations through small messages. A human who disconnects becomes an AI bloc run by the host.
-import type { GameState, Rival, TreatyId } from './types';
+import type { GameState, Rival, TreatyId, ZoneId } from './types';
 
 export type CovertKind = 'intel' | 'steal' | 'sabotage' | 'propaganda' | 'blackout';
 
@@ -32,7 +32,9 @@ export type MPMsg =
   | { t: 'end'; who: string; human: boolean; safe: boolean; year: number }
   | { t: 'chat'; from: string; text: string }
   | { t: 'first'; key: string; who: string; year: number }
-  | { t: 'defcon1'; year: number; culprit?: string };
+  | { t: 'defcon1'; year: number; culprit?: string }
+  /** Phase D1: a guest's influence (delta > 0) or successful coup (delta < 0 on target) in a zone, applied by the host. */
+  | { t: 'zone'; from: string; zone: ZoneId; delta: number; target?: string };
 
 export const isHuman = (s: GameState, id: string) =>
   !!s.mp && !s.mp.offline && id !== s.mp.me && s.mp.players.some(p => p.faction === id && p.online);

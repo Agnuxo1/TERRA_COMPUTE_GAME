@@ -381,7 +381,36 @@ export interface GameState {
   assemblyNext?: number;
   /** Consecutive years with a chip share of at least 60% of the world estimate. */
   siliconYears?: number;
+
+  // Phases D & E (all optional so older saves load)
+  /** D1: strategic zones (host-authoritative in multiplayer). */
+  zones?: Record<ZoneId, ZoneState>;
+  /** D2: one-per-world national projects ("wonders"). */
+  projects?: Record<ProjectId, ProjectState>;
+  /** E1: story flags set by event choices -> year they were set. */
+  flags?: Record<string, number>;
+  /** E2: hired and lost (poached) scientists. */
+  talent?: TalentState;
 }
+
+// ─── Phases D & E ──────────────────────────────────────────────────────────
+export type ZoneId = 'taiwan' | 'gulf' | 'arctic' | 'congo' | 'suez' | 'orbit';
+/** Influence per bloc id (player = playerContinent / mp.me, rivals by id), 0..100. Holder: >= 40 and >= 10 above anyone else. */
+export interface ZoneState { influence: Record<string, number>; holder: string | null }
+
+export type ProjectId = 'apollo' | 'satnet' | 'fab1nm' | 'align_inst' | 'smart_city';
+export interface ProjectState {
+  /** Stages completed (0..3) per bloc id. */
+  stages: Record<string, number>;
+  /** Year the stage under construction completes, per bloc id (absent = idle). */
+  busyUntil: Record<string, number>;
+  /** First bloc to complete stage 3 (null until then) and the year it did. */
+  owner: string | null;
+  year: number | null;
+}
+
+export type ScientistField = 'compute' | 'research' | 'alignment' | 'chips' | 'economy' | 'covert';
+export interface TalentState { hired: string[]; lost: string[] }
 
 /** Outcomes that end the game as a win (shared or alone). */
 export function isVictory(o: GameState['outcome']): boolean {

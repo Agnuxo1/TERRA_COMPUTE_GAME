@@ -6,7 +6,21 @@ import { YEARS_PER_TICK, gameReducer, giftCost, initialState, ownDefense } from 
 
 const clampN = (v: unknown, lo: number, hi: number) => { const n = Number(v); return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : lo; };
 import { aiStates, makeSnapshot, type MPPlayer } from '../game/mp';
-import type { GameState } from '../game/types';
+import type { GameState, ZoneId, ZoneState } from '../game/types';
+import { zoneById } from '../game/zones';
+
+/** Host zone broadcast, validated: known zone ids, influence clamped to 0..100. */
+function cleanZones(z: unknown): GameState['zones'] {
+  if (!z || typeof z !== 'object') return undefined;
+  const out: Partial<Record<ZoneId, ZoneState>> = {};
+  for (const [id, v] of Object.entries(z as Record<string, ZoneState>)) {
+    if (!zoneById(id as ZoneId) || !v || typeof v.influence !== 'object') continue;
+    const influence: Record<string, number> = {};
+    for (const [b, n] of Object.entries(v.influence)) if (typeof n === 'number' && Number.isFinite(n)) influence[String(b).slice(0, 4)] = Math.max(0, Math.min(100, n));
+    out[id as ZoneId] = { influence, holder: typeof v.holder === 'string' ? v.holder.slice(0, 4) : null };
+  }
+  return Object.keys(out).length === 6 ? out as Record<ZoneId, ZoneState> : undefined;
+}
 import { session, type LobbyState } from './session';
 
 /** Builds this player's opening state from the lobby the host started. */
@@ -49,7 +63,7 @@ export default function MPBridge() {
           if (!sender || w.s?.f !== sender.faction || !Number.isFinite(w.s.cap)) return;
           dispatch({ type: 'MP_SNAPSHOT', snap: { ...w.s, cap: clampN(w.s.cap, 0, 30), al: clampN(w.s.al, 0, 100), app: clampN(w.s.app, 0, 100), def: clampN(w.s.def, 0, 0.6), em: clampN(w.s.em, 0, 1e5), gdp: clampN(w.s.gdp, 0, 1e7), pop: clampN(w.s.pop, 0, 1e5) } });
           return;
-        case 'ai': if (s.mp.role === 'guest' && fromHost && Array.isArray(w.a)) dispatch({ type: 'MP_AI', ai: w.a }); return;
+        case 'ai': if (s.mp.role === 'guest' && fromHost && Array.isArray(w.a)) dispatch({ type: 'MP_AI', ai: w.a, zones: cleanZones(w.zones) }); return;
         case 'msg': {
           const m = w.m;
           if (!sender || !m) return;
@@ -58,6 +72,7 @@ export default function MPBridge() {
           if ((m.t === 'first' || m.t === 'defcon1') && !(m.t === 'first' && m.who === sender.faction) && !fromHost) return;
           if (m.t === 'diplo' && m.amount !== undefined) m.amount = clampN(m.amount, 0, 3 * giftCost(s));
           if (m.t === 'op' && !Number.isFinite(m.tn)) return;
+          if (m.t === 'zone') { if (!Number.isFinite(m.delta)) return; m.delta = clampN(m.delta, -15, 15); }
           if (m.t === 'op') m.tn = clampN(m.tn, 0, 15);
           if (m.t === 'aiop') { m.lag = clampN(m.lag ?? 0, -1.5, 3); m.align = clampN(m.align ?? 0, -15, 25); m.stability = clampN(m.stability ?? 0, -30, 10); m.clean = clampN(m.clean ?? 0, -0.1, 0.3); }
           dispatch({ type: 'MP_RECV', msg: m });
@@ -101,7 +116,7 @@ export default function MPBridge() {
       const s = ref.current;
       if (!s.mp || s.screen !== 'game') return;
       session.broadcast({ k: 'snap', s: makeSnapshot(s, ownDefense(s)) });
-      if (s.mp.role === 'host') session.broadcast({ k: 'ai', a: aiStates(s) });
+      if (s.mp.role === 'host') session.broadcast({ k: 'ai', a: aiStates(s), ...(s.zones ? { zones: s.zones } : {}) });
     }, 1000);
     return () => clearInterval(id);
   }, [active]);
