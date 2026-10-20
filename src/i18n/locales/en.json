@@ -2219,7 +2219,7 @@
  "Ural": "Ural",
  "Uranium ore": "Uranium ore",
  "Use the lamps to deduce the secret. Cross out letters you rule out on the note pad. Fewer tests = more stars.": "Use the lamps to deduce the secret. Cross out letters you rule out on the note pad. Fewer tests = more stars.",
- "v1.0 — Built with AI": "v1.0 — Built with AI",
+ "v{version} — Built with AI": "v{version} — Built with AI",
  "Varga": "Varga",
  "Vast territory, heavy industry and the richest mineral deposits.": "Vast territory, heavy industry and the richest mineral deposits.",
  "Vector Supercomputers": "Vector Supercomputers",

@@ -1,0 +1,20 @@
+{
+  "name": "terra-compute-android",
+  "version": "4.2.0",
+  "private": true,
+  "description": "Terra Compute for Android (Capacitor): the same web build as the desktop and itch.io versions, bundled inside the APK.",
+  "scripts": {
+    "prepare-www": "node scripts/prepare-www.mjs",
+    "sync": "npx cap sync android",
+    "apk": "cd android && gradlew.bat assembleRelease",
+    "aab": "cd android && gradlew.bat bundleRelease"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "3.0.5",
+    "@capacitor/cli": "^7.6.9"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.6.9",
+    "@capacitor/core": "^7.6.9"
+  }
+}

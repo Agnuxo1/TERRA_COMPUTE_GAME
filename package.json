@@ -1,7 +1,7 @@
 {
   "name": "terra-compute",
   "private": true,
-  "version": "1.0.0",
+  "version": "4.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -100,7 +100,8 @@
     "appId": "com.agnuxo.terracompute",
     "productName": "Terra Compute",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "buildResources": "packaging/art"
     },
     "files": [
       "dist/**/*",
@@ -110,12 +111,64 @@
     "asar": true,
     "win": {
       "target": [
-        "dir"
+        {
+          "target": "dir",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
-      "artifactName": "Terra-Compute-${version}-${arch}.${ext}"
+      "icon": "packaging/art/icon.ico"
     },
     "extraMetadata": {
       "main": "electron/main.cjs"
+    },
+    "artifactName": "Terra-Compute-${version}-${os}-${arch}.${ext}",
+    "linux": {
+      "target": [
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "packaging/art/icon.png",
+      "category": "Game",
+      "executableName": "terra-compute",
+      "synopsis": "Cold War strategy race to safe superintelligence",
+      "maintainer": "Agnuxo"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "icon": "packaging/art/icon.png",
+      "category": "public.app-category.strategy-games",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "title": "Terra Compute ${version}"
     }
-  }
+  },
+  "homepage": "https://agnuxo1.github.io/TERRA_COMPUTE_GAME/"
 }

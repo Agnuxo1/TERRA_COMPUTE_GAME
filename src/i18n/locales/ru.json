@@ -2219,7 +2219,6 @@
  "Ural": "Урал",
  "Uranium ore": "Урановая руда",
  "Use the lamps to deduce the secret. Cross out letters you rule out on the note pad. Fewer tests = more stars.": "Используйте лампы, чтобы вычислить секрет. Зачёркивайте в блокноте буквы, которые исключили. Меньше проверок = больше звёзд.",
- "v1.0 — Built with AI": "v1.0 — создано с ИИ",
  "Varga": "Варга",
  "Vast territory, heavy industry and the richest mineral deposits.": "Огромная территория, тяжёлая промышленность и богатейшие месторождения полезных ископаемых.",
  "Vector Supercomputers": "Векторные суперкомпьютеры",
@@ -2354,5 +2353,6 @@
  "Zoom": "Масштаб",
  "Zoom · pan the continent": "Масштаб · перемещение по континенту",
  "Zoom in (+)": "Приблизить (+)",
- "Zoom out (−)": "Отдалить (−)"
+ "Zoom out (−)": "Отдалить (−)",
+ "v{version} — Built with AI": "v{version} — создано с ИИ"
 }

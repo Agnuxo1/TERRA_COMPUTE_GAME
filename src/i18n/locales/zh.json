@@ -2219,7 +2219,6 @@
  "Ural": "乌拉尔",
  "Uranium ore": "铀矿",
  "Use the lamps to deduce the secret. Cross out letters you rule out on the note pad. Fewer tests = more stars.": "利用指示灯推断密码。在记事本上划去排除的字母。测试越少，星级越高。",
- "v1.0 — Built with AI": "v1.0 —— 由 AI 构建",
  "Varga": "瓦尔加",
  "Vast territory, heavy industry and the richest mineral deposits.": "幅员辽阔，重工业发达，矿产最为丰富。",
  "Vector Supercomputers": "矢量超级计算机",
@@ -2354,5 +2353,6 @@
  "Zoom": "缩放",
  "Zoom · pan the continent": "缩放 · 平移大陆",
  "Zoom in (+)": "放大 (+)",
- "Zoom out (−)": "缩小 (−)"
+ "Zoom out (−)": "缩小 (−)",
+ "v{version} — Built with AI": "v{version} —— 由 AI 构建"
 }

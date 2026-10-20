@@ -2219,7 +2219,6 @@
  "Ural": "ウラル",
  "Uranium ore": "ウラン鉱石",
  "Use the lamps to deduce the secret. Cross out letters you rule out on the note pad. Fewer tests = more stars.": "ランプを使って秘密を推理してください。メモ帳で除外した文字は消してください。試行が少ないほど星が増えます。",
- "v1.0 — Built with AI": "v1.0 — AIで構築",
  "Varga": "ヴァルガ",
  "Vast territory, heavy industry and the richest mineral deposits.": "広大な領土、重工業、そして最も豊かな鉱床。",
  "Vector Supercomputers": "ベクトル型スーパーコンピュータ",
@@ -2354,5 +2353,6 @@
  "Zoom": "ズーム",
  "Zoom · pan the continent": "ズーム · 大陸をパン",
  "Zoom in (+)": "拡大 (+)",
- "Zoom out (−)": "縮小 (−)"
+ "Zoom out (−)": "縮小 (−)",
+ "v{version} — Built with AI": "v{version} — AIで構築"
 }

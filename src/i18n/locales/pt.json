@@ -2219,7 +2219,6 @@
  "Ural": "Urais",
  "Uranium ore": "Minério de urânio",
  "Use the lamps to deduce the secret. Cross out letters you rule out on the note pad. Fewer tests = more stars.": "Use as lâmpadas para deduzir o segredo. Risque no bloco de notas as letras que você descartar. Menos testes = mais estrelas.",
- "v1.0 — Built with AI": "v1.0 — Feito com IA",
  "Varga": "Varga",
  "Vast territory, heavy industry and the richest mineral deposits.": "Território vasto, indústria pesada e as jazidas minerais mais ricas.",
  "Vector Supercomputers": "Supercomputadores Vetoriais",
@@ -2354,5 +2353,6 @@
  "Zoom": "Zoom",
  "Zoom · pan the continent": "Zoom · mover o continente",
  "Zoom in (+)": "Aproximar (+)",
- "Zoom out (−)": "Afastar (−)"
+ "Zoom out (−)": "Afastar (−)",
+ "v{version} — Built with AI": "v{version} — Feito com IA"
 }
