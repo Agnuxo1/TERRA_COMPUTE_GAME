@@ -55,6 +55,18 @@ function walkTables(dir) {
 }
 for (const d of TABLE_DIRS) walkTables(join(SRC, d));
 
+// Prose stored in state and translated at render: rival plans (src/game/ai/*.ts) and memory reasons (remember(..., 'why', ...)).
+const prose = /'([A-Z][^'\\]*[a-z][^'\\]* [^'\\]*)'/g;
+for (const f of readdirSync(join(SRC, 'game', 'ai'))) {
+  const text = readFileSync(join(SRC, 'game', 'ai', f), 'utf8');
+  let m; while ((m = prose.exec(text))) if (!keys.has(m[1])) keys.set(m[1], `src/game/ai/${f}`);
+}
+for (const f of ['engine.ts', 'dynamic-events.ts']) {
+  const text = readFileSync(join(SRC, 'game', f), 'utf8');
+  const re = /remember\([^;]*?'([A-Z][^'\\]+)'/g;
+  let m; while ((m = re.exec(text))) if (!keys.has(m[1])) keys.set(m[1], `src/game/${f}`);
+}
+
 // Data tables: collect the human-readable fields.
 const FIELDS = new Set(['name', 'short', 'description', 'text', 'hint', 'label', 'detail', 'title', 'subtitle', 'placement', 'note',
   'specialBonus', 'doctrine', 'motto', 'pro', 'con', 'howTo', 'rewardLabel', 'effect', 'doctrineText']);
