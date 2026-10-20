@@ -7,6 +7,7 @@ import { housingComfort, operational, regionCost, type Placement } from '../../.
 import { TILE_H, TILE_W, edgeNeighbours, allNeighbours, tileCenter } from '../../../game/mapgen';
 import type { BuildingId, GameState, MapData, Tile } from '../../../game/types';
 import { t } from '../../../i18n';
+import type { HeatColours } from './layers';
 
 const HW = TILE_W / 2;
 const HH = TILE_H / 2;
@@ -106,6 +107,7 @@ export class MapRenderer {
   private state: GameState | null = null;
   private map: MapData | null = null;
   ui: MapUi = { hover: null, selected: null, placing: null, placements: null, dayNight: true, reduceMotion: false };
+  private heat: HeatColours | null = null;
   cam: Camera = { x: 0, y: 0, scale: 1 };
   private raf = 0;
   private last = 0;
@@ -161,6 +163,9 @@ export class MapRenderer {
   }
 
   stop() { cancelAnimationFrame(this.raf); }
+
+  /** Per-tile heat-map tint from layers.ts (null = layer off). Drawn each frame, computed by the caller. */
+  setHeat(h: HeatColours | null) { this.heat = h; }
 
   resize(w: number, h: number) {
     this.dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -948,8 +953,19 @@ export class MapRenderer {
     // roads
     this.drawRoads(ctx);
 
-    // placement heatmap
-    if (this.ui.placing && this.ui.placements) {
+    // heat-map layer (precomputed per state change); replaces the placement tint while active
+    if (this.heat) {
+      for (let i = 0; i < this.heat.length; i++) {
+        const fill = this.heat[i];
+        if (!fill) continue;
+        const tl = map.tiles[i];
+        const [cx, cy] = tileCenter(tl.col, tl.row);
+        diamondPath(ctx, cx, cy, 2);
+        ctx.fillStyle = fill;
+        ctx.fill();
+      }
+    } else if (this.ui.placing && this.ui.placements) {
+      // placement heatmap
       for (const [id, p] of this.ui.placements) {
         const t = map.tiles[id];
         const [cx, cy] = tileCenter(t.col, t.row);
