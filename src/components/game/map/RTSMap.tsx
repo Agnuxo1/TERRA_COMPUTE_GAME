@@ -8,6 +8,7 @@ import { fmtMoney } from '../../../game/format';
 import { play, playSfx } from '../../../hooks/useSound';
 import { t } from '../../../i18n';
 import { MapRenderer } from './renderer';
+import { computeHeat, HEAT_LAYERS, heatLabel, heatLegend, type HeatLayer } from './layers';
 
 export interface MapOptions {
   edgeScroll?: boolean;
@@ -100,6 +101,11 @@ export default function RTSMap({ options = {} }: { options?: MapOptions }) {
     return res;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.placing, state.map?.tiles, state.ownedRegions, state.unlockedTechs]);
+
+  // Heat-map layer: recomputed once per state change (memoised), then handed to the renderer.
+  const [layer, setLayer] = useState<HeatLayer>('none');
+  const heat = useMemo(() => computeHeat(state, layer, placements), [state, layer, placements]);
+  useEffect(() => { rendererRef.current?.setHeat(heat); }, [heat]);
 
   useEffect(() => { rendererRef.current?.setState(state); }, [state]);
   useEffect(() => {
@@ -216,6 +222,25 @@ export default function RTSMap({ options = {} }: { options?: MapOptions }) {
       <div className="absolute inset-0 pointer-events-none" style={{ boxShadow: 'inset 0 0 120px rgba(0,0,0,0.65)' }} />
 
       {hoverTile && mouse && !drag.current?.moved && <TileTooltip state={state} tile={hoverTile} placement={hoverPl} x={mouse.x} y={mouse.y} />}
+
+      {/* Heat-map layer selector, under the CONTINENT / WORLD switch */}
+      <div className="absolute top-2 right-2 z-30 flex flex-col items-end gap-1"
+        onPointerDown={e => e.stopPropagation()} onPointerUp={e => e.stopPropagation()} onPointerMove={e => e.stopPropagation()} onWheel={e => e.stopPropagation()}>
+        <div className="flex rounded overflow-hidden" style={{ border: '1px solid var(--border-light)' }}>
+          {HEAT_LAYERS.map(l => (
+            <button key={l} aria-pressed={layer === l} onClick={() => setLayer(l)}
+              className="font-mono-data text-[9px] tracking-wider px-2 py-0.5"
+              style={{ background: layer === l ? 'var(--cyan)' : 'rgba(11,12,16,0.85)', color: layer === l ? '#001014' : 'var(--text-secondary)' }}>
+              {heatLabel(l)}
+            </button>
+          ))}
+        </div>
+        {layer !== 'none' && (
+          <div className="font-mono-data text-[9px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(11,12,16,0.85)', color: 'var(--text-tertiary)' }}>
+            {heatLegend(layer, !!state.placing)}
+          </div>
+        )}
+      </div>
 
       {/* Minimap */}
       <div data-tutorial="minimap" className="absolute bottom-2 left-2 z-20 rounded overflow-hidden"
