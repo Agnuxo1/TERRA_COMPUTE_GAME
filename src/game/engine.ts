@@ -1735,7 +1735,7 @@ function reduce(state: GameState, action: Action): GameState {
       if (state.budget < cost) return state;
       const s = { ...state, budget: state.budget - cost, ownedRegions: [...state.ownedRegions, action.regionId] };
       const name = s.map?.regions.find(r => r.id === action.regionId)?.name ?? t('region');
-      notify(s, t('🚧 {name} developed: roads, power lines and new land to build on.', { name }), 'success');
+      notify(s, t('🚧 {name} developed: roads, power lines and new land to build on.', { name: t(name) }), 'success');
       return s;
     }
 

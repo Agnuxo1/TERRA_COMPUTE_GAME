@@ -45,7 +45,8 @@ function walkTables(dir) {
     while ((m = re.exec(text))) {
       const [, prop, raw] = m;
       const v = raw.replace(/\\(['\\])/g, '$1');
-      if (!/^[A-Z¡¿«"'(\u2190-\u2BFF\u{1F300}-\u{1FAFF}]/u.test(v) || !/[a-z]{2}/.test(v) || v.length < 3) continue;
+      const capsLabel = (prop === 'label' || prop === 'title') && /^[A-Z][A-Z .&-]{2,}$/.test(v);
+      if (!capsLabel && (!/^[A-Z¡¿«"'(\u2190-\u2BFF\u{1F300}-\u{1FAFF}]/u.test(v) || !/[a-z]{2}/.test(v) || v.length < 3)) continue;
       if (/^(https?:|\.\/|#|rgba?\(|var\()/.test(v) || /\$\{/.test(v)) continue;
       if (['id', 'effect', 'type', 'kind', 'icon', 'color', 'accent', 'background', 'card', 'eventId', 'requires', 'key', 'sprite', 'overlay', 'iconImg', 'url', 'path', 'font', 'fontFamily'].includes(prop)) continue;
       if (!keys.has(v)) keys.set(v, relative(ROOT, p));
