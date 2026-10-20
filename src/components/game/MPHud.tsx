@@ -6,6 +6,10 @@ import { defcon, hasIntel } from '../../game/engine';
 import { capabilityLabel } from '../../game/format';
 import { play } from '../../hooks/useSound';
 import { t } from '../../i18n';
+import { session } from '../../net/session';
+
+/** Round-trip colour: green < 150 ms, amber < 400, red above. */
+const rttColor = (ms: number) => (ms < 150 ? 'var(--green)' : ms < 400 ? 'var(--amber)' : '#FF3B3B');
 
 export const DEFCON_COLOR = ['', '#FF2D2D', '#FF7A2D', '#FFB84D', '#00F0FF', '#00E5A0'];
 
@@ -16,6 +20,8 @@ export default function MPHud() {
   const [text, setText] = useState('');
   const [seen, setSeen] = useState(0);
   const [ticker, setTicker] = useState<string | null>(null);
+  const [, setBeat] = useState(0);
+  useEffect(() => { const id = setInterval(() => setBeat(n => n + 1), 3000); return () => clearInterval(id); }, []);
   const chat = useMemo(() => state.chat ?? [], [state.chat]);
   const lastLen = useRef(chat.length);
   const d = defcon(state.tension);
@@ -40,7 +46,7 @@ export default function MPHud() {
     const t = text.trim().slice(0, 160);
     if (!t) return;
     dispatch({ type: 'MP_RECV', msg: { t: 'chat', from: mp.me, text: t } });
-    void import('../../net/session').then(({ session }) => session.broadcast({ k: 'msg', m: { t: 'chat', from: mp.me, text: t } }));
+    session.broadcast({ k: 'msg', m: { t: 'chat', from: mp.me, text: t } });
     setText('');
   };
   const unread = Math.max(0, chat.length - seen);
@@ -63,6 +69,7 @@ export default function MPHud() {
           const r = state.rivals.find(x => x.id === p.faction);
           const cap = meP ? state.capability : r?.capability ?? 0;
           const exact = meP || (r && hasIntel(state, r));
+          const ms = meP || !p.online ? undefined : session.rtt(p.peerId);
           return (
             <span key={p.peerId} className="flex items-center gap-1 px-1.5 py-0.5 rounded shrink-0 font-mono-data text-[9.5px]"
               style={{ border: `1px solid ${c?.color ?? '#555'}${meP ? 'CC' : '55'}`, opacity: p.online ? 1 : 0.45 }}
@@ -71,6 +78,7 @@ export default function MPHud() {
                 : t('{player} · {faction} · disconnected (AI government)', { player: p.name, faction: t(c?.name ?? '') })}>
               <span style={{ width: 6, height: 6, borderRadius: 6, background: p.online ? 'var(--green)' : '#666', boxShadow: p.online ? '0 0 6px var(--green)' : 'none' }} />
               <span style={{ color: c?.color }}>{p.name}{p.peerId === mp.players[0]?.peerId && mp.role === 'host' && meP ? ' ★' : ''}</span>
+              {!meP && <span title={t('Latency')} style={{ color: ms === undefined ? 'var(--text-tertiary)' : rttColor(ms) }}>{ms === undefined ? '—' : `${Math.round(ms)}ms`}</span>}
               <span style={{ color: 'var(--text-tertiary)' }}>{exact ? `${capabilityLabel(cap)} ${cap.toFixed(1)}` : `≈${capabilityLabel(Math.round(cap))}`}</span>
             </span>
           );

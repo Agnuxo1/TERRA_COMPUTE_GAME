@@ -25,6 +25,7 @@ import { combine, type DEHelpers, type WorldBonus } from './bonuses.ts';
 import { addInfluence, influenceGain, initZones, playerCoup, playerInfluence, tickZones, zoneBonus, zoneById, zoneHolder } from './zones.ts';
 import { initProjects, projectBonus, startStage, tickProjects } from './projects.ts';
 import { dismiss, hire, initTalent, poach, talentBonus } from './people.ts';
+import { aiEvaluate, applyDeal, reportDeal, validateDeal, type Deal, type DealTerms, type PactRecord } from './deals.ts';
 import { t } from '../i18n/index.ts';
 import { isVictory } from './types.ts';
 import type {
@@ -92,7 +93,9 @@ export type Action =
   | { type: 'COUP'; zone: ZoneId; target: string }
   | { type: 'PROJECT_STAGE'; project: ProjectId }
   | { type: 'HIRE'; scientist: string }
-  | { type: 'DISMISS'; scientist: string };
+  | { type: 'DISMISS'; scientist: string }
+  | { type: 'PROPOSE_DEAL'; to: string; terms: DealTerms }
+  | { type: 'ANSWER_DEAL'; id: string; accept: boolean };
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  INITIAL STATE
@@ -824,7 +827,7 @@ function rivalAction(s: GameState, r: Rival, pioneer: boolean) {
   const name = rivalName(r.id);
   const defense = countBuildings(s, 'defense', true);
   const opsMult = bonus(s, 'enemyOps') ?? 1;
-  if (!pioneer && r.relation < -20 && (r.strategy === 'aggressive' || r.relation < -50) && s.year > 1970 && chance(Math.min(0.95, 0.6 * aggression(r) * (s.mods?.aiAggression ?? 1)))) {
+  if (!pioneer && !pactWith(s, r.id) && r.relation < -20 && (r.strategy === 'aggressive' || r.relation < -50) && s.year > 1970 && chance(Math.min(0.95, 0.6 * aggression(r) * (s.mods?.aiAggression ?? 1)))) {
     const powers = s.modifiers.some(m => m.id === 'emergency_powers') ? 0.7 : 1;
     const sweep = s.modifiers.some(m => m.id === 'counterintel') ? 0.6 : 1;
     raiseTension(s, 3);
@@ -1532,6 +1535,44 @@ const DE: DEHelpers = {
   countBuildings: (s, type) => countBuildings(s, type, true),
 };
 
+// --- G4 deals and pacts -------------------------------------------------------
+/** The non-aggression pact this player holds with a bloc, if still in force. */
+function pactWith(s: GameState, bloc: string): PactRecord | undefined {
+  return (s.pacts ?? []).find(p => p.with === bloc && p.until > s.year);
+}
+
+/** A covert operation ends a pact: the breaker pays the agreed penalty to the victim (each side books its own half). */
+function breakPact(s: GameState, other: string, iBrokeIt: boolean) {
+  const p = pactWith(s, other);
+  if (!p) return;
+  s.pacts = (s.pacts ?? []).filter(x => x !== p);
+  s.budget += iBrokeIt ? -p.penalty : p.penalty;
+  if (iBrokeIt) {
+    s.rivals = s.rivals.map(r => r.id === other ? { ...r, relation: clamp(r.relation - 15, -100, 100) } : r);
+    notify(s, t('⚖ You broke the non-aggression pact with {who} and paid {penalty}.', { who: rivalName(other), penalty: fmtMoneyB(p.penalty) }), 'warning');
+  } else {
+    notify(s, t('⚖ {who} broke your non-aggression pact and paid you {penalty}.', { who: rivalName(other), penalty: fmtMoneyB(p.penalty) }), 'info');
+  }
+  pushLog(s, rivalName(other), t('Non-aggression pact broken.'), 'warning');
+}
+
+/** Closes a deal for this player's side: resources, treaty, pact, relations, log. withAI = also book the AI bloc's half. */
+function settleDeal(s: GameState, d: Deal, accept: boolean, withAI = false) {
+  s.deals = (s.deals ?? []).map(x => x.id === d.id ? { ...x, status: accept ? 'accepted' as const : 'declined' as const } : x);
+  reportDeal(s, DE, d, accept ? 'accepted' : 'declined');
+  if (!accept) return;
+  const me = meId(s);
+  const other = d.from === me ? d.to : d.from;
+  const pact = applyDeal(s, d, me);
+  if (withAI) applyDeal(s, d, other);
+  if (pact) s.pacts = [...(s.pacts ?? []).filter(p => p.with !== other), pact];
+  const treaty = d.terms.treaty;
+  s.rivals = s.rivals.map(r => r.id !== other ? r : {
+    ...r, relation: clamp(r.relation + 4, -100, 100),
+    treaties: treaty && !r.treaties.includes(treaty) ? [...r.treaties, treaty] : r.treaties,
+  });
+}
+
 /** Phases D & E: bonuses from the zones you hold, the projects you own and the scientists you hired. */
 export function worldBonus(s: GameState): WorldBonus {
   const me = meId(s);
@@ -1844,6 +1885,19 @@ function receive(state: GameState, m: MPMsg): GameState {
   const s: GameState = { ...state, rivals: state.rivals.map(r => ({ ...r, treaties: [...r.treaties] })) };
   const host = s.mp!.role === 'host';
   switch (m.t) {
+    case 'deal': {
+      if (m.to !== me || m.deal?.to !== me || m.deal.from !== m.from || !m.deal.terms) return state;
+      if ((s.deals ?? []).some(d => d.id === m.deal.id)) return state;
+      s.deals = [...(s.deals ?? []), { ...m.deal, status: 'open' as const }].slice(-30);
+      notify(s, t('🤝 {who} offers you a deal. Open Diplomacy to answer.', { who: rivalName(m.from) }), 'info');
+      return s;
+    }
+    case 'dealr': {
+      const d = (s.deals ?? []).find(x => x.id === m.id && x.from === me && x.to === m.from && x.status === 'open');
+      if (!d || m.to !== me) return state;
+      settleDeal(s, d, m.accept);
+      return s;
+    }
     case 'zone': {
       // Zones are host-authoritative: guests send their influence and coups, the host applies and rebroadcasts.
       if (!host || !zoneById(m.zone) || !Number.isFinite(m.delta)) return state;
@@ -1854,6 +1908,7 @@ function receive(state: GameState, m: MPMsg): GameState {
     }
     case 'op':
       if (host) raiseTension(s, m.tn, m.from);
+      if (m.to === me) breakPact(s, m.from, false);
       if (m.to === me) sufferOperation(s, m.from, m.op, m.ok);
       else if (!m.ok && m.op !== 'intel') {
         notify(s, t('🕵 {from} was caught running a {op} operation against {to}.', { from: rivalName(m.from), op: m.op, to: rivalName(m.to) }), 'info');
@@ -2167,6 +2222,7 @@ function reduce(state: GameState, action: Action): GameState {
       const ok = rand() < covertChance(s, rv, action.op);
       rv.heat = (rv.heat ?? 0) + COVERT_HEAT[action.op];
       const humanTarget = isHuman(s, rv.id);
+      breakPact(s, rv.id, true);
       const tn = COVERT_TENSION[action.op] * (ok ? 1 : 1.5);
       raiseTension(s, tn, meId(s));
       if (s.mp) outbox(s, { t: 'op', from: s.mp.me, to: rv.id, op: action.op, ok, tn });
@@ -2293,6 +2349,35 @@ function reduce(state: GameState, action: Action): GameState {
       dismiss(s, action.scientist);
       return s;
     }
+    case 'PROPOSE_DEAL': {
+      const me = meId(state);
+      const r = state.rivals.find(x => x.id === action.to);
+      if (!r || action.to === me) return state;
+      const s: GameState = { ...state, rivals: state.rivals.map(x => ({ ...x })) };
+      const deal: Deal = { id: nid('deal'), from: me, to: action.to, terms: action.terms, year: Math.floor(s.year), status: 'open' };
+      const human = isHuman(s, r.id);
+      if (!validateDeal(s, deal, human ? 'from' : 'both').ok) return state;
+      s.deals = [...(s.deals ?? []), deal].slice(-30);
+      if (human) {
+        outbox(s, { t: 'deal', from: me, to: r.id, deal });
+        reportDeal(s, DE, deal, 'proposed');
+        return s;
+      }
+      const verdict = aiEvaluate(s, r, action.terms);
+      if (!verdict.accept) notify(s, t('{who} declined: {reason}', { who: rivalName(r.id), reason: verdict.reason }), 'warning');
+      settleDeal(s, deal, verdict.accept, true);
+      return s;
+    }
+    case 'ANSWER_DEAL': {
+      const me = meId(state);
+      const d = (state.deals ?? []).find(x => x.id === action.id && x.to === me && x.status === 'open');
+      if (!d) return state;
+      const s: GameState = { ...state, rivals: state.rivals.map(x => ({ ...x })) };
+      const accept = action.accept && validateDeal(s, d, 'to').ok;
+      outbox(s, { t: 'dealr', from: me, to: d.from, id: d.id, accept });
+      settleDeal(s, d, accept);
+      return s;
+    }
     case 'TOGGLE_MOBILISE': {
       if (!mobiliseAvailable(state)) return state;
       const on = !state.mobilised;
@@ -2374,6 +2459,13 @@ function reduce(state: GameState, action: Action): GameState {
       for (const p of state.mp.players) {
         if (p.online && !action.players.find(x => x.peerId === p.peerId)?.online && p.faction !== state.mp.me) {
           notify(s, t('📡 {player} ({faction}) disconnected — an AI government takes over.', { player: p.name, faction: rivalName(p.faction) }), 'warning');
+        }
+      }
+      // G1: a returning human takes their bloc back from the AI government (same faction, new peer id).
+      for (const p of action.players) {
+        const before = state.mp.players.find(x => x.faction === p.faction);
+        if (p.online && before && !before.online && p.faction !== state.mp.me) {
+          notify(s, t('📡 {player} ({faction}) reconnected and takes command again.', { player: p.name, faction: rivalName(p.faction) }), 'success');
         }
       }
       if (action.offline && !state.mp.offline) notify(s, t('📡 The host left the war room. The game continues offline against AI governments.'), 'warning');

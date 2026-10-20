@@ -112,6 +112,11 @@ export default function DiplomacyPanel() {
                     </button>
                   );
                 })}
+                <button onClick={() => { play('click'); dispatch({ type: 'OPEN_OVERLAY', overlay: 'deal:' + r.id }); }}
+                  className="col-span-2 font-mono-data text-[9px] py-1 rounded hover:brightness-125"
+                  style={{ color: '#7B61FF', border: '1px solid #7B61FF' }} title={t('Offer money, chips, steel, intel, a treaty or a non-aggression pact')}>
+                  🤝 {t('PROPOSE A DEAL')}
+                </button>
               </div>
             </div>
           );

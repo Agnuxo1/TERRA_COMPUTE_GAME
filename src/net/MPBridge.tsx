@@ -21,7 +21,23 @@ function cleanZones(z: unknown): GameState['zones'] {
   }
   return Object.keys(out).length === 6 ? out as Record<ZoneId, ZoneState> : undefined;
 }
-import { session, type LobbyState } from './session';
+import { session, readMPSave, writeMPSave, type LobbyState } from './session';
+import type { Deal, DealSide } from '../game/deals';
+
+const TREATIES = ['trade', 'research', 'climate', 'safety'];
+/** A peer's deal, rebuilt field by field: numbers clamped, unknown fields dropped, sender and target pinned. */
+function cleanDeal(raw: unknown, from: string, to: string): Deal | null {
+  const d = raw as Deal | undefined;
+  if (!d || typeof d.id !== 'string' || d.from !== from || d.to !== to || !d.terms) return null;
+  const side = (x: DealSide | undefined): DealSide => ({
+    money: clampN(x?.money ?? 0, 0, 1e6), chips: clampN(x?.chips ?? 0, 0, 1e6), steel: clampN(x?.steel ?? 0, 0, 1e6), intel: x?.intel === true,
+  });
+  const treaty = TREATIES.includes(String(d.terms.treaty)) ? d.terms.treaty : undefined;
+  return {
+    id: d.id.slice(0, 40), from, to, year: clampN(d.year, 1900, 2100), status: 'open',
+    terms: { give: side(d.terms.give), get: side(d.terms.get), treaty, napYears: clampN(d.terms.napYears ?? 0, 0, 10), penalty: clampN(d.terms.penalty ?? 0, 0, 1e6) },
+  };
+}
 
 /** Builds this player's opening state from the lobby the host started. */
 export function startMultiplayer(lobby: LobbyState, selfId: string): GameState | null {
@@ -31,6 +47,22 @@ export function startMultiplayer(lobby: LobbyState, selfId: string): GameState |
   const players: MPPlayer[] = lobby.players.filter(p => p.faction).map(p => ({ peerId: p.peerId, name: p.name, faction: p.faction!, online: p.online }));
   s = { ...s, mp: { role: lobby.hostId === selfId ? 'host' : 'guest', me: me.faction, room: lobby.code, players }, mpOutbox: [], chat: [], paused: false, speed: 1 };
   return s;
+}
+
+/**
+ * Reopens this player's local save of a running (or resumed) game with the roster taken from the lobby.
+ * Returns null when there is no save, or the lobby seats me on a different bloc than the save.
+ */
+export function stateFromSave(lobby: LobbyState, selfId: string): GameState | null {
+  const raw = readMPSave(lobby.code);
+  const me = lobby.players.find(p => p.peerId === selfId);
+  if (!raw || !me?.faction) return null;
+  let saved: GameState;
+  try { saved = JSON.parse(raw) as GameState; } catch { return null; }
+  if (!saved.mp || saved.mp.me !== me.faction) return null;
+  const players: MPPlayer[] = lobby.players.filter(p => p.faction).map(p => ({ peerId: p.peerId, name: String(p.name).slice(0, 18), faction: p.faction!, online: p.online || p.peerId === selfId }));
+  const role = lobby.hostId === selfId ? 'host' : 'guest';
+  return { ...saved, mp: { role, me: me.faction, room: lobby.code, players }, mpOutbox: [], screen: 'game', paused: role === 'host' ? true : saved.paused };
 }
 
 export default function MPBridge() {
@@ -73,6 +105,8 @@ export default function MPBridge() {
           if (m.t === 'diplo' && m.amount !== undefined) m.amount = clampN(m.amount, 0, 3 * giftCost(s));
           if (m.t === 'op' && !Number.isFinite(m.tn)) return;
           if (m.t === 'zone') { if (!Number.isFinite(m.delta)) return; m.delta = clampN(m.delta, -15, 15); }
+          if (m.t === 'deal') { const d = cleanDeal(m.deal, m.from, m.to); if (!d) return; m.deal = d; }
+          if (m.t === 'dealr' && (typeof m.id !== 'string' || typeof m.accept !== 'boolean')) return;
           if (m.t === 'op') m.tn = clampN(m.tn, 0, 15);
           if (m.t === 'aiop') { m.lag = clampN(m.lag ?? 0, -1.5, 3); m.align = clampN(m.align ?? 0, -15, 25); m.stability = clampN(m.stability ?? 0, -30, 10); m.clean = clampN(m.clean ?? 0, -0.1, 0.3); }
           dispatch({ type: 'MP_RECV', msg: m });
@@ -97,8 +131,13 @@ export default function MPBridge() {
     return session.subscribe(() => {
       const s = ref.current;
       if (!s.mp || s.mp.offline) return;
-      const players = s.mp.players.map(p => ({ ...p, online: p.peerId === session.selfId || session.peers.has(p.peerId) }));
-      const changed = players.some((p, i) => p.online !== s.mp!.players[i].online);
+      // The host owns the roster: a returning player has a new peer id in the lobby.
+      const lob = session.lobby;
+      const base: MPPlayer[] = s.mp.role === 'host' && lob?.started && lob.hostId === session.selfId
+        ? lob.players.filter(p => p.faction).map(p => ({ peerId: p.peerId, name: p.name, faction: p.faction!, online: p.online }))
+        : s.mp.players;
+      const players = base.map(p => ({ ...p, online: p.peerId === session.selfId || session.peers.has(p.peerId) }));
+      const changed = players.length !== s.mp.players.length || players.some((p, i) => p.online !== s.mp!.players[i].online || p.peerId !== s.mp!.players[i].peerId);
       if (changed || session.hostGone) dispatch({ type: 'MP_PLAYERS', players, offline: s.mp.role === 'guest' && session.hostGone });
     });
   }, [active, dispatch]);
@@ -128,6 +167,23 @@ export default function MPBridge() {
     for (const m of out) session.broadcast({ k: 'msg', m });
     dispatch({ type: 'MP_OUTBOX_CLEAR', n: out.length });
   }, [active, state.mpOutbox, dispatch]);
+
+  // Rolling local save, once per in-game year (reconnection and resume).
+  const saveYear = Math.floor(state.year);
+  useEffect(() => {
+    const s = ref.current;
+    if (!active || !s.mp || s.screen !== 'game') return;
+    try {
+      const json = JSON.stringify({ ...s, mpOutbox: [] });
+      const lob = session.lobby;
+      const tokens = new Map((lob?.players ?? []).map(p => [p.faction, p.token]));
+      writeMPSave(json, {
+        code: s.mp.room, year: saveYear, savedAt: Date.now(), role: s.mp.role, me: s.mp.me,
+        players: s.mp.players.map(p => ({ name: p.name, faction: p.faction, ...(s.mp!.role === 'host' && tokens.get(p.faction) ? { token: tokens.get(p.faction) } : {}) })),
+        mode: s.gameMode === 'strategist' ? 'strategist' : 'complete', difficulty: s.difficulty, seed: s.seed,
+      });
+    } catch { /* unserialisable or storage full: skip this year */ }
+  }, [active, saveYear]);
 
   // Leaving the game screen for good closes the room.
   useEffect(() => {
