@@ -16,7 +16,8 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
-@media (max-width: 768px), (pointer: coarse) {
+/* Stacked layout only on narrow screens: wide touch screens (tablets, the Android build at 1280+ CSS px) keep the desktop layout. */
+@media (max-width: 768px), (pointer: coarse) and (max-width: 1100px) {
   .game-screen-shell {
     height: 100dvh !important;
     min-height: 100dvh !important;
