@@ -55,6 +55,8 @@ const GameOverScreen = lazyRetry(() => import('./pages/GameOverScreen'));
 const VictoryScreen = lazyRetry(() => import('./pages/VictoryScreen'));
 const LogicModeScreen = lazyRetry(() => import('./pages/LogicModeScreen'));
 const LobbyScreen = lazyRetry(() => import('./pages/LobbyScreen'));
+const ScenarioSelect = lazyRetry(() => import('./pages/ScenarioSelect'));
+const ChallengeScreen = lazyRetry(() => import('./pages/ChallengeScreen'));
 const MPBridge = lazyRetry(() => import('./net/MPBridge'));
 
 /** Network bridge for peer-to-peer games; closes the war room when the player returns to the menu. */
@@ -77,6 +79,8 @@ function Router() {
     case 'game': return <GameScreen />;
     case 'logic': return <LogicModeScreen />;
     case 'lobby': return <LobbyScreen />;
+    case 'scenarios': return <ScenarioSelect />;
+    case 'challenge': return <ChallengeScreen />;
     case 'gameover': return <GameOverScreen />;
     case 'victory': return <VictoryScreen />;
     default: return <TitleScreen />;

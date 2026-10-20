@@ -6,9 +6,51 @@ import SettingsForm from '../components/meta/SettingsForm';
 import SaveSlots, { latestSave, slotLabel } from '../components/meta/SaveSlots';
 import { loadGame, type SaveSlot } from '../game/save';
 import { ACHIEVEMENTS, getUnlocked } from '../game/achievements';
+import { dossierRows, outcomeLabel, scenarioLabel, type DossierResult } from '../game/dossier';
+import { continentById } from '../game/data';
 import { t } from '../i18n';
 
 type Panel = 'howto' | 'settings' | 'credits' | 'load' | 'achievements';
+
+function modeLabel(mode: string): string {
+  if (mode === 'pioneer') return t('Pioneer');
+  if (mode === 'strategist') return t('Strategist');
+  if (mode === 'logic') return t('Logic');
+  return t('Complete');
+}
+
+// Faction dossier shown under the achievements: per faction games, wins, best score and the latest results.
+function FactionDossierView() {
+  const rows = dossierRows();
+  return (
+    <div className="flex flex-col gap-2 mt-3">
+      <h3 className="font-orbitron text-[10px] tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>{t('FACTION DOSSIER')}</h3>
+      {rows.length === 0 && (
+        <p className="font-rajdhani text-[11px]" style={{color:'var(--text-tertiary)'}}>{t('No finished games on this device yet.')}</p>
+      )}
+      {rows.map(({ faction, dossier }) => (
+        <div key={faction} className="p-2 rounded" style={{background:'rgba(255,255,255,0.02)',border:'1px solid var(--border)'}}>
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="font-orbitron text-[9.5px] font-bold tracking-wider" style={{color:'#33FF33'}}>{t(continentById(faction)?.name ?? faction)}</span>
+            <span className="font-mono-data text-[8.5px]" style={{color:'var(--text-tertiary)'}}>
+              {t('{games} games · {wins} wins · best {score}', { games: dossier.games, wins: dossier.wins, score: dossier.bestScore })}
+            </span>
+          </div>
+          <ul className="font-mono-data text-[8.5px] flex flex-col gap-0.5 list-none mt-1" style={{paddingLeft:0,color:'var(--text-secondary)'}}>
+            {[...dossier.results].reverse().slice(0, 5).map((r: DossierResult) => (
+              <li key={r.at + r.outcome + r.year} className="flex gap-1.5 flex-wrap">
+                <span style={{color: r.won ? '#33FF33' : 'var(--rose)'}}>{r.won ? '◆' : '◇'}</span>
+                <span>{t('{outcome} · {year} · {mode}', { outcome: outcomeLabel(r.outcome), year: r.year, mode: modeLabel(r.mode) })}</span>
+                {r.scenario && <span style={{color:'#00F0FF'}}>[{scenarioLabel(r.scenario)}]</span>}
+                {r.challenge && <span style={{color:'#00F0FF'}}>[{r.challenge}]</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function TitleScreen() {
   const { dispatch } = useGame();
@@ -66,6 +108,8 @@ export default function TitleScreen() {
     ...(latest?[{label:t('CONTINUE'),action:()=>{play('click');loadSlot(latest.slot);},icon:'↻',
       sub:t('{slot} · {year}', {slot: slotLabel(latest.slot), year: latest.year})}]:[]),
     {label:t('NEW GAME'),action:handleNewGame,icon:'▶'},
+    {label:t('SCENARIOS'),action:()=>{play('click');dispatch({type:'SET_SCREEN',screen:'scenarios'});},icon:'◎',sub:t('Historical starts')},
+    {label:t('DAILY CHALLENGE'),action:()=>{play('click');dispatch({type:'SET_SCREEN',screen:'challenge'});},icon:'✦',sub:t('Same world for everyone')},
     {label:t('WAR ROOM · MULTIPLAYER'),action:()=>{play('click');dispatch({type:'SET_SCREEN',screen:'lobby'});},icon:'☢',sub:t('Up to 8 players · peer-to-peer')},
     {label:t('LOAD GAME'),action:()=>openPanel('load'),icon:'⇩'},
     {label:t('HOW TO PLAY'),action:()=>openPanel('howto'),icon:'?'},
@@ -316,6 +360,7 @@ export default function TitleScreen() {
                     </div>
                   );
                 })}
+                <FactionDossierView/>
               </div>
             )}
 

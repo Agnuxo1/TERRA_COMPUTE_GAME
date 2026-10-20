@@ -75,7 +75,7 @@ for (const [f, re] of [['engine.ts', /reportLine\(\s*'((?:[^'\\]|\\.)+)'/g], ['a
 
 // Data tables: collect the human-readable fields.
 const FIELDS = new Set(['name', 'short', 'description', 'text', 'hint', 'label', 'detail', 'title', 'subtitle', 'placement', 'note',
-  'specialBonus', 'doctrine', 'motto', 'pro', 'con', 'howTo', 'rewardLabel', 'effect', 'doctrineText']);
+  'specialBonus', 'doctrine', 'motto', 'pro', 'con', 'howTo', 'rewardLabel', 'effect', 'doctrineText', 'blurb', 'goals']);
 function collect(obj, path, src) {
   if (Array.isArray(obj)) { obj.forEach((v, i) => collect(v, `${path}[${i}]`, src)); return; }
   if (!obj || typeof obj !== 'object') return;
@@ -94,6 +94,7 @@ for (const s of [...data.ERA_NAMES, ...Object.values(data.CATEGORY_LABEL)]) if (
 collect({ policies: (await mod('game/policies.ts')).POLICIES }, 'policies', 'src/game/policies.ts');
 collect({ achievements: (await mod('game/achievements.ts')).ACHIEVEMENTS }, 'achievements', 'src/game/achievements.ts');
 collect({ leaders: (await mod('game/dynamic-events.ts')).RIVAL_LEADERS }, 'leaders', 'src/game/dynamic-events.ts');
+collect({ scenarios: (await mod('game/scenarios.ts')).SCENARIOS }, 'scenarios', 'src/game/scenarios.ts');
 const eng = await mod('game/engine.ts');
 collect({ objectives: eng.OBJECTIVES, treaties: eng.TREATY_INFO }, 'engine', 'src/game/engine.ts');
 collect({ minigames: Object.values(await mod('components/minigames/meta.ts')) }, 'minigames', 'src/components/minigames/meta.ts');

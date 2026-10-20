@@ -3,9 +3,13 @@ import { useGame, continents } from '../App';
 import { play } from '../hooks/useSound';
 import { isVideoPlayed, markVideoPlayed, getVideoUrl } from '../hooks/useVideo';
 import VideoPlayer from '../components/game/VideoPlayer';
-import type { Difficulty } from '../game/types';
+import type { Difficulty, GameMods } from '../game/types';
 import { loadBest } from '../game/score';
 import { t } from '../i18n';
+import {
+  MOD_DEFS, describeMods, isNeutral, loadMods, modsForGame, saveMods, setMod,
+  type ModDef,
+} from '../game/modifiers';
 
 const DIFF_KEY = 'terra_compute_difficulty';
 // Built at render time so the labels follow the active language.
@@ -102,7 +106,10 @@ export default function ContinentSelect() {
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [pendingContinent, setPendingContinent] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty>(loadDifficulty);
+  const [mods, setMods] = useState<GameMods>(loadMods);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const DIFFICULTIES = buildDifficulties();
+  const modChips = describeMods(mods);
 
   const chooseDifficulty = (d: Difficulty) => {
     play('click');
@@ -112,6 +119,19 @@ export default function ContinentSelect() {
     } catch {
       // storage unavailable
     }
+  };
+
+  const changeMod = (def: ModDef, value: number | boolean) => {
+    play('click');
+    const next = setMod(mods, def, value);
+    setMods(next);
+    saveMods(next);
+  };
+
+  const resetMods = () => {
+    play('click');
+    setMods({});
+    saveMods({});
   };
 
   useEffect(() => {
@@ -134,14 +154,14 @@ export default function ContinentSelect() {
       setVideoSrc(getVideoUrl(videoId));
       setPendingContinent(selected);
     } else {
-      dispatch({ type: 'START_GAME', continentId: selected, difficulty });
+      dispatch({ type: 'START_GAME', continentId: selected, difficulty, mods: modsForGame(mods) });
     }
   };
 
   const handleVideoComplete = () => {
     setVideoSrc(null);
     if (pendingContinent) {
-      dispatch({ type: 'START_GAME', continentId: pendingContinent, difficulty });
+      dispatch({ type: 'START_GAME', continentId: pendingContinent, difficulty, mods: modsForGame(mods) });
       setPendingContinent(null);
     }
   };
@@ -473,6 +493,123 @@ export default function ContinentSelect() {
             </span>
           </div>
         )}
+
+        {/* ─── Game options (collapsed by default, neutral = historical balance) ─── */}
+        <div className="w-full rounded-lg" style={{ background: 'rgba(11,12,16,0.7)', border: '1px solid var(--border)' }}>
+          <button
+            type="button"
+            onClick={() => setOptionsOpen(o => !o)}
+            aria-expanded={optionsOpen}
+            aria-controls="game-options-panel"
+            className="w-full flex items-center justify-between gap-3 px-4 py-2 text-left"
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+          >
+            <span
+              className="font-orbitron text-[11px] font-bold tracking-[0.18em] whitespace-nowrap"
+              style={{ color: modChips.length ? 'var(--amber)' : 'var(--text-secondary)' }}
+            >
+              {optionsOpen ? '▾' : '▸'} {t('GAME OPTIONS')}
+            </span>
+            <span className="font-rajdhani text-[11px] truncate" style={{ color: 'var(--text-tertiary)' }}>
+              {modChips.length ? modChips.join(' · ') : t('Standard rules')}
+            </span>
+          </button>
+
+          {optionsOpen && (
+            <div id="game-options-panel" className="px-4 pb-3 flex flex-col gap-3">
+              {MOD_DEFS.map(def => {
+                if (def.control === 'toggle') {
+                  const on = !!mods[def.key];
+                  return (
+                    <button
+                      key={def.key}
+                      type="button"
+                      role="switch"
+                      aria-checked={on}
+                      onClick={() => changeMod(def, !on)}
+                      className="flex items-start gap-3 text-left"
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
+                    >
+                      <span
+                        className="mt-0.5 w-8 h-4 rounded-full flex-shrink-0 relative transition-all"
+                        style={{ background: on ? 'color-mix(in srgb, var(--amber), transparent 60%)' : 'var(--surface)', border: '1px solid var(--border-light)' }}
+                      >
+                        <span
+                          className="absolute top-0.5 w-3 h-3 rounded-full transition-all"
+                          style={{ left: on ? 16 : 2, background: on ? 'var(--amber)' : 'var(--text-tertiary)' }}
+                        />
+                      </span>
+                      <span className="flex flex-col">
+                        <span className="font-orbitron text-[10px] tracking-wider" style={{ color: on ? 'var(--amber)' : 'var(--text-primary)' }}>
+                          {t(def.label)}
+                        </span>
+                        <span className="font-rajdhani text-[11px] leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                          {t(def.description)}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                }
+                const current = (mods[def.key] as number | undefined) ?? def.neutral;
+                return (
+                  <div key={def.key} className="flex flex-col gap-1.5">
+                    <div className="flex flex-col">
+                      <span className="font-orbitron text-[10px] tracking-wider" style={{ color: 'var(--text-primary)' }}>
+                        {t(def.label)}
+                      </span>
+                      <span className="font-rajdhani text-[11px] leading-snug" style={{ color: 'var(--text-secondary)' }}>
+                        {t(def.description)}
+                      </span>
+                    </div>
+                    <div role="radiogroup" aria-label={t(def.label)} className="flex flex-wrap gap-1.5">
+                      {def.options.map(o => {
+                        const on = current === o.value;
+                        return (
+                          <button
+                            key={o.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={on}
+                            onClick={() => changeMod(def, o.value)}
+                            className="font-orbitron text-[10px] tracking-wider px-3 py-1.5 rounded transition-all"
+                            style={{
+                              background: on ? 'color-mix(in srgb, var(--cyan), transparent 80%)' : 'rgba(11,12,16,0.85)',
+                              color: on ? 'var(--cyan)' : 'var(--text-tertiary)',
+                              border: on ? '1px solid var(--cyan)' : '1px solid var(--border-light)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {t(o.label)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-rajdhani text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+                  {t('Options apply to new games only. Remembered for your next game.')}
+                </span>
+                <button
+                  type="button"
+                  onClick={resetMods}
+                  disabled={isNeutral(mods)}
+                  className="font-orbitron text-[10px] tracking-wider px-3 py-1.5 rounded"
+                  style={{
+                    background: 'var(--surface)',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border)',
+                    cursor: isNeutral(mods) ? 'default' : 'pointer',
+                    opacity: isNeutral(mods) ? 0.5 : 1,
+                  }}
+                >
+                  {t('STANDARD RULES')}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* ─── Difficulty + Begin (stays in view on short screens) ─── */}
         <div className="sticky bottom-0 z-20 w-full flex flex-wrap justify-center items-center gap-3 py-2"

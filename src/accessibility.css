@@ -1,0 +1,23 @@
+/* Accessibility remaps. Selected by applyAccessibility() via data attributes on <html>.
+   Only the status colours change: green = success, amber = warning, rose = danger, cyan = accent. */
+
+/* Red-green colour blindness: blue / yellow / orange instead of green / amber / red. */
+:root[data-colorblind="deuteranopia"],
+:root[data-colorblind="protanopia"] {
+  --green: #4DA3FF;      --green-dim: #4DA3FF22;
+  --amber: #FFE14D;      --amber-dim: #FFE14D22;
+  --rose: #FF8A00;       --rose-dim: #FF8A0022;
+  --cyan: #B794F6;       --cyan-dim: #B794F622;
+}
+
+/* Blue-yellow colour blindness: pink / orange / crimson instead of cyan / amber / rose-blue. */
+:root[data-colorblind="tritanopia"] {
+  --cyan: #FF7AC6;       --cyan-dim: #FF7AC622;
+  --amber: #FF8C42;      --amber-dim: #FF8C4222;
+  --rose: #E0115F;       --rose-dim: #E0115F22;
+}
+
+/* Shape cue in addition to colour. The UI marks a status element with data-status="success|warning|danger". */
+.cb-shapes [data-status="success"]::before { content: "\25CF\00A0"; }
+.cb-shapes [data-status="warning"]::before { content: "\25B2\00A0"; }
+.cb-shapes [data-status="danger"]::before { content: "\25A0\00A0"; }

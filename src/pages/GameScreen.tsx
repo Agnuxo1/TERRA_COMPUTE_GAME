@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useGame } from '../App';
-import { play, startAmbient, stopAmbient } from '../hooks/useSound';
-import { TICK_MS } from '../game/engine';
+import { play, setMusicMood, startAmbient, stopAmbient } from '../hooks/useSound';
+import { TICK_MS, defcon } from '../game/engine';
 import ResourceBar from '../components/game/ResourceBar';
 import RTSMap from '../components/game/map/RTSMap';
 import EvolvingMap from '../components/game/EvolvingMap';
@@ -9,6 +9,7 @@ import CommandCard from '../components/game/CommandCard';
 import EventModal from '../components/game/EventModal';
 import NotificationFeed from '../components/game/NotificationFeed';
 import YearReport from '../components/game/YearReport';
+import EraTransition from '../components/game/EraTransition';
 import TechTreeOverlay from '../components/game/TechTreeOverlay';
 import Translator from '../components/game/Translator';
 import Tutorial from '../components/game/Tutorial';
@@ -57,8 +58,14 @@ export default function GameScreen() {
 
   useEffect(() => {
     startAmbient();
-    return () => stopAmbient();
+    return () => { setMusicMood(null); stopAmbient(); };
   }, []);
+
+  // Phase F1: the score follows the era, DEFCON and the final race (same era boundaries as the HUD).
+  const era = state.year < 1971 ? 1 : state.year < 1983 ? 2 : state.year < 2006 ? 3 : state.year < 2023 ? 4 : 5;
+  const level = defcon(state.tension ?? 20);
+  const asiRace = state.playerLaunchReady || state.rivals.some(r => r.project !== undefined);
+  useEffect(() => { setMusicMood({ era, defcon: level, asiRace }); }, [era, level, asiRace]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -131,6 +138,7 @@ export default function GameScreen() {
 
           <NotificationFeed />
           <YearReport />
+          <EraTransition />
           {state.overlay === 'tech' && <TechTreeOverlay />}
 
           {state.paused && !state.activeEvent && (
