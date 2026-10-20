@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { play } from '../../hooks/useSound';
+import { t } from '../../i18n';
 import { MinigameResultCard, MinigameShell, RetroButton } from './MinigameShell';
 import type { MinigameProps, MinigameResult } from './types';
 import {
@@ -75,10 +76,18 @@ export default function TuringGame({ difficulty, onComplete }: MinigameProps) {
     if (fb.exact === CODE_LEN) {
       play('coin');
       const stars = starsForAttempts(difficulty, next.length);
-      setResult({ stars, summary: `Rotors cracked in ${next.length} ${next.length === 1 ? 'test' : 'tests'}.` });
+      setResult({
+        stars,
+        summary: next.length === 1
+          ? t('Rotors cracked in {n} test.', { n: next.length })
+          : t('Rotors cracked in {n} tests.', { n: next.length }),
+      });
     } else if (next.length >= cfg.maxAttempts) {
       play('alert');
-      setResult({ stars: 0, summary: `Out of tests. The setting was ${secret.map(symbolLabel).join(' ')}.` });
+      setResult({
+        stars: 0,
+        summary: t('Out of tests. The setting was {setting}.', { setting: secret.map(symbolLabel).join(' ') }),
+      });
     } else {
       play(fb.exact + fb.partial > 0 ? 'tech' : 'click');
     }
@@ -90,8 +99,8 @@ export default function TuringGame({ difficulty, onComplete }: MinigameProps) {
 
   useEffect(() => {
     if (!result) return;
-    const t = setTimeout(() => setShowCard(true), 1100);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setShowCard(true), 1100);
+    return () => clearTimeout(timer);
   }, [result]);
 
   // keyboard: letters set the focused rotor, arrows move/cycle, Enter tests
@@ -133,8 +142,8 @@ export default function TuringGame({ difficulty, onComplete }: MinigameProps) {
   return (
     <MinigameShell
       meta={meta}
-      status={`TESTS ${history.length}/${cfg.maxAttempts} · 3★ ≤ ${cfg.star3}`}
-      onAbandon={() => finish({ stars: 0, summary: 'Exercise abandoned.' })}
+      status={t('TESTS {used}/{max} · 3★ ≤ {star3}', { used: history.length, max: cfg.maxAttempts, star3: cfg.star3 })}
+      onAbandon={() => finish({ stars: 0, summary: t('Exercise abandoned.') })}
     >
       <div className="relative flex h-full w-full flex-col gap-3 md:flex-row md:items-stretch md:justify-center">
         {/* Rotor console */}
@@ -143,7 +152,10 @@ export default function TuringGame({ difficulty, onComplete }: MinigameProps) {
           style={{ background: 'rgba(12,13,18,0.9)', border: `2px solid ${ACCENT}`, boxShadow: `0 0 26px ${ACCENT}33` }}
         >
           <div className="font-mono-data text-[10px] tracking-[0.25em]" style={{ color: ACCENT }}>
-            ROTOR BANK · {cfg.symbols} SYMBOLS · {cfg.repeats ? 'REPEATS ALLOWED' : 'NO REPEATS'}
+            {t('ROTOR BANK · {symbols} SYMBOLS · {mode}', {
+              symbols: cfg.symbols,
+              mode: cfg.repeats ? t('REPEATS ALLOWED') : t('NO REPEATS'),
+            })}
           </div>
 
           <div key={shake} className="flex items-center justify-center gap-2 md:gap-3" style={shake ? { animation: 'turing-shake 0.3s' } : undefined}>
@@ -154,13 +166,13 @@ export default function TuringGame({ difficulty, onComplete }: MinigameProps) {
                   disabled={done}
                   className="font-mono-data text-xs rounded px-3 py-0.5 transition-all hover:brightness-150 active:scale-90"
                   style={{ color: ACCENT, border: '1px solid var(--border-light)', background: '#0008' }}
-                  aria-label={`rotor ${i + 1} up`}
+                  aria-label={t('rotor {n} up', { n: i + 1 })}
                 >▲</button>
                 <button
                   onClick={() => { setFocus(i); setRotor(i, g + 1); play('click'); }}
                   disabled={done}
                   onContextMenu={e => { e.preventDefault(); setRotor(i, g - 1); play('click'); }}
-                  title="Click to cycle. Right-click to go back."
+                  title={t('Click to cycle. Right-click to go back.')}
                   className="font-orbitron font-black select-none transition-all hover:brightness-125 active:scale-95"
                   style={{
                     width: 'clamp(50px, 9vw, 84px)',
@@ -181,7 +193,7 @@ export default function TuringGame({ difficulty, onComplete }: MinigameProps) {
                   disabled={done}
                   className="font-mono-data text-xs rounded px-3 py-0.5 transition-all hover:brightness-150 active:scale-90"
                   style={{ color: ACCENT, border: '1px solid var(--border-light)', background: '#0008' }}
-                  aria-label={`rotor ${i + 1} down`}
+                  aria-label={t('rotor {n} down', { n: i + 1 })}
                 >▼</button>
               </div>
             ))}
@@ -189,25 +201,25 @@ export default function TuringGame({ difficulty, onComplete }: MinigameProps) {
 
           <div className="flex items-center gap-3">
             <RetroButton accent={ACCENT} onClick={test} disabled={done || !valid} active className="px-6 py-2 text-sm font-bold tracking-widest">
-              TEST ⏎
+              {t('TEST ⏎')}
             </RetroButton>
             <div className="flex flex-col items-start gap-0.5">
-              <span className="font-mono-data text-[10px]" style={{ color: 'var(--text-tertiary)' }}>LAST RESULT</span>
+              <span className="font-mono-data text-[10px]" style={{ color: 'var(--text-tertiary)' }}>{t('LAST RESULT')}</span>
               <Lamps exact={last?.fb.exact ?? 0} partial={last?.fb.partial ?? 0} size={14} />
             </div>
           </div>
           <div className="font-mono-data text-[10px] h-3" style={{ color: dupHint ? 'var(--rose)' : 'var(--text-tertiary)' }}>
-            {dupHint ? 'This machine has no repeated rotors.' : `${attemptsLeft} tests left`}
+            {dupHint ? t('This machine has no repeated rotors.') : t('{n} tests left', { n: attemptsLeft })}
           </div>
 
           {/* Note pad */}
           <div className="flex flex-wrap items-center justify-center gap-1.5">
-            <span className="font-mono-data text-[10px] mr-1" style={{ color: 'var(--text-tertiary)' }}>NOTE PAD</span>
+            <span className="font-mono-data text-[10px] mr-1" style={{ color: 'var(--text-tertiary)' }}>{t('NOTE PAD')}</span>
             {Array.from({ length: cfg.symbols }, (_, s) => (
               <button
                 key={s}
                 onClick={() => toggleCross(s)}
-                title="Click to cross out / restore"
+                title={t('Click to cross out / restore')}
                 className="font-orbitron text-sm font-bold w-7 h-7 rounded transition-all hover:brightness-150"
                 style={{
                   color: crossed.has(s) ? 'var(--text-tertiary)' : '#FFF4C2',
@@ -229,14 +241,14 @@ export default function TuringGame({ difficulty, onComplete }: MinigameProps) {
           style={{ background: 'rgba(12,13,18,0.9)', border: '1px solid var(--border-light)' }}
         >
           <div className="font-mono-data text-[10px] tracking-[0.25em] mb-1 flex justify-between" style={{ color: ACCENT }}>
-            <span>TELEPRINTER TAPE</span>
+            <span>{t('TELEPRINTER TAPE')}</span>
             <span style={{ color: 'var(--text-tertiary)' }}>
-              <span style={{ color: '#00E5A0' }}>●</span> exact <span style={{ color: '#FFB84D' }}>●</span> misplaced
+              <span style={{ color: '#00E5A0' }}>●</span> {t('exact')} <span style={{ color: '#FFB84D' }}>●</span> {t('misplaced')}
             </span>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto rounded p-2" style={{ background: '#F1E6BE', color: '#2b2412' }}>
             {history.length === 0 && (
-              <div className="font-mono-data text-[11px] opacity-60">No tests yet. Set the rotors and press TEST.</div>
+              <div className="font-mono-data text-[11px] opacity-60">{t('No tests yet. Set the rotors and press TEST.')}</div>
             )}
             {history.map((h, i) => (
               <div

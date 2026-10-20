@@ -7,6 +7,7 @@ import { basePrice, GOOD_INFO, type Good } from '../../../game/market';
 import { POLICIES, POLICY_COOLDOWN, POLICY_GDP_COST, policyById, policySlots, type PolicyDef } from '../../../game/policies';
 import type { GameState } from '../../../game/types';
 import { play } from '../../../hooks/useSound';
+import { t } from '../../../i18n';
 import { KV, PanelHeader, Section } from './common';
 
 const GOLD = '#FFD166';
@@ -28,19 +29,19 @@ export default function EconomyPanel() {
 
   return (
     <div className="flex flex-col h-full">
-      <PanelHeader title="STATE ECONOMY" accent={GOLD} onClose={() => dispatch({ type: 'CLOSE_OVERLAY' })}
+      <PanelHeader title={t('STATE ECONOMY')} accent={GOLD} onClose={() => dispatch({ type: 'CLOSE_OVERLAY' })}
         right={<span className="font-mono-data text-[10px]" style={{ color: state.budget < 0 ? 'var(--rose)' : 'var(--green)' }}>{fmtMoney(state.budget)}</span>} />
       <div className="grid grid-cols-2 gap-1 p-2 shrink-0" style={{ borderBottom: '1px solid var(--border)' }} role="tablist">
         {([
-          ['decrees', `☭ DECREES ${state.policies.length}/${slots}`],
-          ['market', '⚖ WORLD MARKET'],
+          ['decrees', t('☭ DECREES {used}/{slots}', { used: state.policies.length, slots })],
+          ['market', t('⚖ WORLD MARKET')],
         ] as Array<[Tab, string]>).map(([id, label]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => { play('click'); setTab(id); }}
             className="relative font-mono-data text-[9.5px] tracking-wider py-1.5 rounded transition-all hover:brightness-125"
             style={{ color: tab === id ? '#050508' : GOLD, background: tab === id ? GOLD : 'transparent', border: `1px solid ${GOLD}66` }}>
             {label}
             {id === 'market' && shortage && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full animate-pulse-glow" style={{ background: 'var(--rose)', boxShadow: '0 0 6px var(--rose)' }} title="Chip shortage" />
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full animate-pulse-glow" style={{ background: 'var(--rose)', boxShadow: '0 0 6px var(--rose)' }} title={t('Chip shortage')} />
             )}
           </button>
         ))}
@@ -73,20 +74,20 @@ function Decrees() {
   return (
     <>
       <div className="px-3 py-2 font-rajdhani text-[12px] leading-snug" style={{ color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border)' }}>
-        Slots grow with each era. Changing decrees reshuffles the government for {POLICY_COOLDOWN} years.
+        {t('Slots grow with each era. Changing decrees reshuffles the government for {years} years.', { years: POLICY_COOLDOWN })}
       </div>
 
       {/* Slots + cooldown */}
-      <Section title="POLITBURO" accent={GOLD}
-        right={<span className="font-mono-data text-[9.5px]" style={{ color: CREAM }}>{state.policies.length}/{slots} SLOTS</span>}>
-        <div className="flex gap-1 mb-1.5" aria-label={`${state.policies.length} of ${slots} decree slots used`}>
+      <Section title={t('POLITBURO')} accent={GOLD}
+        right={<span className="font-mono-data text-[9.5px]" style={{ color: CREAM }}>{t('{used}/{slots} SLOTS', { used: state.policies.length, slots })}</span>}>
+        <div className="flex gap-1 mb-1.5" aria-label={t('{used} of {slots} decree slots used', { used: state.policies.length, slots })}>
           {Array.from({ length: 4 }, (_, i) => {
             const open = i < slots;
             const used = i < state.policies.length;
             const p = used ? policyById[state.policies[i]] : null;
             return (
               <div key={i} className="flex-1 h-7 rounded-sm grid place-items-center font-rajdhani text-[14px]"
-                title={p ? p.name : open ? 'Free slot' : `Unlocks in ${SLOT_YEARS[i - 1] ?? ''}`}
+                title={p ? t(p.name) : open ? t('Free slot') : t('Unlocks in {year}', { year: SLOT_YEARS[i - 1] ?? '' })}
                 style={{
                   background: used ? `${GOLD}26` : open ? 'rgba(255,255,255,0.03)' : 'repeating-linear-gradient(135deg, rgba(255,255,255,0.03) 0 4px, transparent 4px 8px)',
                   border: `1px ${open ? 'solid' : 'dashed'} ${used ? GOLD : open ? 'var(--border-light)' : 'var(--border)'}`,
@@ -101,23 +102,23 @@ function Decrees() {
         {cooldown > 0 ? (
           <div>
             <div className="flex justify-between font-mono-data text-[9.5px] mb-0.5" style={{ color: 'var(--amber)' }}>
-              <span>GOVERNMENT RESHUFFLE</span><span>{cooldown.toFixed(1)} yrs</span>
+              <span>{t('GOVERNMENT RESHUFFLE')}</span><span>{t('{years} yrs', { years: cooldown.toFixed(1) })}</span>
             </div>
             <div className="h-1.5 rounded-sm overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
               <div className="h-full" style={{ width: `${Math.min(100, (cooldown / POLICY_COOLDOWN) * 100)}%`, background: 'var(--amber)', boxShadow: '0 0 6px var(--amber)', transition: 'width 300ms ease' }} />
             </div>
           </div>
         ) : (
-          <KV k="Government" v="ready to sign" tone="good" />
+          <KV k={t('Government')} v={t('ready to sign')} tone="good" />
         )}
-        {nextSlotYear && <KV k="Next slot" v={`${nextSlotYear}`} tone="dim" />}
-        {state.eco.policyCost > 0 && <KV k="Decree spending" v={`−${fmtMoney(state.eco.policyCost)}/yr`} tone="bad" />}
+        {nextSlotYear && <KV k={t('Next slot')} v={`${nextSlotYear}`} tone="dim" />}
+        {state.eco.policyCost > 0 && <KV k={t('Decree spending')} v={t('−{cost}/yr', { cost: fmtMoney(state.eco.policyCost) })} tone="bad" />}
       </Section>
 
       {/* Active decrees */}
-      <Section title="IN FORCE" accent="var(--green)">
+      <Section title={t('IN FORCE')} accent="var(--green)">
         {active.length === 0 ? (
-          <div className="font-rajdhani text-[12px] italic" style={{ color: 'var(--text-tertiary)' }}>No decree signed. Pick one below.</div>
+          <div className="font-rajdhani text-[12px] italic" style={{ color: 'var(--text-tertiary)' }}>{t('No decree signed. Pick one below.')}</div>
         ) : (
           <div className="flex flex-col gap-1.5">
             {active.map(p => {
@@ -125,8 +126,8 @@ function Decrees() {
               return (
                 <PolicyCard key={p.id} p={p} active cost={gdpCost(p.id)}
                   action={
-                    <DecreeButton color="var(--rose)" disabled={!av.ok} title={av.reason ?? 'Repeal this decree'} onClick={() => sign(p, false)}>
-                      REPEAL
+                    <DecreeButton color="var(--rose)" disabled={!av.ok} title={av.reason ?? t('Repeal this decree')} onClick={() => sign(p, false)}>
+                      {t('REPEAL')}
                     </DecreeButton>
                   }
                   note={!av.ok && av.reason ? <span style={{ color: 'var(--amber)' }}>⏳ {av.reason}</span> : undefined} />
@@ -137,21 +138,21 @@ function Decrees() {
       </Section>
 
       {/* Catalogue */}
-      <Section title="ALL DECREES" accent={GOLD}>
+      <Section title={t('ALL DECREES')} accent={GOLD}>
         <div className="flex flex-col gap-1.5">
           {inactive.map(p => {
             const av = policyAvailability(state, p.id, true);
             const clash = (p.excludes ?? []).find(x => state.policies.includes(x));
             const locked = !!p.requiresTech && !state.unlockedTechs.includes(p.requiresTech);
-            const note = clash ? <span style={{ color: 'var(--rose)' }}>⊘ Excluded by {policyById[clash].name}</span>
-              : locked ? <span style={{ color: 'var(--amber)' }}>🔒 Requires {techById[p.requiresTech!]?.name}</span>
+            const note = clash ? <span style={{ color: 'var(--rose)' }}>⊘ {t('Excluded by {name}', { name: t(policyById[clash].name) })}</span>
+              : locked ? <span style={{ color: 'var(--amber)' }}>🔒 {t('Requires {tech}', { tech: t(techById[p.requiresTech!]?.name ?? '') })}</span>
               : !av.ok && av.reason ? <span style={{ color: 'var(--text-tertiary)' }}>{av.reason}</span>
               : undefined;
             return (
               <PolicyCard key={p.id} p={p} cost={gdpCost(p.id)} excluded={!!clash} locked={locked} note={note}
                 action={
-                  <DecreeButton color={GOLD} disabled={!av.ok} title={av.reason ?? `Sign ${p.name}`} onClick={() => sign(p, true)}>
-                    ADOPT
+                  <DecreeButton color={GOLD} disabled={!av.ok} title={av.reason ?? t('Sign {name}', { name: t(p.name) })} onClick={() => sign(p, true)}>
+                    {t('ADOPT')}
                   </DecreeButton>
                 } />
             );
@@ -183,21 +184,21 @@ function PolicyCard({ p, active, excluded, locked, cost, note, action }: {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between gap-1">
-            <span className="font-rajdhani text-[14px] font-bold leading-tight truncate" style={{ color: CREAM, textDecoration: excluded ? 'line-through' : 'none', textDecorationColor: 'var(--rose)' }}>{p.name}</span>
-            {cost > 0 && <span className="font-mono-data text-[9px] whitespace-nowrap" style={{ color: 'var(--amber)' }} title={`${((POLICY_GDP_COST[p.id] ?? 0) * 100).toFixed(1)}% of GDP per year`}>≈{fmtMoney(cost)}/yr</span>}
+            <span className="font-rajdhani text-[14px] font-bold leading-tight truncate" style={{ color: CREAM, textDecoration: excluded ? 'line-through' : 'none', textDecorationColor: 'var(--rose)' }}>{t(p.name)}</span>
+            {cost > 0 && <span className="font-mono-data text-[9px] whitespace-nowrap" style={{ color: 'var(--amber)' }} title={t('{pct}% of GDP per year', { pct: ((POLICY_GDP_COST[p.id] ?? 0) * 100).toFixed(1) })}>{t('≈{cost}/yr', { cost: fmtMoney(cost) })}</span>}
           </div>
-          <div className="font-rajdhani text-[11.5px] italic leading-tight" style={{ color: 'var(--text-tertiary)' }}>“{p.motto}”</div>
-          <div className="font-mono-data text-[9.5px] leading-snug mt-1" style={{ color: 'var(--green)' }}>▲ {p.pro}</div>
-          <div className="font-mono-data text-[9.5px] leading-snug" style={{ color: 'var(--rose)' }}>▼ {p.con}</div>
+          <div className="font-rajdhani text-[11.5px] italic leading-tight" style={{ color: 'var(--text-tertiary)' }}>“{t(p.motto)}”</div>
+          <div className="font-mono-data text-[9.5px] leading-snug mt-1" style={{ color: 'var(--green)' }}>▲ {t(p.pro)}</div>
+          <div className="font-mono-data text-[9.5px] leading-snug" style={{ color: 'var(--rose)' }}>▼ {t(p.con)}</div>
           {p.excludes?.length ? (
             <div className="font-mono-data text-[8.5px] mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-              ⇄ excludes {p.excludes.map(x => policyById[x]?.name).join(', ')}
+              ⇄ {t('excludes {names}', { names: p.excludes.map(x => t(policyById[x]?.name ?? '')).join(', ') })}
             </div>
           ) : null}
         </div>
       </div>
       <div className="flex items-center justify-between gap-2 px-2 py-1" style={{ background: 'rgba(0,0,0,0.3)', borderTop: '1px solid var(--border)' }}>
-        <span className="font-mono-data text-[9px] leading-tight min-w-0">{note ?? (active ? <span style={{ color: 'var(--green)' }}>● IN FORCE</span> : <span style={{ color: 'var(--text-tertiary)' }}>available</span>)}</span>
+        <span className="font-mono-data text-[9px] leading-tight min-w-0">{note ?? (active ? <span style={{ color: 'var(--green)' }}>● {t('IN FORCE')}</span> : <span style={{ color: 'var(--text-tertiary)' }}>{t('available')}</span>)}</span>
         {action}
       </div>
     </div>
@@ -226,33 +227,36 @@ function Market() {
   return (
     <>
       <div className="px-3 py-2 font-rajdhani text-[12px] leading-snug" style={{ color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border)' }}>
-        Buildings cost steel and chips. Whatever you lack is imported at the buy price when you build. Spread {Math.round(marketSpread(state) * 100)}%{pol(state, 'open_trade') ? ' (Open Trade)' : ''}.
+        {t('Buildings cost steel and chips. Whatever you lack is imported at the buy price when you build. Spread {spread}%{openTrade}.', {
+          spread: Math.round(marketSpread(state) * 100),
+          openTrade: pol(state, 'open_trade') ? t(' (Open Trade)') : '',
+        })}
       </div>
 
       {autarky && (
-        <Alert color="var(--amber)" title="⛓ AUTARKY IN FORCE">
-          Buying abroad is banned, and missing goods are not imported. You can still sell surplus. Repeal Autarky in Decrees to trade freely.
+        <Alert color="var(--amber)" title={t('⛓ AUTARKY IN FORCE')}>
+          {t('Buying abroad is banned, and missing goods are not imported. You can still sell surplus. Repeal Autarky in Decrees to trade freely.')}
         </Alert>
       )}
       {e.imports > 0 && (
-        <Alert color="var(--amber)" title={`AUTO-IMPORTS −${fmtMoney(e.imports)}/yr`}>
-          Your chip stock is empty: the {fmtQty(chipGap)} M chips/yr your hardware burns beyond production are bought automatically at {fmtPrice(marketPrice(state, 'chips', 'buy'))} each.
+        <Alert color="var(--amber)" title={t('AUTO-IMPORTS −{cost}/yr', { cost: fmtMoney(e.imports) })}>
+          {t('Your chip stock is empty: the {qty} M chips/yr your hardware burns beyond production are bought automatically at {price} each.', { qty: fmtQty(chipGap), price: fmtPrice(marketPrice(state, 'chips', 'buy')) })}
         </Alert>
       )}
       {e.chipFactor < 0.999 && (
-        <Alert color="var(--rose)" title={`COMPUTE THROTTLED TO ${Math.round(e.chipFactor * 100)}%`} pulse>
-          {autarky ? 'Chip shortage and no imports allowed.' : state.budget < 0 ? 'The treasury is in debt and cannot pay for chip imports.' : 'Chip shortage.'} Build Chip Foundries{autarky ? '' : ' or buy chips'}.
+        <Alert color="var(--rose)" title={t('COMPUTE THROTTLED TO {pct}%', { pct: Math.round(e.chipFactor * 100) })} pulse>
+          {autarky ? t('Chip shortage and no imports allowed.') : state.budget < 0 ? t('The treasury is in debt and cannot pay for chip imports.') : t('Chip shortage.')} {autarky ? t('Build Chip Foundries.') : t('Build Chip Foundries or buy chips.')}
         </Alert>
       )}
 
       <GoodCard good="steel" />
       <GoodCard good="chips" />
 
-      <Section title="FIELD MANUAL">
+      <Section title={t('FIELD MANUAL')}>
         <ul className="font-rajdhani text-[12px] leading-snug flex flex-col gap-0.5" style={{ color: 'var(--text-secondary)' }}>
-          <li>⛓ <b style={{ color: GOOD_INFO.steel.color }}>Kombinats</b> make steel; the Five-Year Plan boosts them.</li>
-          <li>◆ <b style={{ color: GOOD_INFO.chips.color }}>Chip Foundries</b> make chips; education makes them better.</li>
-          <li>⚖ Prices move when you trade a lot, then drift back (~25%/yr).</li>
+          <li>⛓ <b style={{ color: GOOD_INFO.steel.color }}>{t('Kombinats')}</b> {t('make steel; the Five-Year Plan boosts them.')}</li>
+          <li>◆ <b style={{ color: GOOD_INFO.chips.color }}>{t('Chip Foundries')}</b> {t('make chips; education makes them better.')}</li>
+          <li>⚖ {t('Prices move when you trade a lot, then drift back (~25%/yr).')}</li>
         </ul>
       </Section>
     </>
@@ -294,61 +298,62 @@ function GoodCard({ good }: { good: Good }) {
   };
 
   return (
-    <Section title={`${info.icon} ${info.name.toUpperCase()}`} accent={info.color}
-      right={<span className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>unit: {info.unit}</span>}>
+    <Section title={`${info.icon} ${t(info.name).toUpperCase()}`} accent={info.color}
+      right={<span className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>{t('unit:')} {info.unit}</span>}>
       <div className="flex items-end justify-between mb-1">
         <div>
           <div className="font-rajdhani text-[26px] font-bold leading-none" style={{ color: danger ? 'var(--rose)' : CREAM, textShadow: `0 0 10px ${danger ? 'var(--rose)' : info.color}55` }}>
             {fmtQty(stock)}
           </div>
-          <div className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>IN STOCK</div>
+          <div className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>{t('IN STOCK')}</div>
         </div>
         <div className="text-right">
           <div className="font-mono-data text-[13px]" style={{ color: net > 0.05 ? 'var(--green)' : net < -0.05 ? 'var(--rose)' : 'var(--text-secondary)' }}>
-            {fmtSigned(net, Math.abs(net) < 10 ? 1 : 0)}/yr
+            {t('{value}/yr', { value: fmtSigned(net, Math.abs(net) < 10 ? 1 : 0) })}
           </div>
           <div className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>
-            {Number.isFinite(runway) ? `lasts ${runway < 0.1 ? '<0.1' : runway.toFixed(1)} yrs` : 'NET FLOW'}
+            {Number.isFinite(runway) ? t('lasts {years} yrs', { years: runway < 0.1 ? '<0.1' : runway.toFixed(1) }) : t('NET FLOW')}
           </div>
         </div>
       </div>
 
-      <KV k="Own production" v={`+${fmtQty(prod)}/yr`} tone={prod > 0 ? 'good' : 'dim'} />
-      {good === 'chips' && <KV k="Hardware consumption" v={`−${fmtQty(use)}/yr`} tone={use > prod ? 'bad' : 'dim'} />}
-      {good === 'steel' && prod <= 0 && <KV k="No Kombinat online" v="build one" tone="warn" />}
-      {good === 'chips' && prod <= 0 && use > 0 && <KV k="No Chip Foundry online" v="build one" tone="warn" />}
+      <KV k={t('Own production')} v={t('+{qty}/yr', { qty: fmtQty(prod) })} tone={prod > 0 ? 'good' : 'dim'} />
+      {good === 'chips' && <KV k={t('Hardware consumption')} v={t('−{qty}/yr', { qty: fmtQty(use) })} tone={use > prod ? 'bad' : 'dim'} />}
+      {good === 'steel' && prod <= 0 && <KV k={t('No Kombinat online')} v={t('build one')} tone="warn" />}
+      {good === 'chips' && prod <= 0 && use > 0 && <KV k={t('No Chip Foundry online')} v={t('build one')} tone="warn" />}
 
       <div className="grid grid-cols-2 gap-1.5 my-1.5">
-        <PriceBox label="BUY" price={buy} color="var(--rose)" muted={autarky} />
-        <PriceBox label="SELL" price={sell} color="var(--green)" />
+        <PriceBox label={t('BUY')} price={buy} color="var(--rose)" muted={autarky} />
+        <PriceBox label={t('SELL')} price={sell} color="var(--green)" />
       </div>
       <PriceSpark good={good} year={state.year} current={(buy + sell) / 2} color={info.color} trend={trend} mod={mod} />
 
       <div className="grid grid-cols-2 gap-1 mt-1.5">
         {[10, 50].map(n => {
           const cost = n * buy;
-          const reason = autarky ? 'Autarky bans imports' : state.budget < cost ? `Needs ${fmtMoney(cost)}` : undefined;
+          const reason = autarky ? t('Autarky bans imports') : state.budget < cost ? t('Needs {cost}', { cost: fmtMoney(cost) }) : undefined;
           return (
-            <TradeButton key={`b${n}`} color="var(--cyan)" disabled={!!reason} title={reason ?? `Buy ${n} ${info.unit} for ${fmtMoney(cost)}`} onClick={() => trade(n)}
-              label={`BUY ${n}`} sub={`−${fmtMoney(cost)}`} />
+            <TradeButton key={`b${n}`} color="var(--cyan)" disabled={!!reason} title={reason ?? t('Buy {n} {unit} for {cost}', { n, unit: info.unit, cost: fmtMoney(cost) })} onClick={() => trade(n)}
+              label={t('BUY {n}', { n })} sub={`−${fmtMoney(cost)}`} />
           );
         })}
         {[10, 50].map(n => {
           const gain = n * sell;
-          const reason = stock < n ? `Only ${stock} in stock` : undefined;
+          const reason = stock < n ? t('Only {stock} in stock', { stock }) : undefined;
           return (
-            <TradeButton key={`s${n}`} color={GOLD} disabled={!!reason} title={reason ?? `Sell ${n} ${info.unit} for ${fmtMoney(gain)}`} onClick={() => trade(-n)}
-              label={`SELL ${n}`} sub={`+${fmtMoney(gain)}`} />
+            <TradeButton key={`s${n}`} color={GOLD} disabled={!!reason} title={reason ?? t('Sell {n} {unit} for {gain}', { n, unit: info.unit, gain: fmtMoney(gain) })} onClick={() => trade(-n)}
+              label={t('SELL {n}', { n })} sub={`+${fmtMoney(gain)}`} />
           );
         })}
       </div>
       <div className="mt-1">
         <TradeButton color="var(--green)" disabled={surplus <= 0} wide
-          title={surplus > 0 ? `Sell ${surplus} ${info.unit}, keeping a reserve of ${RESERVE}` : `Nothing above the ${RESERVE} reserve`}
+          title={surplus > 0 ? t('Sell {qty} {unit}, keeping a reserve of {reserve}', { qty: surplus, unit: info.unit, reserve: RESERVE }) : t('Nothing above the {reserve} reserve', { reserve: RESERVE })}
           onClick={() => trade(-surplus)}
-          label={`SELL ALL SURPLUS${surplus > 0 ? ` · ${fmtQty(surplus)}` : ''}`} sub={surplus > 0 ? `+${fmtMoney(surplus * sell)} · keeps ${RESERVE}` : `keeps a reserve of ${RESERVE}`} />
+          label={surplus > 0 ? t('SELL ALL SURPLUS · {qty}', { qty: fmtQty(surplus) }) : t('SELL ALL SURPLUS')}
+          sub={surplus > 0 ? t('+{gain} · keeps {reserve}', { gain: fmtMoney(surplus * sell), reserve: RESERVE }) : t('keeps a reserve of {reserve}', { reserve: RESERVE })} />
       </div>
-      {autarky && <div className="font-mono-data text-[9px] mt-1" style={{ color: 'var(--amber)' }}>Buying disabled: Autarky decree forbids imports.</div>}
+      {autarky && <div className="font-mono-data text-[9px] mt-1" style={{ color: 'var(--amber)' }}>{t('Buying disabled: Autarky decree forbids imports.')}</div>}
     </Section>
   );
 }
@@ -356,7 +361,7 @@ function GoodCard({ good }: { good: Good }) {
 function PriceBox({ label, price, color, muted }: { label: string; price: number; color: string; muted?: boolean }) {
   return (
     <div className="rounded px-2 py-1" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid var(--border)', opacity: muted ? 0.45 : 1 }}>
-      <div className="font-mono-data text-[8.5px] tracking-widest" style={{ color: 'var(--text-tertiary)' }}>{label} / UNIT</div>
+      <div className="font-mono-data text-[8.5px] tracking-widest" style={{ color: 'var(--text-tertiary)' }}>{label} / {t('UNIT')}</div>
       <div className="font-mono-data text-[13px]" style={{ color }}>{fmtPrice(price)}</div>
     </div>
   );
@@ -381,9 +386,9 @@ function PriceSpark({ good, year, current, color, trend, mod }: { good: Good; ye
   return (
     <div className="rounded px-1.5 pt-1 pb-0.5" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid var(--border)' }}>
       <div className="flex justify-between font-mono-data text-[8.5px]" style={{ color: 'var(--text-tertiary)' }}>
-        <span>WORLD PRICE 1960–2040</span>
-        <span style={{ color: tColor }} title="Your trades push prices; the push fades about 25% per year">
-          {trend === 'up' ? '▲ RISING' : trend === 'down' ? '▼ FALLING' : '■ STABLE'} {trend !== 'flat' ? `${fmtSigned(pctVsBase, 0)}%` : ''}
+        <span>{t('WORLD PRICE 1960–2040')}</span>
+        <span style={{ color: tColor }} title={t('Your trades push prices; the push fades about 25% per year')}>
+          {trend === 'up' ? t('▲ RISING') : trend === 'down' ? t('▼ FALLING') : t('■ STABLE')} {trend !== 'flat' ? `${fmtSigned(pctVsBase, 0)}%` : ''}
         </span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" style={{ height: H }} preserveAspectRatio="none" aria-hidden="true">

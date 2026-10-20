@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { play } from '../../hooks/useSound';
+import { t } from '../../i18n';
 import type { MinigameMeta, MinigameResult, Stars } from './types';
 
 /**
@@ -65,13 +66,13 @@ export function MinigameShell({
         <div className="flex shrink-0 flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="font-mono-data text-[10px] tracking-[0.3em]" style={{ color: meta.accent }}>
-              HISTORICAL BREAKTHROUGH · {meta.year}
+              {t('HISTORICAL BREAKTHROUGH · {year}', { year: meta.year })}
             </div>
             <h2 className="font-orbitron text-xl md:text-2xl font-black tracking-wider" style={{ color: '#FFF4C2' }}>
-              {meta.title}
+              {t(meta.title)}
             </h2>
             <p className="font-rajdhani text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
-              {meta.subtitle}
+              {t(meta.subtitle)}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -87,9 +88,9 @@ export function MinigameShell({
               onClick={() => { play('click'); onAbandon(); }}
               className="font-mono-data text-[10px] px-3 py-1.5 rounded transition-all hover:brightness-125"
               style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-light)', background: '#000A' }}
-              title="Leave the exercise. No reward, no penalty."
+              title={t('Leave the exercise. No reward, no penalty.')}
             >
-              ABANDON ✕
+              {t('ABANDON ✕')}
             </button>
           </div>
         </div>
@@ -102,18 +103,18 @@ export function MinigameShell({
               style={{ background: 'rgba(12,13,18,0.92)', border: `2px solid ${meta.accent}`, boxShadow: `0 0 40px ${meta.accent}33` }}
             >
               <div className="font-mono-data text-[10px] tracking-[0.25em] mb-2" style={{ color: meta.accent }}>
-                BRIEFING
+                {t('BRIEFING')}
               </div>
               <ul className="flex flex-col gap-2 mb-4">
                 {meta.howTo.map((line, i) => (
                   <li key={i} className="font-rajdhani text-[15px] leading-snug flex gap-2" style={{ color: 'var(--text-primary)' }}>
                     <span style={{ color: meta.accent }}>▸</span>
-                    <span>{line}</span>
+                    <span>{t(line)}</span>
                   </li>
                 ))}
               </ul>
               <div className="font-mono-data text-[10px] mb-4" style={{ color: 'var(--text-tertiary)' }}>
-                REWARD · {meta.rewardLabel} · ★ scales the bonus
+                {t('REWARD · {reward} · ★ scales the bonus', { reward: t(meta.rewardLabel) })}
               </div>
               <button
                 autoFocus
@@ -121,7 +122,7 @@ export function MinigameShell({
                 className="w-full py-2.5 rounded font-orbitron text-sm font-bold tracking-wider transition-all hover:brightness-125"
                 style={{ background: meta.accent + '22', color: meta.accent, border: `2px solid ${meta.accent}` }}
               >
-                BEGIN ▶
+                {t('BEGIN ▶')}
               </button>
             </div>
           ) : (
@@ -162,7 +163,7 @@ export function MinigameResultCard({
         style={{ background: 'rgba(12,13,18,0.96)', border: `2px solid ${meta.accent}`, boxShadow: `0 0 40px ${meta.accent}44` }}
       >
         <div className="font-mono-data text-[10px] tracking-[0.3em] mb-1" style={{ color: meta.accent }}>
-          {result.stars > 0 ? 'EXERCISE COMPLETE' : 'EXERCISE FAILED'}
+          {result.stars > 0 ? t('EXERCISE COMPLETE') : t('EXERCISE FAILED')}
         </div>
         <StarRow stars={result.stars} accent={meta.accent} />
         <p className="font-rajdhani text-base mt-2 mb-4" style={{ color: 'var(--text-primary)' }}>{result.summary}</p>
@@ -172,7 +173,7 @@ export function MinigameResultCard({
           className="w-full py-2.5 rounded font-orbitron text-sm font-bold tracking-wider transition-all hover:brightness-125"
           style={{ background: meta.accent + '22', color: meta.accent, border: `2px solid ${meta.accent}` }}
         >
-          CONTINUE
+          {t('CONTINUE')}
         </button>
       </div>
     </div>
@@ -181,7 +182,7 @@ export function MinigameResultCard({
 
 export function StarRow({ stars, accent, size = 34 }: { stars: Stars; accent: string; size?: number }) {
   return (
-    <div className="flex justify-center gap-2 my-2" aria-label={`${stars} of 3 stars`}>
+    <div className="flex justify-center gap-2 my-2" aria-label={t('{stars} of 3 stars', { stars })}>
       {[1, 2, 3].map(i => (
         <span
           key={i}

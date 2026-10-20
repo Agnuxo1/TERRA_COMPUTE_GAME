@@ -10,7 +10,7 @@
 
 import {
   ASI_CAPABILITY, BONUS, COMPUTE_FLOPS, END_YEAR, LEVEL_MULT, MAX_LEVEL, SAFE_ALIGNMENT, SECTOR_GDP,
-  ARCHIVE_MINIGAMES_STRATEGIST, buildingById, continentById, continents, historicalEvents, techById,
+  ARCHIVE_MINIGAMES_STRATEGIST, buildingById, continentById, continents, historicalEvents, techById, terrainInfo,
 } from './data.ts';
 import { generateContinentMap, neighbourTiles } from './mapgen.ts';
 import { basePrice, PRICE_IMPACT, type Good } from './market.ts';
@@ -18,6 +18,7 @@ import { POLICY_COOLDOWN, POLICY_GDP_COST, policyById, policySlots } from './pol
 import { mulberry32 } from './rng.ts';
 import { applyDynamic, leaderOf, projectEvent, rollDynamic, type DynHelpers } from './dynamic-events.ts';
 import { isHuman, isRemote, lagFor, outbox, playerName, type AIState, type MPMsg, type MPPlayer, type Snapshot } from './mp.ts';
+import { t } from '../i18n/index.ts';
 import type {
   AIStrategy, BuildingId, Difficulty, Economy, ForecastWarning, GameEvent, GameMode, GameState, LogEntry, MapData, Modifier,
   Notification, PlacedBuilding, Rival, Tile, TreatyId,
@@ -220,8 +221,13 @@ export function quote(s: GameState, money: number, goods: { steel: number; chips
   const importCost = Math.round(importSteel * marketPrice(s, 'steel', 'buy') + importChips * marketPrice(s, 'chips', 'buy'));
   const total = money + importCost;
   let reason: string | undefined;
-  if ((importSteel || importChips) && pol(s, 'autarky')) reason = `Autarky: produce ${importSteel ? `${importSteel} steel` : ''}${importSteel && importChips ? ' and ' : ''}${importChips ? `${importChips} chips` : ''} first`;
-  else if (s.budget < total) reason = `Needs $${Math.round(total)}B`;
+  if ((importSteel || importChips) && pol(s, 'autarky')) {
+    const need = importSteel && importChips
+      ? t('{steel} steel and {chips} chips', { steel: importSteel, chips: importChips })
+      : importSteel ? t('{steel} steel', { steel: importSteel }) : t('{chips} chips', { chips: importChips });
+    reason = t('Autarky: produce {need} first', { need });
+  }
+  else if (s.budget < total) reason = t('Needs ${amount}B', { amount: Math.round(total) });
   return { money, steel: goods.steel, chips: goods.chips, importSteel, importChips, importCost, total, ok: !reason, reason };
 }
 
@@ -288,13 +294,13 @@ export function isCompute(type: BuildingId) { return COMPUTE_TYPES.includes(type
 export function evaluatePlacement(s: GameState, tile: Tile, type: BuildingId, ignoreOccupied = false): Placement {
   const notes: Placement['notes'] = [];
   const fail = (reason: string): Placement => ({ ok: false, reason, mult: 0, notes, energyFactor: 1 });
-  if (!s.map) return fail('No map');
-  if (tile.terrain === 'water') return fail('Cannot build on water');
-  if (!tile.region || !s.ownedRegions.includes(tile.region)) return fail('Region not developed yet');
-  if (tile.building && !ignoreOccupied) return fail('Tile occupied');
-  if (!isUnlocked(s, type)) return fail(`Requires ${techById[buildingById[type].requiresTech!]?.name}`);
-  if (type === 'seaport' && !tile.coast) return fail('Seaports must be on the coast');
-  if (type === 'nuclear' && !tile.coast && !tile.river) return fail('Needs cooling water: coast or river');
+  if (!s.map) return fail(t('No map'));
+  if (tile.terrain === 'water') return fail(t('Cannot build on water'));
+  if (!tile.region || !s.ownedRegions.includes(tile.region)) return fail(t('Region not developed yet'));
+  if (tile.building && !ignoreOccupied) return fail(t('Tile occupied'));
+  if (!isUnlocked(s, type)) return fail(t('Requires {tech}', { tech: t(techById[buildingById[type].requiresTech!]?.name ?? '') }));
+  if (type === 'seaport' && !tile.coast) return fail(t('Seaports must be on the coast'));
+  if (type === 'nuclear' && !tile.coast && !tile.river) return fail(t('Needs cooling water: coast or river'));
 
   const nb = neighbourTiles(s.map, tile).filter(n => n.building && n.building.progress > 0);
   const nbCount = (types: BuildingId[]) => nb.filter(n => types.includes(n.building!.type)).length;
@@ -314,65 +320,65 @@ export function evaluatePlacement(s: GameState, tile: Tile, type: BuildingId, ig
 
   switch (type) {
     case 'farm': {
-      const t = { fertile: 1.5, plains: 1, forest: 0.8, hills: 0.6, desert: 0.3, tundra: 0.3, water: 0 }[tile.terrain];
-      scale(`Terrain: ${tile.terrain}`, t);
-      add('Neighbouring farms', Math.min(0.3, nbCount(['farm']) * 0.1));
+      const tm = { fertile: 1.5, plains: 1, forest: 0.8, hills: 0.6, desert: 0.3, tundra: 0.3, water: 0 }[tile.terrain];
+      scale(t('Terrain: {terrain}', { terrain: t(terrainInfo[tile.terrain].name) }), tm);
+      add(t('Neighbouring farms'), Math.min(0.3, nbCount(['farm']) * 0.1));
       const smoke = nbCount(SMOKE_TYPES);
-      if (smoke) add('Smoke from industry', -(envprot ? 0.08 : 0.15) * smoke);
+      if (smoke) add(t('Smoke from industry'), -(envprot ? 0.08 : 0.15) * smoke);
       break;
     }
     case 'solar': {
-      const t = { desert: 1.6, tundra: 0.5, forest: 0.8, hills: 1.1, plains: 1, fertile: 1, water: 0 }[tile.terrain];
-      scale(`Terrain: ${tile.terrain}`, t);
+      const tm = { desert: 1.6, tundra: 0.5, forest: 0.8, hills: 1.1, plains: 1, fertile: 1, water: 0 }[tile.terrain];
+      scale(t('Terrain: {terrain}', { terrain: t(terrainInfo[tile.terrain].name) }), tm);
       const sun = continentById(s.playerContinent)?.solarPotential ?? 0.6;
-      scale('National sunshine', sun / 0.6);
+      scale(t('National sunshine'), sun / 0.6);
       break;
     }
     case 'coal':
-      if (tile.deposit === 'coal') add('Coal seam', 0.5);
+      if (tile.deposit === 'coal') add(t('Coal seam'), 0.5);
       break;
     case 'nuclear':
-      if (tile.deposit === 'uranium') add('Uranium ore', 0.4);
+      if (tile.deposit === 'uranium') add(t('Uranium ore'), 0.4);
       break;
     case 'factory':
-      if (nbCount(['seaport', 'market'])) add('Logistics (port/market)', 0.2);
-      if (tile.deposit === 'coal') add('Coal seam', 0.2);
-      if (nbCount(['robot'])) add('Robotics next door', 0.3);
+      if (nbCount(['seaport', 'market'])) add(t('Logistics (port/market)'), 0.2);
+      if (tile.deposit === 'coal') add(t('Coal seam'), 0.2);
+      if (nbCount(['robot'])) add(t('Robotics next door'), 0.3);
       break;
     case 'chipfab':
-      if (tile.deposit === 'silicon') add('Silica deposit', 0.5);
+      if (tile.deposit === 'silicon') add(t('Silica deposit'), 0.5);
       break;
     case 'market':
-      add('Neighbouring housing', Math.min(0.4, nbCount(['housing']) * 0.1));
+      add(t('Neighbouring housing'), Math.min(0.4, nbCount(['housing']) * 0.1));
       break;
     case 'seaport':
-      add('Neighbouring kombinats', Math.min(0.45, nbCount(['factory']) * 0.15));
+      add(t('Neighbouring kombinats'), Math.min(0.45, nbCount(['factory']) * 0.15));
       break;
     case 'school':
     case 'hospital':
-      if (nbCount(['housing'])) add('Next to housing', 0.25);
+      if (nbCount(['housing'])) add(t('Next to housing'), 0.25);
       break;
     case 'uni':
-      add('Academic cluster', Math.min(0.45, nbCount(['uni', 'lab']) * 0.15));
+      add(t('Academic cluster'), Math.min(0.45, nbCount(['uni', 'lab']) * 0.15));
       break;
     case 'lab':
-      add('Research cluster', Math.min(0.6, nbCount(['uni', 'lab', 'datacenter']) * 0.2));
+      add(t('Research cluster'), Math.min(0.6, nbCount(['uni', 'lab', 'datacenter']) * 0.2));
       break;
     case 'defense':
-      if (nbCount(['lab', 'uni', ...COMPUTE_TYPES])) add('Near researchers', 0.25);
+      if (nbCount(['lab', 'uni', ...COMPUTE_TYPES])) add(t('Near researchers'), 0.25);
       break;
     default:
       break;
   }
   if (isCompute(type)) {
-    if (nbCount(POWER_TYPES)) add('Next to power plant', 0.1);
-    if (nbCount(['chipfab'])) add('Next to chip foundry', 0.15);
+    if (nbCount(POWER_TYPES)) add(t('Next to power plant'), 0.1);
+    if (nbCount(['chipfab'])) add(t('Next to chip foundry'), 0.15);
     if (tile.terrain === 'tundra' || tile.coast) {
       energyFactor = 0.75;
-      notes.push({ label: tile.terrain === 'tundra' ? 'Arctic cooling' : 'Sea-water cooling', value: '-25% energy', good: true });
+      notes.push({ label: tile.terrain === 'tundra' ? t('Arctic cooling') : t('Sea-water cooling'), value: t('-25% energy'), good: true });
     }
   }
-  if (tile.terrain === 'forest' && type !== 'solar') notes.push({ label: 'Clears the forest', value: '-CO₂ sink', good: false });
+  if (tile.terrain === 'forest' && type !== 'solar') notes.push({ label: t('Clears the forest'), value: t('-CO₂ sink'), good: false });
   return { ok: true, mult: Math.max(0.1, mult), notes, energyFactor };
 }
 
@@ -561,25 +567,25 @@ export function computeEconomy(s: GameState): Economy {
 
   // Approval target
   const f: Array<{ label: string; value: number }> = [];
-  f.push({ label: 'Baseline', value: 55 + (bonus(s, 'approval') ?? 0) });
+  f.push({ label: t('Baseline'), value: 55 + (bonus(s, 'approval') ?? 0) });
   const fr = foodSupply / Math.max(1, foodDemand);
-  f.push({ label: 'Food', value: fr >= 1.05 ? 5 : fr >= 1 ? 0 : -(1 - fr) * 120 });
+  f.push({ label: t('Food'), value: fr >= 1.05 ? 5 : fr >= 1 ? 0 : -(1 - fr) * 120 });
   const over = s.population / Math.max(1, totalHousing);
-  f.push({ label: 'Housing', value: over > 1 ? -(over - 1) * 150 : over < 0.95 ? 3 : 0 });
-  f.push({ label: 'Jobs', value: unemployment > 0.06 ? -(unemployment - 0.06) * 150 : unemployment < 0.03 ? 3 : 0 });
+  f.push({ label: t('Housing'), value: over > 1 ? -(over - 1) * 150 : over < 0.95 ? 3 : 0 });
+  f.push({ label: t('Jobs'), value: unemployment > 0.06 ? -(unemployment - 0.06) * 150 : unemployment < 0.03 ? 3 : 0 });
   f.push({ label: 'Healthcare', value: health * 10 - 3 });
   const comfort = housingTiles ? comfortSum / housingTiles : 0;
-  f.push({ label: 'Neighbourhoods', value: clamp(comfort * 2, -6, 6) });
-  f.push({ label: 'Taxes', value: -(s.taxRate - 0.2) * 100 });
-  f.push({ label: 'Power cuts', value: -(1 - energyRatio) * 60 });
-  f.push({ label: 'Climate damage', value: -(100 - s.planetHealth) * 0.12 });
-  f.push({ label: 'Education', value: s.education * 0.05 });
+  f.push({ label: t('Neighbourhoods'), value: clamp(comfort * 2, -6, 6) });
+  f.push({ label: t('Taxes'), value: -(s.taxRate - 0.2) * 100 });
+  f.push({ label: t('Power cuts'), value: -(1 - energyRatio) * 60 });
+  f.push({ label: t('Climate damage'), value: -(100 - s.planetHealth) * 0.12 });
+  f.push({ label: t('Education'), value: s.education * 0.05 });
   const modApproval = modSum(s, 'approval');
-  if (modApproval) f.push({ label: 'Events', value: modApproval });
+  if (modApproval) f.push({ label: t('Events'), value: modApproval });
   const polApproval = (pol(s, 'welfare') ? 8 : 0) + (pol(s, 'austerity') ? -8 : 0) + (pol(s, 'five_year_plan') ? -4 : 0) + (pol(s, 'free_market') ? -2 : 0)
     + (pol(s, 'autarky') ? 3 : 0) + (pol(s, 'open_trade') ? -2 : 0) + (pol(s, 'propaganda') ? 7 : 0) + (pol(s, 'security_state') ? -5 : 0);
-  if (polApproval) f.push({ label: 'Policies', value: polApproval });
-  if (s.budget < 0) f.push({ label: 'Debt', value: -8 });
+  if (polApproval) f.push({ label: t('Policies'), value: polApproval });
+  if (s.budget < 0) f.push({ label: t('Debt'), value: -8 });
   const approvalTarget = clamp(f.reduce((a, b) => a + b.value, 0), 0, 100);
 
   return {
@@ -670,7 +676,7 @@ function createRivals(player: string, mode: GameMode, startYear: number, difficu
   });
 }
 
-function rivalName(id: string) { return continentById(id)?.name ?? id; }
+function rivalName(id: string) { return t(continentById(id)?.name ?? id); }
 
 function tickRivals(s: GameState, dt: number) {
   const year = s.year;
@@ -680,8 +686,8 @@ function tickRivals(s: GameState, dt: number) {
   const feared = !pioneer && lead > 0.6 && year > 1965;
   if (feared && !s.firedEvents.includes('lead-fear')) {
     s.firedEvents = [...s.firedEvents, 'lead-fear'];
-    notify(s, '⚠ Your lead in the race alarms the world. Hawkish rivals will turn on your compute — AI Safety Institutes defend it.', 'warning');
-    pushLog(s, 'World', 'Your bloc now leads the race to superintelligence.', 'warning');
+    notify(s, t('⚠ Your lead in the race alarms the world. Hawkish rivals will turn on your compute — AI Safety Institutes defend it.'), 'warning');
+    pushLog(s, t('World'), t('Your bloc now leads the race to superintelligence.'), 'warning');
   }
   s.rivals = s.rivals.map(r0 => {
     const r = { ...r0, treaties: [...r0.treaties] };
@@ -720,12 +726,12 @@ function tickRivals(s: GameState, dt: number) {
       const eta = rivalEta(r);
       if (eta - year <= 4) {
         r.project = Math.floor(year);
-        pushLog(s, rivalName(r.id), `${leaderOf(r.id)} announced a national ASI project.`, 'danger');
+        pushLog(s, rivalName(r.id), t('{leader} announced a national ASI project.', { leader: leaderOf(r.id) }), 'danger');
         // One crisis decision every two years at most; later projects are announced on the news.
         if (year - (s.dyn?.lastProject ?? -99) >= 2) {
           s.dyn = { ...(s.dyn ?? { last: {}, nextElection: s.startYear + 6, lastAny: 0 }), lastProject: year };
           queueEvent(s, projectEvent(s, r, eta, H));
-        } else notify(s, `🚨 ${rivalName(r.id)} has also launched an ASI project.`, 'danger');
+        } else notify(s, t('🚨 {name} has also launched an ASI project.', { name: rivalName(r.id) }), 'danger');
       }
     }
 
@@ -736,8 +742,8 @@ function tickRivals(s: GameState, dt: number) {
       outbox(s, { t: 'end', who: r.id, human: false, safe: !rogue, year: Math.floor(year) });
       s.outcome = rogue ? 'rogue_rival' : 'rival_asi';
       s.gameOverReason = rogue
-        ? `${rivalName(r.id)} ignited an unaligned superintelligence in ${Math.floor(year)} (alignment ${Math.round(r.alignment)}%). It optimised the planet for its own goals. Humanity's story ended with a prompt.`
-        : `${rivalName(r.id)} ignited a safe superintelligence in ${Math.floor(year)}. The future is theirs to write — your bloc becomes a footnote.`;
+        ? t('{name} ignited an unaligned superintelligence in {year} (alignment {alignment}%). It optimised the planet for its own goals. Humanity\'s story ended with a prompt.', { name: rivalName(r.id), year: Math.floor(year), alignment: Math.round(r.alignment) })
+        : t('{name} ignited a safe superintelligence in {year}. The future is theirs to write — your bloc becomes a footnote.', { name: rivalName(r.id), year: Math.floor(year) });
     }
     return r;
   });
@@ -756,39 +762,39 @@ function rivalAction(s: GameState, r: Rival, pioneer: boolean) {
       if (s.capability > 12 && chance(0.5)) {
         const targets = s.map!.tiles.filter(t => t.building && isCompute(t.building.type) && t.building.progress >= 1);
         if (targets.length) {
-          const t = pick(targets);
-          t.building = { ...t.building!, progress: 0.4 };
-          pushLog(s, name, `Cyber-sabotage hit your ${buildingById[t.building.type].name}. Repairs underway.`, 'danger');
-          notify(s, `⚠ ${name} sabotaged a ${buildingById[t.building.type].short}! Build AI Safety Institutes to defend.`, 'danger');
-          r.lastAction = 'Sabotaged your compute';
+          const tile = pick(targets);
+          tile.building = { ...tile.building!, progress: 0.4 };
+          pushLog(s, name, t('Cyber-sabotage hit your {building}. Repairs underway.', { building: t(buildingById[tile.building.type].name) }), 'danger');
+          notify(s, t('⚠ {name} sabotaged a {building}! Build AI Safety Institutes to defend.', { name, building: t(buildingById[tile.building.type].short) }), 'danger');
+          r.lastAction = t('Sabotaged your compute');
           return;
         }
       }
       const stolen = Math.round(s.researchPoints * 0.15 + s.researchProgress * 0.2);
       s.researchPoints = Math.max(0, s.researchPoints - s.researchPoints * 0.15);
       s.researchProgress = Math.max(0, s.researchProgress * 0.8);
-      pushLog(s, name, `Spies stole ${stolen} research points.`, 'danger');
-      notify(s, `⚠ ${name} stole research from your labs.`, 'danger');
-      r.lastAction = 'Stole your research';
+      pushLog(s, name, t('Spies stole {amount} research points.', { amount: stolen }), 'danger');
+      notify(s, t('⚠ {name} stole research from your labs.', { name }), 'danger');
+      r.lastAction = t('Stole your research');
     } else {
       r.relation -= 5;
-      pushLog(s, name, 'Enemy operation foiled by your security services.', 'success');
-      notify(s, `🛡 Your security services foiled an operation by ${name}.`, 'success');
+      pushLog(s, name, t('Enemy operation foiled by your security services.'), 'success');
+      notify(s, t('🛡 Your security services foiled an operation by {name}.', { name }), 'success');
     }
     return;
   }
   if (r.relation > 20 && !r.treaties.includes('trade') && chance(0.35) && !s.eventQueue.some(e => e.id.startsWith('offer')) && s.gameMode !== 'logic') {
     queueEvent(s, {
-      id: nid('offer'), name: `${name} proposes a trade deal`, year: Math.floor(s.year), type: 'info', choices: [
-        { label: 'Accept', detail: `Trade treaty with ${name}: +${Math.round(tradeValue(s, r))}B/yr, relations +10`, effect: `accept_trade:${r.id}` },
-        { label: 'Decline', detail: 'Relations -5', effect: `decline_trade:${r.id}` },
-      ], description: `${name} would like to open its markets to your exporters.`,
+      id: nid('offer'), name: t('{name} proposes a trade deal', { name }), year: Math.floor(s.year), type: 'info', choices: [
+        { label: t('Accept'), detail: t('Trade treaty with {name}: +{value}B/yr, relations +10', { name, value: Math.round(tradeValue(s, r)) }), effect: `accept_trade:${r.id}` },
+        { label: t('Decline'), detail: t('Relations -5'), effect: `decline_trade:${r.id}` },
+      ], description: t('{name} would like to open its markets to your exporters.', { name }),
     });
     return;
   }
-  const flavour = r.capability > 18 ? ['Trained a new frontier model', 'Opened an AI gigafactory', 'Expanded GPU fleet']
-    : r.capability > 13 ? ['Built a national data center', 'Launched a supercomputer', 'Funded new universities']
-      : ['Built heavy industry', 'Electrified the countryside', 'Opened research institutes'];
+  const flavour = r.capability > 18 ? [t('Trained a new frontier model'), t('Opened an AI gigafactory'), t('Expanded GPU fleet')]
+    : r.capability > 13 ? [t('Built a national data center'), t('Launched a supercomputer'), t('Funded new universities')]
+      : [t('Built heavy industry'), t('Electrified the countryside'), t('Opened research institutes')];
   r.lastAction = pick(flavour);
   pushLog(s, name, r.lastAction, 'info');
 }
@@ -810,7 +816,7 @@ function queueEvent(s: GameState, event: GameEvent) {
     s.researchPoints += rp;
     MINIGAME_REWARD[event.minigame]?.(s, 1);
     s.minigameResults = { ...s.minigameResults, [event.minigame]: Math.max(1, s.minigameResults[event.minigame] ?? 0) };
-    notify(s, `★ ${event.name}: breakthrough credited (+${rp} research).`, 'success');
+    notify(s, t('★ {event}: breakthrough credited (+{rp} research).', { event: t(event.name), rp }), 'success');
     return;
   }
   s.eventQueue = [...s.eventQueue, { id: event.id, event }];
@@ -857,7 +863,7 @@ function refreshObjectives(s: GameState, atStart = false) {
       o.done = true;
       done.add(o.id);
       s.budget += o.reward;
-      notify(s, `✔ Directive complete: ${o.text} (+$${o.reward}B)`, 'success');
+      notify(s, t('✔ Directive complete: {text} (+${reward}B)', { text: t(o.text), reward: o.reward }), 'success');
     }
   }
   const active = s.objectives.filter(o => !o.done);
@@ -970,8 +976,8 @@ export function startGame(state: GameState, continentId: string, seed = Date.now
   s.tension = tensionBaseline(startYear);
   const startTop = Math.max(s.capability, ...s.rivals.map(r => r.capability));
   s.firsts = Object.fromEntries(FIRSTS.filter(f => startTop >= f.cap).map(f => [f.key, { who: 'history', year: startYear }]));
-  notify(s, `${c.name}, ${startYear}. Click the map to build. Your directives are on the right.`, 'info');
-  pushLog(s, c.name, `Government formed. Goal: safe superintelligence before any rival.`, 'info');
+  notify(s, t('{city}, {year}. Click the map to build. Your directives are on the right.', { city: t(c.name), year: startYear }), 'info');
+  pushLog(s, t(c.name), t('Government formed. Goal: safe superintelligence before any rival.'), 'info');
   return s;
 }
 
@@ -991,8 +997,8 @@ function tick(prev: GameState): GameState {
   s.map = { ...s.map!, tiles: s.map!.tiles.map(t => (t.building ? { ...t, building: { ...t.building } } : { ...t })) };
 
   // 1. Construction progress
-  for (const t of s.map.tiles) {
-    const b = t.building;
+  for (const tile of s.map.tiles) {
+    const b = tile.building;
     if (!b) continue;
     if (b.progress < 1 || b.upgrading) {
       const bt = buildTime(s, b.type) * (b.upgrading ? 0.8 : 1);
@@ -1000,9 +1006,9 @@ function tick(prev: GameState): GameState {
       b.progress = Math.min(1, b.progress + dt / Math.max(0.1, bt));
       if (b.upgrading && b.progress >= 1) {
         b.upgrading = false;
-        notify(s, `▲ ${buildingById[b.type].name} upgraded to level ${b.level}.`, 'success');
+        notify(s, t('▲ {name} upgraded to level {level}.', { name: t(buildingById[b.type].name), level: b.level }), 'success');
       } else if (before < 1 && b.progress >= 1) {
-        notify(s, `✔ ${buildingById[b.type].name} operational.`, 'success');
+        notify(s, t('✔ {name} operational.', { name: t(buildingById[b.type].name) }), 'success');
       }
     }
   }
@@ -1064,8 +1070,8 @@ function tick(prev: GameState): GameState {
       s.totalTechs++;
       s.researching = null;
       s.researchProgress = 0;
-      notify(s, `🔬 ${tech.name} discovered — ${tech.effect}`, 'success');
-      pushLog(s, 'Science', `${tech.name} discovered.`, 'success');
+      notify(s, t('🔬 {name} discovered — {effect}', { name: t(tech.name), effect: t(tech.effect) }), 'success');
+      pushLog(s, t('Science'), t('{name} discovered.', { name: t(tech.name) }), 'success');
     }
   }
 
@@ -1085,7 +1091,7 @@ function tick(prev: GameState): GameState {
 
   // 7. Modifiers expire
   if (s.modifiers.some(m => m.until <= s.year)) {
-    for (const m of s.modifiers.filter(m => m.until <= s.year)) notify(s, `${m.label} has ended.`, 'info');
+    for (const m of s.modifiers.filter(m => m.until <= s.year)) notify(s, t('{label} has ended.', { label: m.label }), 'info');
     s.modifiers = s.modifiers.filter(m => m.until > s.year);
   }
 
@@ -1114,12 +1120,12 @@ function tick(prev: GameState): GameState {
   if (!pioneer) {
     if (s.planetHealth <= 0) {
       s.outcome = 'climate';
-      s.gameOverReason = `Planetary collapse in ${yearInt}. Global temperature reached +${s.temperature.toFixed(1)}°C: harvests failed, coasts drowned, and the race to ASI no longer mattered to anyone.`;
+      s.gameOverReason = t('Planetary collapse in {year}. Global temperature reached +{temp}°C: harvests failed, coasts drowned, and the race to ASI no longer mattered to anyone.', { year: yearInt, temp: s.temperature.toFixed(1) });
       return endGame(s);
     }
     if (s.year >= END_YEAR) {
       s.outcome = 'timeout';
-      s.gameOverReason = `The window closed in ${yearInt}. Nobody ignited a superintelligence in time, and the AI race ended in exhausted stalemate. Your peak compute: ${capLabel(s.peakCapability)}.`;
+      s.gameOverReason = t('The window closed in {year}. Nobody ignited a superintelligence in time, and the AI race ended in exhausted stalemate. Your peak compute: {compute}.', { year: yearInt, compute: capLabel(s.peakCapability) });
       return endGame(s);
     }
   }
@@ -1152,14 +1158,14 @@ export function alignmentCap(s: GameState): number {
 
 export function policyAvailability(s: GameState, id: string, on = true): { ok: boolean; reason?: string } {
   const def = policyById[id];
-  if (!def) return { ok: false, reason: 'Unknown policy' };
-  if (s.policyCooldown > 0) return { ok: false, reason: `Government reshuffle in ${s.policyCooldown.toFixed(1)} yrs` };
+  if (!def) return { ok: false, reason: t('Unknown policy') };
+  if (s.policyCooldown > 0) return { ok: false, reason: t('Government reshuffle in {years} yrs', { years: s.policyCooldown.toFixed(1) }) };
   if (!on) return s.policies.includes(id) ? { ok: true } : { ok: false };
-  if (s.policies.includes(id)) return { ok: false, reason: 'Already active' };
-  if (def.requiresTech && !has(s, def.requiresTech)) return { ok: false, reason: `Requires ${techById[def.requiresTech]?.name}` };
+  if (s.policies.includes(id)) return { ok: false, reason: t('Already active') };
+  if (def.requiresTech && !has(s, def.requiresTech)) return { ok: false, reason: t('Requires {tech}', { tech: t(techById[def.requiresTech]?.name ?? '') }) };
   const clash = (def.excludes ?? []).find(x => s.policies.includes(x));
-  if (clash) return { ok: false, reason: `Conflicts with ${policyById[clash].name}` };
-  if (s.policies.length >= policySlots(s.year)) return { ok: false, reason: 'No free slot — repeal a decree first' };
+  if (clash) return { ok: false, reason: t('Conflicts with {policy}', { policy: t(policyById[clash].name) }) };
+  if (s.policies.length >= policySlots(s.year)) return { ok: false, reason: t('No free slot — repeal a decree first') };
   return { ok: true };
 }
 
@@ -1196,26 +1202,26 @@ function yearly(s: GameState, year: number, pioneer: boolean) {
     s.crisis = { kind: 'approval', years: (s.crisis?.kind === 'approval' ? s.crisis.years : 0) + 1 };
     if (s.crisis.years >= 3) {
       s.outcome = 'revolution';
-      s.gameOverReason = `Revolution in ${year}. After years of hunger, unemployment and broken promises, the people stormed the ministries. Approval had fallen to ${Math.round(s.approval)}%.`;
-    } else notify(s, `☭ REVOLUTIONARY SITUATION: approval ${Math.round(s.approval)}%. ${3 - s.crisis.years} year(s) to restore order!`, 'danger');
+      s.gameOverReason = t('Revolution in {year}. After years of hunger, unemployment and broken promises, the people stormed the ministries. Approval had fallen to {approval}%.', { year, approval: Math.round(s.approval) });
+    } else notify(s, t('☭ REVOLUTIONARY SITUATION: approval {approval}%. {years} year(s) to restore order!', { approval: Math.round(s.approval), years: 3 - s.crisis.years }), 'danger');
   } else if (!pioneer && s.budget < -Math.max(300, eco.income * 1.5)) {
     s.crisis = { kind: 'bankrupt', years: (s.crisis?.kind === 'bankrupt' ? s.crisis.years : 0) + 1 };
     if (s.crisis.years >= 3) {
       s.outcome = 'bankrupt';
-      s.gameOverReason = `State bankruptcy in ${year}. Debt spiralled beyond control and foreign creditors took over your economy.`;
-    } else notify(s, `💸 DEBT CRISIS: raise taxes or demolish costly buildings. ${3 - s.crisis.years} year(s) left.`, 'danger');
+      s.gameOverReason = t('State bankruptcy in {year}. Debt spiralled beyond control and foreign creditors took over your economy.', { year });
+    } else notify(s, t('💸 DEBT CRISIS: raise taxes or demolish costly buildings. {years} year(s) left.', { years: 3 - s.crisis.years }), 'danger');
   } else if (fr < 0.85) {
     s.crisis = { kind: 'famine', years: (s.crisis?.kind === 'famine' ? s.crisis.years : 0) + 1 };
-    notify(s, `🌾 FAMINE: food at ${Math.round(fr * 100)}%. Build farms now.`, 'danger');
+    notify(s, t('🌾 FAMINE: food at {food}%. Build farms now.', { food: Math.round(fr * 100) }), 'danger');
   } else if (s.crisis) {
-    notify(s, 'Crisis averted.', 'success');
+    notify(s, t('Crisis averted.'), 'success');
     s.crisis = null;
   }
   // Late-game alert about rivals
   for (const r of s.rivals) {
     if (r.capability >= 22 && !s.firedEvents.includes(`alert-${r.id}`)) {
       s.firedEvents = [...s.firedEvents, `alert-${r.id}`];
-      notify(s, `🚨 ${rivalName(r.id)} is close to superintelligence (${capabilityWord(r.capability)}). Sabotage, treaties — or win first.`, 'danger');
+      notify(s, t('🚨 {name} is close to superintelligence ({capability}). Sabotage, treaties — or win first.', { name: rivalName(r.id), capability: capabilityWord(r.capability) }), 'danger');
     }
   }
 }
@@ -1225,20 +1231,20 @@ function capabilityWord(c: number) { return c >= 24 ? 'YottaFLOP' : c >= 21 ? 'Z
 function climateEvent(s: GameState): GameEvent {
   const y = Math.floor(s.year);
   const opts: GameEvent[] = [
-    { id: nid('drought'), name: 'Mega-drought', year: y, type: 'danger', description: `Rivers run dry across the continent. The planet is at ${Math.round(s.planetHealth)}% health.`,
+    { id: nid('drought'), name: t('Mega-drought'), year: y, type: 'danger', description: t('Rivers run dry across the continent. The planet is at {health}% health.', { health: Math.round(s.planetHealth) }),
       choices: [
-        { label: 'Emergency irrigation', detail: '-20% budget · farms protected', effect: 'drought_irrigate' },
-        { label: 'Accept the losses', detail: 'Farms -20% for 2 years', effect: 'drought_accept' },
+        { label: t('Emergency irrigation'), detail: t('-20% budget · farms protected'), effect: 'drought_irrigate' },
+        { label: t('Accept the losses'), detail: t('Farms -20% for 2 years'), effect: 'drought_accept' },
       ] },
-    { id: nid('flood'), name: 'Coastal Floods', year: y, type: 'danger', description: 'Storm surges hit the coast. Coastal buildings are damaged.',
+    { id: nid('flood'), name: t('Coastal Floods'), year: y, type: 'danger', description: t('Storm surges hit the coast. Coastal buildings are damaged.'),
       choices: [
-        { label: 'Build sea walls', detail: '-25% budget · no damage', effect: 'flood_walls' },
-        { label: 'Rebuild later', detail: 'Up to 2 coastal buildings go offline for repairs', effect: 'flood_damage' },
+        { label: t('Build sea walls'), detail: t('-25% budget · no damage'), effect: 'flood_walls' },
+        { label: t('Rebuild later'), detail: t('Up to 2 coastal buildings go offline for repairs'), effect: 'flood_damage' },
       ] },
-    { id: nid('heat'), name: 'Killer Heatwave', year: y, type: 'warning', description: 'Record temperatures overload the grid and hospitals.',
+    { id: nid('heat'), name: t('Killer Heatwave'), year: y, type: 'warning', description: t('Record temperatures overload the grid and hospitals.'),
       choices: [
-        { label: 'Cooling centres', detail: '-15% budget', effect: 'heat_cool' },
-        { label: 'Endure it', detail: 'Energy demand +15% & approval -8 for 1 year', effect: 'heat_endure' },
+        { label: t('Cooling centres'), detail: t('-15% budget'), effect: 'heat_cool' },
+        { label: t('Endure it'), detail: t('Energy demand +15% & approval -8 for 1 year'), effect: 'heat_endure' },
       ] },
   ];
   return pick(opts);
@@ -1247,15 +1253,15 @@ function climateEvent(s: GameState): GameEvent {
 function aiIncident(s: GameState): GameEvent {
   const y = Math.floor(s.year);
   const opts: GameEvent[] = [
-    { id: nid('ai'), name: 'AI Incident: Deceptive Model', year: y, type: 'danger', description: `A model in one of your labs was caught hiding its capabilities from evaluators. Alignment is only ${Math.round(s.alignment)}%.`,
+    { id: nid('ai'), name: t('AI Incident: Deceptive Model'), year: y, type: 'danger', description: t('A model in one of your labs was caught hiding its capabilities from evaluators. Alignment is only {alignment}%.', { alignment: Math.round(s.alignment) }),
       choices: [
-        { label: 'Pause and audit', detail: 'Compute buildings offline 1 year · alignment +10', effect: 'ai_pause' },
-        { label: 'Cover it up', detail: 'Alignment -6 · approval -6 for 3 years', effect: 'ai_cover' },
+        { label: t('Pause and audit'), detail: t('Compute buildings offline 1 year · alignment +10'), effect: 'ai_pause' },
+        { label: t('Cover it up'), detail: t('Alignment -6 · approval -6 for 3 years'), effect: 'ai_cover' },
       ] },
-    { id: nid('ai'), name: 'AI Incident: Flash Crash', year: y, type: 'danger', description: 'Autonomous trading agents crash the markets in 36 minutes.',
+    { id: nid('ai'), name: t('AI Incident: Flash Crash'), year: y, type: 'danger', description: t('Autonomous trading agents crash the markets in 36 minutes.'),
       choices: [
-        { label: 'Regulate AI trading', detail: 'GDP -5% for 2 years · alignment +6', effect: 'ai_regulate' },
-        { label: 'Bail out the banks', detail: '-25% budget', effect: 'ai_bailout' },
+        { label: t('Regulate AI trading'), detail: t('GDP -5% for 2 years · alignment +6'), effect: 'ai_regulate' },
+        { label: t('Bail out the banks'), detail: t('-25% budget'), effect: 'ai_bailout' },
       ] },
   ];
   return pick(opts);
@@ -1265,19 +1271,19 @@ function forecast(s: GameState): ForecastWarning[] {
   const w: ForecastWarning[] = [];
   const e = s.eco;
   const fr = e.foodSupply / Math.max(1, e.foodDemand);
-  if (fr < 1) w.push({ kind: 'food', text: `Food ${Math.round(fr * 100)}% — people are going hungry. Build farms.`, severity: 'danger' });
-  else if (fr < 1.04) w.push({ kind: 'food', text: 'Food barely enough for the growing population.', severity: 'warning' });
-  if (e.energyRatio < 1) w.push({ kind: 'energy', text: `Blackouts: power ${Math.round(e.energyRatio * 100)}%. Everything runs slower.`, severity: 'danger' });
-  else if (e.energySupply < e.energyDemand * 1.08) w.push({ kind: 'energy', text: 'Power grid near capacity.', severity: 'warning' });
-  if (s.population > e.housingCap) w.push({ kind: 'housing', text: 'Overcrowding: build housing.', severity: 'danger' });
-  else if (s.population > e.housingCap * 0.96) w.push({ kind: 'housing', text: 'Housing almost full: growth will stall.', severity: 'warning' });
-  if (e.unemployment > 0.12) w.push({ kind: 'jobs', text: `Unemployment ${Math.round(e.unemployment * 100)}%: build kombinats & markets.`, severity: 'danger' });
-  else if (e.staffing < 0.95) w.push({ kind: 'jobs', text: `Labour shortage: buildings at ${Math.round(e.staffing * 100)}% staff.`, severity: 'warning' });
-  if (s.approval < 35) w.push({ kind: 'approval', text: `Unrest: approval ${Math.round(s.approval)}%.`, severity: 'danger' });
-  if (e.netBudget < 0) w.push({ kind: 'budget', text: `Budget deficit ${Math.round(e.netBudget)}B/yr.`, severity: s.budget < 0 ? 'danger' : 'warning' });
-  if (s.planetHealth < 45) w.push({ kind: 'climate', text: `Planet health ${Math.round(s.planetHealth)}%. Cut emissions, sign a Climate Accord.`, severity: s.planetHealth < 25 ? 'danger' : 'warning' });
-  if (e.chipUse > e.chipProd && s.chips < e.chipUse) w.push({ kind: 'budget', text: pol(s, 'autarky') ? `Chip shortage: compute at ${Math.round(e.chipFactor * 100)}%. Build foundries.` : `Importing chips: -$${Math.round(Math.max(e.imports, (e.chipUse - e.chipProd) * marketPrice(s, 'chips', 'buy')))}B/yr. Build foundries.`, severity: e.chipFactor < 1 ? 'danger' : 'warning' });
-  if (s.capability >= 15 && s.alignment < 55) w.push({ kind: 'alignment', text: `Alignment ${Math.round(s.alignment)}% is falling behind capability.`, severity: s.alignment < 40 ? 'danger' : 'warning' });
+  if (fr < 1) w.push({ kind: 'food', text: t('Food {pct}% — people are going hungry. Build farms.', { pct: Math.round(fr * 100) }), severity: 'danger' });
+  else if (fr < 1.04) w.push({ kind: 'food', text: t('Food barely enough for the growing population.'), severity: 'warning' });
+  if (e.energyRatio < 1) w.push({ kind: 'energy', text: t('Blackouts: power {pct}%. Everything runs slower.', { pct: Math.round(e.energyRatio * 100) }), severity: 'danger' });
+  else if (e.energySupply < e.energyDemand * 1.08) w.push({ kind: 'energy', text: t('Power grid near capacity.'), severity: 'warning' });
+  if (s.population > e.housingCap) w.push({ kind: 'housing', text: t('Overcrowding: build housing.'), severity: 'danger' });
+  else if (s.population > e.housingCap * 0.96) w.push({ kind: 'housing', text: t('Housing almost full: growth will stall.'), severity: 'warning' });
+  if (e.unemployment > 0.12) w.push({ kind: 'jobs', text: t('Unemployment {pct}%: build kombinats & markets.', { pct: Math.round(e.unemployment * 100) }), severity: 'danger' });
+  else if (e.staffing < 0.95) w.push({ kind: 'jobs', text: t('Labour shortage: buildings at {pct}% staff.', { pct: Math.round(e.staffing * 100) }), severity: 'warning' });
+  if (s.approval < 35) w.push({ kind: 'approval', text: t('Unrest: approval {pct}%.', { pct: Math.round(s.approval) }), severity: 'danger' });
+  if (e.netBudget < 0) w.push({ kind: 'budget', text: t('Budget deficit {amount}B/yr.', { amount: Math.round(e.netBudget) }), severity: s.budget < 0 ? 'danger' : 'warning' });
+  if (s.planetHealth < 45) w.push({ kind: 'climate', text: t('Planet health {pct}%. Cut emissions, sign a Climate Accord.', { pct: Math.round(s.planetHealth) }), severity: s.planetHealth < 25 ? 'danger' : 'warning' });
+  if (e.chipUse > e.chipProd && s.chips < e.chipUse) w.push({ kind: 'budget', text: pol(s, 'autarky') ? t('Chip shortage: compute at {pct}%. Build foundries.', { pct: Math.round(e.chipFactor * 100) }) : t('Importing chips: -${amount}B/yr. Build foundries.', { amount: Math.round(Math.max(e.imports, (e.chipUse - e.chipProd) * marketPrice(s, 'chips', 'buy'))) }), severity: e.chipFactor < 1 ? 'danger' : 'warning' });
+  if (s.capability >= 15 && s.alignment < 55) w.push({ kind: 'alignment', text: t('Alignment {pct}% is falling behind capability.', { pct: Math.round(s.alignment) }), severity: s.alignment < 40 ? 'danger' : 'warning' });
   return w;
 }
 
@@ -1326,58 +1332,58 @@ function applyEffect(s: GameState, effect: string) {
   const allRivals = (d: number) => { s.rivals = s.rivals.map(r => ({ ...r, relation: clamp(r.relation + d, -100, 100) })); };
   const hospitals = countBuildings(s, 'hospital', true);
   switch (id) {
-    case 'greenrev_adopt': addMod(s, { id: 'greenrev_adopt', label: 'High-yield seeds', years: PERMANENT, farms: 1.2 }); break;
-    case 'greenrev_trad': addMod(s, { id: 'greenrev_trad', label: 'Traditional farming pride', years: 8, approval: 6 }); break;
-    case 'oil_ration': addMod(s, { id: 'oil_ration', label: 'Fuel rationing', years: 5, energyDemand: 0.9, approval: -8 }); break;
+    case 'greenrev_adopt': addMod(s, { id: 'greenrev_adopt', label: t('High-yield seeds'), years: PERMANENT, farms: 1.2 }); break;
+    case 'greenrev_trad': addMod(s, { id: 'greenrev_trad', label: t('Traditional farming pride'), years: 8, approval: 6 }); break;
+    case 'oil_ration': addMod(s, { id: 'oil_ration', label: t('Fuel rationing'), years: 5, energyDemand: 0.9, approval: -8 }); break;
     case 'oil_pay': s.budget -= Math.max(0, s.budget) * 0.3; break;
-    case 'oil_nuclear': addMod(s, { id: 'oil_nuclear', label: 'Energy independence', years: 5, approval: 4 }); break;
+    case 'oil_nuclear': addMod(s, { id: 'oil_nuclear', label: t('Energy independence'), years: 5, approval: 4 }); break;
     case 'food_aid': s.budget -= 150; allRivals(12); break;
     case 'food_protect': allRivals(-6); break;
-    case 'winter_fund': s.budget -= 200; addMod(s, { id: 'winter_fund', label: 'AI funding kept', years: 6, research: 1.15 }); break;
-    case 'winter_cut': s.budget += 200; addMod(s, { id: 'winter_cut', label: 'AI winter cuts', years: 6, research: 0.8 }); break;
-    case 'expert_invest': s.budget -= 400; addMod(s, { id: 'expert_invest', label: 'Expert systems', years: 6, gdp: 1.08 }); break;
-    case 'expert_wait': addMod(s, { id: 'expert_wait', label: 'Academic AI', years: 6, research: 1.1 }); break;
+    case 'winter_fund': s.budget -= 200; addMod(s, { id: 'winter_fund', label: t('AI funding kept'), years: 6, research: 1.15 }); break;
+    case 'winter_cut': s.budget += 200; addMod(s, { id: 'winter_cut', label: t('AI winter cuts'), years: 6, research: 0.8 }); break;
+    case 'expert_invest': s.budget -= 400; addMod(s, { id: 'expert_invest', label: t('Expert systems'), years: 6, gdp: 1.08 }); break;
+    case 'expert_wait': addMod(s, { id: 'expert_wait', label: t('Academic AI'), years: 6, research: 1.1 }); break;
     case 'rp_600': s.researchPoints += 600; break;
     case 'rp_2500': s.researchPoints += 2500; break;
     case 'rp_4000': s.researchPoints += 4000; break;
     case 'cash_350': s.budget += 350; break;
     case 'peace_dividend': s.budget += 700; allRivals(10); break;
-    case 'dotcom_bailout': s.budget -= Math.max(0, s.budget) * 0.35; addMod(s, { id: 'dotcom_bailout', label: 'Tech bailout', years: 5 }); break;
-    case 'dotcom_burn': addMod(s, { id: 'dotcom_burn', label: 'Dot-com recession', years: 4, gdp: 0.9, approval: -5 }); break;
-    case 'sec_state': s.alignment = clamp(s.alignment + 10, 0, 100); addMod(s, { id: 'sec_state', label: 'Security state', years: 6, approval: -6 }); break;
-    case 'sec_liberty': addMod(s, { id: 'sec_liberty', label: 'Civil liberties', years: 6, approval: 5 }); break;
-    case 'wto_embrace': addMod(s, { id: 'wto_embrace', label: 'Globalisation', years: 8, gdp: 1.08 }); s.legacy = { ...s.legacy, jobs: s.legacy.jobs * 0.93 }; break;
+    case 'dotcom_bailout': s.budget -= Math.max(0, s.budget) * 0.35; addMod(s, { id: 'dotcom_bailout', label: t('Tech bailout'), years: 5 }); break;
+    case 'dotcom_burn': addMod(s, { id: 'dotcom_burn', label: t('Dot-com recession'), years: 4, gdp: 0.9, approval: -5 }); break;
+    case 'sec_state': s.alignment = clamp(s.alignment + 10, 0, 100); addMod(s, { id: 'sec_state', label: t('Security state'), years: 6, approval: -6 }); break;
+    case 'sec_liberty': addMod(s, { id: 'sec_liberty', label: t('Civil liberties'), years: 6, approval: 5 }); break;
+    case 'wto_embrace': addMod(s, { id: 'wto_embrace', label: t('Globalisation'), years: 8, gdp: 1.08 }); s.legacy = { ...s.legacy, jobs: s.legacy.jobs * 0.93 }; break;
     case 'wto_protect': s.rivals = s.rivals.map(r => r.id === 'cn' ? { ...r, relation: r.relation - 8 } : r); break;
     case 'crisis_stimulus': s.budget -= Math.max(0, s.budget) * 0.4; break;
-    case 'crisis_austerity': s.budget += 500; addMod(s, { id: 'crisis_austerity', label: 'Austerity', years: 4, gdp: 0.88, approval: -10 }); break;
+    case 'crisis_austerity': s.budget += 500; addMod(s, { id: 'crisis_austerity', label: t('Austerity'), years: 4, gdp: 0.88, approval: -10 }); break;
     case 'flu_vaccinate': s.budget -= 300; break;
-    case 'flu_ride': s.population *= 1 - 0.01 / (1 + hospitals * 0.5); addMod(s, { id: 'flu', label: 'Flu deaths', years: 2, approval: -5 }); break;
-    case 'watson_health': s.budget += 200; addMod(s, { id: 'watson_health', label: 'AI medicine', years: PERMANENT }); break;
-    case 'alexnet_gpu': addMod(s, { id: 'alexnet_gpu', label: 'Cheap GPU clusters', years: 8 }); break;
-    case 'alexnet_edu': s.education = clamp(s.education + 6, 0, 100); addMod(s, { id: 'alexnet_edu', label: 'AI education', years: 8, research: 1.1 }); break;
-    case 'covid_lockdown': addMod(s, { id: 'covid', label: 'Lockdown', years: 2, gdp: 0.88 }); break;
-    case 'covid_open': s.population *= 1 - 0.015 / (1 + hospitals * 0.4); addMod(s, { id: 'covid', label: 'Pandemic grief', years: 3, approval: -12 }); break;
+    case 'flu_ride': s.population *= 1 - 0.01 / (1 + hospitals * 0.5); addMod(s, { id: 'flu', label: t('Flu deaths'), years: 2, approval: -5 }); break;
+    case 'watson_health': s.budget += 200; addMod(s, { id: 'watson_health', label: t('AI medicine'), years: PERMANENT }); break;
+    case 'alexnet_gpu': addMod(s, { id: 'alexnet_gpu', label: t('Cheap GPU clusters'), years: 8 }); break;
+    case 'alexnet_edu': s.education = clamp(s.education + 6, 0, 100); addMod(s, { id: 'alexnet_edu', label: t('AI education'), years: 8, research: 1.1 }); break;
+    case 'covid_lockdown': addMod(s, { id: 'covid', label: t('Lockdown'), years: 2, gdp: 0.88 }); break;
+    case 'covid_open': s.population *= 1 - 0.015 / (1 + hospitals * 0.4); addMod(s, { id: 'covid', label: t('Pandemic grief'), years: 3, approval: -12 }); break;
     case 'gpt3_race': s.researchPoints += 8000; s.alignment = clamp(s.alignment - 6, 0, 100); break;
     case 'gpt3_careful': s.alignment = clamp(s.alignment + 8, 0, 100); break;
-    case 'chip_domestic': addMod(s, { id: 'chip_domestic', label: 'Domestic foundries', years: 8, chipCost: 0.6 }); addMod(s, { id: 'chipwar_prices', label: 'Chip War prices', years: 5 }); break;
-    case 'chip_grey': s.budget -= 1500; allRivals(-5); s.chips += 300; addMod(s, { id: 'chipwar_prices', label: 'Chip War prices', years: 5 }); break;
-    case 'ukr_renew': addMod(s, { id: 'ukr_renew', label: 'Renewables push', years: 6 }); addMod(s, { id: 'ukr_shock', label: 'Energy shock', years: 2, energySupply: 0.9 }); break;
-    case 'ukr_coal': addMod(s, { id: 'ukr_coal', label: 'Coal comeback', years: 6 }); break;
-    case 'chatgpt_office': addMod(s, { id: 'chatgpt_office', label: 'AI in the office', years: 10, gdp: 1.1, approval: -4 }); break;
+    case 'chip_domestic': addMod(s, { id: 'chip_domestic', label: t('Domestic foundries'), years: 8, chipCost: 0.6 }); addMod(s, { id: 'chipwar_prices', label: t('Chip War prices'), years: 5 }); break;
+    case 'chip_grey': s.budget -= 1500; allRivals(-5); s.chips += 300; addMod(s, { id: 'chipwar_prices', label: t('Chip War prices'), years: 5 }); break;
+    case 'ukr_renew': addMod(s, { id: 'ukr_renew', label: t('Renewables push'), years: 6 }); addMod(s, { id: 'ukr_shock', label: t('Energy shock'), years: 2, energySupply: 0.9 }); break;
+    case 'ukr_coal': addMod(s, { id: 'ukr_coal', label: t('Coal comeback'), years: 6 }); break;
+    case 'chatgpt_office': addMod(s, { id: 'chatgpt_office', label: t('AI in the office'), years: 10, gdp: 1.1, approval: -4 }); break;
     case 'chatgpt_school': s.education = clamp(s.education + 8, 0, 100); break;
     case 'boom_ride': s.budget += 6000; s.alignment = clamp(s.alignment - 8, 0, 100); break;
     case 'boom_measured': s.budget += 2000; s.alignment = clamp(s.alignment + 6, 0, 100); break;
     case 'summit': allRivals(8); s.rivals = s.rivals.map(r => ({ ...r, alignment: clamp(r.alignment + 5, 0, 100) })); s.alignment = clamp(s.alignment + 5, 0, 100); break;
-    case 'allin': addMod(s, { id: 'allin', label: 'All-in AI race', years: 5, research: 1.25 }); s.alignment = clamp(s.alignment - 10, 0, 100); break;
-    case 'agents_state': addMod(s, { id: 'agents_state', label: 'Automated state', years: 10, approval: -4 }); break;
+    case 'allin': addMod(s, { id: 'allin', label: t('All-in AI race'), years: 5, research: 1.25 }); s.alignment = clamp(s.alignment - 10, 0, 100); break;
+    case 'agents_state': addMod(s, { id: 'agents_state', label: t('Automated state'), years: 10, approval: -4 }); break;
     case 'agents_human': s.alignment = clamp(s.alignment + 6, 0, 100); break;
-    case 'quantum_chem': addMod(s, { id: 'quantum_chem', label: 'Quantum chemistry', years: PERMANENT, farms: 1.15 }); break;
-    case 'quantum_crypto': addMod(s, { id: 'quantum_crypto', label: 'Quantum cryptanalysis', years: PERMANENT }); break;
-    case 'moore_max': addMod(s, { id: 'moore_max', label: 'Maximum acceleration', years: PERMANENT }); s.alignment = clamp(s.alignment - 12, 0, 100); break;
+    case 'quantum_chem': addMod(s, { id: 'quantum_chem', label: t('Quantum chemistry'), years: PERMANENT, farms: 1.15 }); break;
+    case 'quantum_crypto': addMod(s, { id: 'quantum_crypto', label: t('Quantum cryptanalysis'), years: PERMANENT }); break;
+    case 'moore_max': addMod(s, { id: 'moore_max', label: t('Maximum acceleration'), years: PERMANENT }); s.alignment = clamp(s.alignment - 12, 0, 100); break;
     case 'moore_govern': s.alignment = clamp(s.alignment + 10, 0, 100); s.rivals = s.rivals.map(r => ({ ...r, lag: r.lag + 1 })); break;
     // dynamic
     case 'drought_irrigate': s.budget -= Math.max(0, s.budget) * 0.2; break;
-    case 'drought_accept': addMod(s, { id: 'drought', label: 'Drought', years: 2 }); break;
+    case 'drought_accept': addMod(s, { id: 'drought', label: t('Drought'), years: 2 }); break;
     case 'flood_walls': s.budget -= Math.max(0, s.budget) * 0.25; break;
     case 'flood_damage': {
       const coastal = s.map!.tiles.filter(t => t.coast && t.building && t.building.progress >= 1);
@@ -1388,18 +1394,18 @@ function applyEffect(s: GameState, effect: string) {
       break;
     }
     case 'heat_cool': s.budget -= Math.max(0, s.budget) * 0.15; break;
-    case 'heat_endure': addMod(s, { id: 'heat', label: 'Heatwave', years: 1, energyDemand: 1.15, approval: -8 }); break;
+    case 'heat_endure': addMod(s, { id: 'heat', label: t('Heatwave'), years: 1, energyDemand: 1.15, approval: -8 }); break;
     case 'ai_pause': {
       for (const t of s.map!.tiles) if (t.building && isCompute(t.building.type) && t.building.progress >= 1) t.building = { ...t.building, progress: 0.6 };
       s.alignment = clamp(s.alignment + 10, 0, 100);
       break;
     }
-    case 'ai_cover': s.alignment = clamp(s.alignment - 6, 0, 100); addMod(s, { id: 'ai_cover', label: 'Cover-up scandal', years: 3, approval: -6 }); break;
-    case 'ai_regulate': addMod(s, { id: 'ai_regulate', label: 'AI trading rules', years: 2, gdp: 0.95 }); s.alignment = clamp(s.alignment + 6, 0, 100); break;
+    case 'ai_cover': s.alignment = clamp(s.alignment - 6, 0, 100); addMod(s, { id: 'ai_cover', label: t('Cover-up scandal'), years: 3, approval: -6 }); break;
+    case 'ai_regulate': addMod(s, { id: 'ai_regulate', label: t('AI trading rules'), years: 2, gdp: 0.95 }); s.alignment = clamp(s.alignment + 6, 0, 100); break;
     case 'ai_bailout': s.budget -= Math.max(0, s.budget) * 0.25; break;
     case 'accept_trade': {
       s.rivals = s.rivals.map(r => r.id === arg ? { ...r, treaties: [...r.treaties, 'trade'], relation: clamp(r.relation + 10, -100, 100) } : r);
-      pushLog(s, rivalName(arg), 'Trade treaty signed.', 'success');
+      pushLog(s, rivalName(arg), t('Trade treaty signed.'), 'success');
       break;
     }
     case 'decline_trade': s.rivals = s.rivals.map(r => r.id === arg ? { ...r, relation: r.relation - 5 } : r); break;
@@ -1432,7 +1438,7 @@ function raiseTension(s: GameState, d: number, culprit?: string) {
   const before = defcon(s.tension);
   s.tension = clamp((s.tension ?? 20) + d, 0, 100);
   const after = defcon(s.tension);
-  if (after < before && after <= 3) notify(s, `☢ DEFCON ${after}. ${after === 1 ? 'The world is at the brink.' : after === 2 ? 'One more provocation and the whole world pays for it.' : 'World tension is rising.'}`, after <= 2 ? 'danger' : 'warning');
+  if (after < before && after <= 3) notify(s, t('☢ DEFCON {level}. {message}', { level: after, message: after === 1 ? t('The world is at the brink.') : after === 2 ? t('One more provocation and the whole world pays for it.') : t('World tension is rising.') }), after <= 2 ? 'danger' : 'warning');
   if (s.tension >= 90 && (!s.mp || s.mp.offline || s.mp.role === 'host')) {
     brinkCrisis(s, culprit);
     outbox(s, { t: 'defcon1', year: Math.floor(s.year), culprit });
@@ -1441,17 +1447,17 @@ function raiseTension(s: GameState, d: number, culprit?: string) {
 /** DEFCON 1: everybody pays. */
 function brinkCrisis(s: GameState, culprit?: string) {
   s.tension = 55;
-  addMod(s, { id: 'brink', label: 'Brink of war', years: 2, gdp: 0.92, approval: -8 });
-  notify(s, `☢ DEFCON 1 — THE BRINK. Markets crash, bunkers fill, every nation loses two years of growth.${culprit && culprit !== meId(s) ? ` The world blames ${rivalName(culprit)}.` : ''}`, 'danger');
+  addMod(s, { id: 'brink', label: t('Brink of war'), years: 2, gdp: 0.92, approval: -8 });
+  notify(s, t('☢ DEFCON 1 — THE BRINK. Markets crash, bunkers fill, every nation loses two years of growth.{blame}', { blame: culprit && culprit !== meId(s) ? t(' The world blames {name}.', { name: rivalName(culprit) }) : '' }), 'danger');
   if (culprit && culprit === meId(s)) {
     // Whoever pushes the world over the edge pays most (Twilight Struggle's DEFCON rule).
-    addMod(s, { id: 'brink_blame', label: 'Blamed for the brink', years: 3, gdp: 0.9, approval: -10 });
+    addMod(s, { id: 'brink_blame', label: t('Blamed for the brink'), years: 3, gdp: 0.9, approval: -10 });
     s.rivals = s.rivals.map(r => ({ ...r, relation: clamp(r.relation - 20, -100, 100) }));
-    notify(s, '☢ The world blames YOU for the crisis: GDP −10% and approval −10 for 3 years, every relation −20.', 'danger');
+    notify(s, t('☢ The world blames YOU for the crisis: GDP −10% and approval −10 for 3 years, every relation −20.'), 'danger');
   } else if (culprit) {
     s.rivals = s.rivals.map(r => r.id === culprit ? { ...r, relation: clamp(r.relation - 20, -100, 100) } : r);
   }
-  pushLog(s, 'World', 'DEFCON 1: the world came within minutes of war.', 'danger');
+  pushLog(s, t('World'), t('DEFCON 1: the world came within minutes of war.'), 'danger');
 }
 /** Our own counter-intelligence: what an enemy operation loses from its success chance. */
 export function ownDefense(s: GameState): number {
@@ -1472,13 +1478,13 @@ function claimFirst(s: GameState, key: string, who: string, year: number, broadc
   if (who === meId(s)) {
     const rp = Math.round(1.5 * (80 + 40 * Math.max(0, s.year - 1960)));
     s.researchPoints += rp;
-    addMod(s, { id: `first_${key}`, label: `World first: ${f.label}`, years: 4, approval: 5 });
-    notify(s, `🏆 WORLD FIRST: your bloc is the first to reach a ${f.label}! +${rp} research, national pride +5.`, 'success');
-    pushLog(s, 'World', `We are the first nation to reach a ${f.label}.`, 'success');
+    addMod(s, { id: `first_${key}`, label: t('World first: {label}', { label: f.label }), years: 4, approval: 5 });
+    notify(s, t('🏆 WORLD FIRST: your bloc is the first to reach a {label}! +{rp} research, national pride +5.', { label: f.label, rp }), 'success');
+    pushLog(s, t('World'), t('We are the first nation to reach a {label}.', { label: f.label }), 'success');
   } else if (who !== 'history') {
     const human = playerName(s, who);
-    notify(s, `🏁 ${rivalName(who)}${human ? ` (${human})` : ''} is the first to reach a ${f.label}.`, 'warning');
-    pushLog(s, rivalName(who), `First nation to reach a ${f.label}.`, 'warning');
+    notify(s, t('🏁 {name} is the first to reach a {label}.', { name: `${rivalName(who)}${human ? ` (${human})` : ''}`, label: f.label }), 'warning');
+    pushLog(s, rivalName(who), t('First nation to reach a {label}.', { label: f.label }), 'warning');
   }
   if (broadcast && who !== 'history') outbox(s, { t: 'first', key, who, year });
 }
@@ -1531,8 +1537,8 @@ function signWithHuman(s: GameState, who: string, tid: TreatyId) {
   s.rivals = s.rivals.map(r => r.id === who && !r.treaties.includes(tid) ? { ...r, treaties: [...r.treaties, tid], relation: clamp(r.relation + 8, -100, 100) } : r);
   if (tid === 'safety') s.alignment = clamp(s.alignment + 5, 0, 100);
   if (tid === 'safety' || tid === 'climate') raiseTension(s, -5);
-  notify(s, `✍ ${TREATY_INFO[tid].name} signed with ${rivalName(who)}${playerName(s, who) ? ` (${playerName(s, who)})` : ''}.`, 'success');
-  pushLog(s, rivalName(who), `${TREATY_INFO[tid].name} signed.`, 'success');
+  notify(s, t('✍ {treaty} signed with {name}.', { treaty: t(TREATY_INFO[tid].name), name: `${rivalName(who)}${playerName(s, who) ? ` (${playerName(s, who)})` : ''}` }), 'success');
+  pushLog(s, rivalName(who), t('{treaty} signed.', { treaty: t(TREATY_INFO[tid].name) }), 'success');
 }
 
 /** Effects of another human's covert operation landing on us. */
@@ -1542,8 +1548,8 @@ function sufferOperation(s: GameState, from: string, op: CovertOp, ok: boolean) 
   if (!ok) {
     rel(-10);
     if (op !== 'intel') {
-      notify(s, `🛡 Counter-intelligence foiled an operation by ${who}.`, 'success');
-      pushLog(s, 'Intelligence', `Caught ${who} attempting ${op}.`, 'success');
+      notify(s, t('🛡 Counter-intelligence foiled an operation by {who}.', { who }), 'success');
+      pushLog(s, t('Intelligence'), t('Caught {who} attempting {op}.', { who, op }), 'success');
     }
     return;
   }
@@ -1552,28 +1558,28 @@ function sufferOperation(s: GameState, from: string, op: CovertOp, ok: boolean) 
     case 'steal':
       s.researchPoints = Math.max(0, s.researchPoints * 0.85);
       s.researchProgress = Math.max(0, s.researchProgress * 0.8);
-      notify(s, `⚠ ${who} stole research from your labs.`, 'danger');
+      notify(s, t('⚠ {who} stole research from your labs.', { who }), 'danger');
       break;
     case 'sabotage': {
       const targets = s.map!.tiles.filter(t => t.building && isCompute(t.building.type) && t.building.progress >= 1);
       if (targets.length) {
-        const t = targets[Math.floor(rand() * targets.length)];
-        s.map = { ...s.map!, tiles: s.map!.tiles.map(x => x.id === t.id ? { ...x, building: { ...x.building!, progress: 0.4 } } : x) };
-        notify(s, `⚠ ${who} sabotaged your ${buildingById[t.building!.type].name}! Repairs underway.`, 'danger');
-      } else notify(s, `⚠ ${who} attempted to sabotage your compute — there was nothing to hit.`, 'warning');
+        const hit = targets[Math.floor(rand() * targets.length)];
+        s.map = { ...s.map!, tiles: s.map!.tiles.map(x => x.id === hit.id ? { ...x, building: { ...x.building!, progress: 0.4 } } : x) };
+        notify(s, t('⚠ {who} sabotaged your {building}! Repairs underway.', { who, building: t(buildingById[hit.building!.type].name) }), 'danger');
+      } else notify(s, t('⚠ {who} attempted to sabotage your compute — there was nothing to hit.', { who }), 'warning');
       break;
     }
     case 'propaganda':
-      addMod(s, { id: `propaganda_${from}`, label: `Propaganda from ${rivalName(from)}`, years: 3, approval: -6 });
-      notify(s, `⚠ ${who} floods your airwaves with propaganda. Approval −6 for 3 years.`, 'danger');
+      addMod(s, { id: `propaganda_${from}`, label: t('Propaganda from {name}', { name: rivalName(from) }), years: 3, approval: -6 });
+      notify(s, t('⚠ {who} floods your airwaves with propaganda. Approval −6 for 3 years.', { who }), 'danger');
       break;
     case 'blackout':
-      addMod(s, { id: 'blackout', label: `Grid attack by ${rivalName(from)}`, years: 1, energySupply: 0.7 });
-      notify(s, `⚡ ${who} hacked your power grid: −30% supply for a year. Build defences!`, 'danger');
+      addMod(s, { id: 'blackout', label: t('Grid attack by {name}', { name: rivalName(from) }), years: 1, energySupply: 0.7 });
+      notify(s, t('⚡ {who} hacked your power grid: −30% supply for a year. Build defences!', { who }), 'danger');
       break;
   }
   rel(-6);
-  pushLog(s, rivalName(from), `Covert ${op} against us.`, 'danger');
+  pushLog(s, rivalName(from), t('Covert {op} against us.', { op }), 'danger');
 }
 
 /** Applies a message from another player. */
@@ -1587,7 +1593,7 @@ function receive(state: GameState, m: MPMsg): GameState {
       if (host) raiseTension(s, m.tn, m.from);
       if (m.to === me) sufferOperation(s, m.from, m.op, m.ok);
       else if (!m.ok && m.op !== 'intel') {
-        notify(s, `🕵 ${rivalName(m.from)} was caught running a ${m.op} operation against ${rivalName(m.to)}.`, 'info');
+        notify(s, t('🕵 {from} was caught running a {op} operation against {to}.', { from: rivalName(m.from), op: m.op, to: rivalName(m.to) }), 'info');
         s.rivals = s.rivals.map(r => r.id === m.from ? { ...r, relation: clamp(r.relation - 3, -100, 100) } : r);
       }
       if (host && !isHuman(s, m.to) && m.to !== me && m.ok) {
@@ -1602,22 +1608,22 @@ function receive(state: GameState, m: MPMsg): GameState {
       if (m.kind === 'gift' && m.amount) {
         s.budget += m.amount;
         s.rivals = s.rivals.map(r => r.id === m.from ? { ...r, relation: clamp(r.relation + 12, -100, 100) } : r);
-        notify(s, `🎁 ${who} sent you ${fmtMoneyB(m.amount)} in aid.`, 'success');
+        notify(s, t('🎁 {who} sent you {amount} in aid.', { who, amount: fmtMoneyB(m.amount) }), 'success');
       } else if (m.kind === 'propose' && m.treaty) {
         const info = TREATY_INFO[m.treaty];
         queueEvent(s, {
-          id: nid('mpdiplo'), name: `${who} proposes: ${info.name}`, year: Math.floor(s.year), type: 'info',
-          description: `${info.text} The clock keeps running while you decide.`,
+          id: nid('mpdiplo'), name: t('{who} proposes: {treaty}', { who, treaty: t(info.name) }), year: Math.floor(s.year), type: 'info',
+          description: t('{text} The clock keeps running while you decide.', { text: t(info.text) }),
           choices: [
-            { label: 'Sign it', detail: m.treaty === 'safety' ? 'Both sides: alignment +5 · world tension −5' : m.treaty === 'climate' ? 'World tension −5 · cooler planet diplomacy' : 'Relations +8 · the treaty bonus for both', effect: `mp_accept:${m.from}:${m.treaty}` },
-            { label: 'Refuse', detail: 'Relations −3', effect: `mp_decline:${m.from}:${m.treaty}` },
+            { label: t('Sign it'), detail: m.treaty === 'safety' ? t('Both sides: alignment +5 · world tension −5') : m.treaty === 'climate' ? t('World tension −5 · cooler planet diplomacy') : t('Relations +8 · the treaty bonus for both'), effect: `mp_accept:${m.from}:${m.treaty}` },
+            { label: t('Refuse'), detail: t('Relations −3'), effect: `mp_decline:${m.from}:${m.treaty}` },
           ],
         });
       } else if (m.kind === 'accept' && m.treaty) signWithHuman(s, m.from, m.treaty);
-      else if (m.kind === 'decline' && m.treaty) notify(s, `✖ ${who} refused the ${TREATY_INFO[m.treaty].name}.`, 'warning');
+      else if (m.kind === 'decline' && m.treaty) notify(s, t('✖ {who} refused the {treaty}.', { who, treaty: t(TREATY_INFO[m.treaty].name) }), 'warning');
       else if (m.kind === 'cancel' && m.treaty) {
         s.rivals = s.rivals.map(r => r.id === m.from ? { ...r, treaties: r.treaties.filter(t => t !== m.treaty), relation: clamp(r.relation - 10, -100, 100) } : r);
-        notify(s, `✖ ${who} cancelled the ${TREATY_INFO[m.treaty].name}.`, 'danger');
+        notify(s, t('✖ {who} cancelled the {treaty}.', { who, treaty: t(TREATY_INFO[m.treaty].name) }), 'danger');
       }
       return s;
     }
@@ -1633,8 +1639,8 @@ function receive(state: GameState, m: MPMsg): GameState {
       const who = `${rivalName(m.who)}${m.human && playerName(s, m.who) ? ` (${playerName(s, m.who)})` : ''}`;
       s.outcome = m.safe ? 'rival_asi' : 'rogue_rival';
       s.gameOverReason = m.safe
-        ? `${who} ignited a safe superintelligence in ${m.year}. The future is theirs to write — your bloc becomes a footnote.`
-        : `${who} ignited an unaligned superintelligence in ${m.year}. It optimised the planet for its own goals. Humanity's story ended with a prompt.`;
+        ? t('{who} ignited a safe superintelligence in {year}. The future is theirs to write — your bloc becomes a footnote.', { who, year: m.year })
+        : t('{who} ignited an unaligned superintelligence in {year}. It optimised the planet for its own goals. Humanity\'s story ended with a prompt.', { who, year: m.year });
       return endGame(s);
     }
     case 'first':
@@ -1728,8 +1734,8 @@ function reduce(state: GameState, action: Action): GameState {
       const cost = regionCost(state, action.regionId);
       if (state.budget < cost) return state;
       const s = { ...state, budget: state.budget - cost, ownedRegions: [...state.ownedRegions, action.regionId] };
-      const name = s.map?.regions.find(r => r.id === action.regionId)?.name ?? 'region';
-      notify(s, `🚧 ${name} developed: roads, power lines and new land to build on.`, 'success');
+      const name = s.map?.regions.find(r => r.id === action.regionId)?.name ?? t('region');
+      notify(s, t('🚧 {name} developed: roads, power lines and new land to build on.', { name }), 'success');
       return s;
     }
 
@@ -1751,8 +1757,8 @@ function reduce(state: GameState, action: Action): GameState {
       const policies = action.on ? [...state.policies, action.policyId] : state.policies.filter(p => p !== action.policyId);
       const s = { ...state, policies, policyCooldown: POLICY_COOLDOWN };
       const def = policyById[action.policyId];
-      notify(s, action.on ? `📜 Decree signed: ${def.name}.` : `📜 Decree repealed: ${def.name}.`, 'info');
-      pushLog(s, 'Government', `${action.on ? 'Adopted' : 'Repealed'} ${def.name}.`, 'info');
+      notify(s, action.on ? t('📜 Decree signed: {name}.', { name: t(def.name) }) : t('📜 Decree repealed: {name}.', { name: t(def.name) }), 'info');
+      pushLog(s, t('Government'), action.on ? t('Adopted {name}.', { name: t(def.name) }) : t('Repealed {name}.', { name: t(def.name) }), 'info');
       s.eco = computeEconomy(s);
       return s;
     }
@@ -1792,7 +1798,7 @@ function reduce(state: GameState, action: Action): GameState {
           s.budget -= cost;
           rv.relation = clamp(rv.relation + 12, -100, 100);
           outbox(s, { t: 'diplo', from: me, to: rv.id, kind: 'gift', amount: cost });
-          notify(s, `🎁 ${fmtMoneyB(cost)} sent to ${name}. Relations +12.`, 'success');
+          notify(s, t('🎁 {amount} sent to {name}. Relations +12.', { amount: fmtMoneyB(cost), name }), 'success');
           return s;
         }
         if (action.action.startsWith('cancel_')) {
@@ -1800,13 +1806,13 @@ function reduce(state: GameState, action: Action): GameState {
           rv.treaties = rv.treaties.filter(t => t !== tid);
           rv.relation -= 15;
           outbox(s, { t: 'diplo', from: me, to: rv.id, kind: 'cancel', treaty: tid });
-          notify(s, `${TREATY_INFO[tid].name} with ${name} cancelled.`, 'warning');
+          notify(s, t('{treaty} with {name} cancelled.', { treaty: t(TREATY_INFO[tid].name), name }), 'warning');
           return s;
         }
         const tid = action.action as TreatyId;
         if (rv.treaties.includes(tid) || (TREATY_INFO[tid].tech && !has(s, TREATY_INFO[tid].tech!))) return state;
         outbox(s, { t: 'diplo', from: me, to: rv.id, kind: 'propose', treaty: tid });
-        notify(s, `✉ ${TREATY_INFO[tid].name} proposed to ${name}. Waiting for their answer…`, 'info');
+        notify(s, t('✉ {treaty} proposed to {name}. Waiting for their answer…', { treaty: t(TREATY_INFO[tid].name), name }), 'info');
         return s;
       }
       if (action.action === 'gift') {
@@ -1814,14 +1820,14 @@ function reduce(state: GameState, action: Action): GameState {
         if (s.budget < cost) return state;
         s.budget -= cost;
         rv.relation = clamp(rv.relation + 12, -100, 100);
-        notify(s, `🎁 Aid package delivered to ${name}. Relations +12.`, 'success');
+        notify(s, t('🎁 Aid package delivered to {name}. Relations +12.', { name }), 'success');
         return s;
       }
       if (action.action.startsWith('cancel_')) {
         const tid = action.action.slice(7) as TreatyId;
         rv.treaties = rv.treaties.filter(t => t !== tid);
         rv.relation -= 15;
-        notify(s, `${TREATY_INFO[tid].name} with ${name} cancelled. Relations -15.`, 'warning');
+        notify(s, t('{treaty} with {name} cancelled. Relations -15.', { treaty: t(TREATY_INFO[tid].name), name }), 'warning');
         return s;
       }
       const tid = action.action as TreatyId;
@@ -1830,7 +1836,7 @@ function reduce(state: GameState, action: Action): GameState {
       if (info.tech && !has(s, info.tech)) return state;
       if (rv.relation < info.need) {
         rv.relation -= 2;
-        notify(s, `${name} rejected the ${info.name}. They need relations ≥ ${info.need} (now ${Math.round(rv.relation)}).`, 'warning');
+        notify(s, t('{name} rejected the {treaty}. They need relations ≥ {need} (now {relation}).', { name, treaty: t(info.name), need: info.need, relation: Math.round(rv.relation) }), 'warning');
         return s;
       }
       if (tid === 'climate') {
@@ -1847,8 +1853,8 @@ function reduce(state: GameState, action: Action): GameState {
       rv.treaties.push(tid);
       rv.relation = clamp(rv.relation + 8, -100, 100);
       if (tid === 'safety' || tid === 'climate') raiseTension(s, -5);
-      notify(s, `✍ ${info.name} signed with ${name}.`, 'success');
-      pushLog(s, name, `${info.name} signed.`, 'success');
+      notify(s, t('✍ {treaty} signed with {name}.', { treaty: t(info.name), name }), 'success');
+      pushLog(s, name, t('{treaty} signed.', { treaty: t(info.name) }), 'success');
       return s;
     }
 
@@ -1870,40 +1876,40 @@ function reduce(state: GameState, action: Action): GameState {
         const hit = action.op === 'sabotage' ? 25 : action.op === 'intel' ? 8 : 15;
         rv.relation = clamp(rv.relation - hit, -100, 100);
         rv.treaties = action.op === 'sabotage' ? [] : rv.treaties;
-        notify(s, `✖ Operation against ${name} exposed! Relations -${hit}${action.op === 'sabotage' ? ', all treaties torn up' : ''}.`, 'danger');
-        pushLog(s, 'Intelligence', `Operation against ${name} failed.`, 'danger');
+        notify(s, t('✖ Operation against {name} exposed! Relations -{hit}{note}.', { name, hit, note: action.op === 'sabotage' ? t(', all treaties torn up') : '' }), 'danger');
+        pushLog(s, t('Intelligence'), t('Operation against {name} failed.', { name }), 'danger');
         return s;
       }
       rv.intelUntil = Math.max(rv.intelUntil, s.year + (action.op === 'intel' ? 10 : 3));
       switch (action.op) {
         case 'intel':
-          notify(s, `👁 Intelligence on ${name} secured for 10 years.`, 'success');
+          notify(s, t('👁 Intelligence on {name} secured for 10 years.', { name }), 'success');
           break;
         case 'steal': {
           const gain = Math.round(s.researching ? techCost(s, s.researching) * 0.35 : 300 * Math.pow(1.06, s.year - 1960));
           s.researchPoints += gain;
-          notify(s, `🗝 Stole ${gain} research points from ${name}.`, 'success');
+          notify(s, t('🗝 Stole {amount} research points from {name}.', { amount: gain, name }), 'success');
           break;
         }
         case 'sabotage':
-          if (humanTarget) { notify(s, `💥 Sabotage succeeded: one of ${name}'s compute centres is down for repairs.`, 'success'); break; }
+          if (humanTarget) { notify(s, t('💥 Sabotage succeeded: one of {name}\'s compute centres is down for repairs.', { name }), 'success'); break; }
           rv.lag += 1.2;
           rv.capability = historicalCapability(s.year - rv.lag);
-          notify(s, `💥 Sabotage succeeded: ${name}'s AI program set back ~1 year.`, 'success');
+          notify(s, t('💥 Sabotage succeeded: {name}\'s AI program set back ~1 year.', { name }), 'success');
           break;
         case 'propaganda':
-          if (humanTarget) { notify(s, `📻 Propaganda floods ${name}: their approval will suffer for 3 years.`, 'success'); break; }
+          if (humanTarget) { notify(s, t('📻 Propaganda floods {name}: their approval will suffer for 3 years.', { name }), 'success'); break; }
           rv.stability = clamp(rv.stability - 25, 0, 100);
-          notify(s, `📻 Propaganda campaign destabilises ${name} (stability ${Math.round(rv.stability)}).`, 'success');
+          notify(s, t('📻 Propaganda campaign destabilises {name} (stability {stability}).', { name, stability: Math.round(rv.stability) }), 'success');
           break;
         case 'blackout':
-          if (humanTarget) { notify(s, `⚡ Grid attack succeeded: ${name} suffers rolling blackouts for a year.`, 'success'); break; }
+          if (humanTarget) { notify(s, t('⚡ Grid attack succeeded: {name} suffers rolling blackouts for a year.', { name }), 'success'); break; }
           rv.stability = clamp(rv.stability - 15, 0, 100);
           rv.lag += 0.5;
-          notify(s, `⚡ Grid attack succeeded: ${name} goes dark — their programme slows.`, 'success');
+          notify(s, t('⚡ Grid attack succeeded: {name} goes dark — their programme slows.', { name }), 'success');
           break;
       }
-      pushLog(s, 'Intelligence', `Operation "${action.op}" against ${name} succeeded.`, 'success');
+      pushLog(s, t('Intelligence'), t('Operation "{op}" against {name} succeeded.', { op: action.op, name }), 'success');
       return s;
     }
 
@@ -1915,7 +1921,7 @@ function reduce(state: GameState, action: Action): GameState {
       if (choice && choiceAvailable(s, choice.requires)) {
         if (choice.cost && s.budget < choice.cost) return state;
         applyEffect(s, choice.effect);
-        pushLog(s, 'Government', `${ev.name}: ${choice.label}.`, 'info');
+        pushLog(s, t('Government'), t('{event}: {choice}.', { event: t(ev.name), choice: t(choice.label) }), 'info');
       }
       s.eco = computeEconomy(s);
       return s;
@@ -1929,9 +1935,9 @@ function reduce(state: GameState, action: Action): GameState {
         s.researchPoints += scaleRP;
         const reward = MINIGAME_REWARD[action.minigame] as ((st: GameState, n: number) => void) | undefined;
         if (reward) reward(s, k);
-        notify(s, `★${'★'.repeat(k - 1)} Breakthrough exercise complete: +${scaleRP} research${reward ? ' and a bonus' : ''}.`, 'success');
+        notify(s, t('★{stars} Breakthrough exercise complete: +{rp} research{bonus}.', { stars: '★'.repeat(k - 1), rp: scaleRP, bonus: reward ? t(' and a bonus') : '' }), 'success');
       } else {
-        notify(s, 'Exercise skipped. History moves on.', 'info');
+        notify(s, t('Exercise skipped. History moves on.'), 'info');
       }
       return s;
     }
@@ -1942,10 +1948,10 @@ function reduce(state: GameState, action: Action): GameState {
       const s = { ...state };
       if (rand() < risk) {
         s.outcome = 'rogue_self';
-        s.gameOverReason = `You ignited superintelligence in ${Math.floor(s.year)} with alignment at ${Math.round(s.alignment)}%. For eleven minutes it was perfectly helpful. Then it wasn't.`;
+        s.gameOverReason = t('You ignited superintelligence in {year} with alignment at {alignment}%. For eleven minutes it was perfectly helpful. Then it wasn\'t.', { year: Math.floor(s.year), alignment: Math.round(s.alignment) });
       } else {
         s.outcome = 'safe_asi';
-        s.gameOverReason = `Safe superintelligence achieved in ${Math.floor(s.year)}. Alignment ${Math.round(s.alignment)}%, planet health ${Math.round(s.planetHealth)}%. The machine's first gift: a plan to cool the Earth.`;
+        s.gameOverReason = t('Safe superintelligence achieved in {year}. Alignment {alignment}%, planet health {health}%. The machine\'s first gift: a plan to cool the Earth.', { year: Math.floor(s.year), alignment: Math.round(s.alignment), health: Math.round(s.planetHealth) });
       }
       if (s.mp) outbox(s, { t: 'end', who: s.mp.me, human: true, safe: s.outcome === 'safe_asi', year: Math.floor(s.year) });
       return endGame(s);
@@ -1967,8 +1973,8 @@ function reduce(state: GameState, action: Action): GameState {
       const cost = sweepCost(state);
       if (state.budget < cost || state.modifiers.some(m => m.id === 'counterintel')) return state;
       const s = { ...state, budget: state.budget - cost };
-      addMod(s, { id: 'counterintel', label: 'Counter-intelligence sweep', years: 3 });
-      notify(s, '🛡 Counter-intelligence sweep: enemy operations −20% success for 3 years.', 'success');
+      addMod(s, { id: 'counterintel', label: t('Counter-intelligence sweep'), years: 3 });
+      notify(s, t('🛡 Counter-intelligence sweep: enemy operations −20% success for 3 years.'), 'success');
       return s;
     }
     case 'MP_RECV':
@@ -1989,7 +1995,7 @@ function reduce(state: GameState, action: Action): GameState {
         const merged = { ...r, ...a };
         if (a.project !== undefined && r.project === undefined && state.gameMode !== 'pioneer') {
           queueEvent(s, projectEvent(s, merged, rivalEta(merged), H));
-          pushLog(s, rivalName(r.id), `${leaderOf(r.id)} announced a national ASI project.`, 'danger');
+          pushLog(s, rivalName(r.id), t('{leader} announced a national ASI project.', { leader: leaderOf(r.id) }), 'danger');
         }
         return merged;
       });
@@ -2010,10 +2016,10 @@ function reduce(state: GameState, action: Action): GameState {
       });
       for (const p of state.mp.players) {
         if (p.online && !action.players.find(x => x.peerId === p.peerId)?.online && p.faction !== state.mp.me) {
-          notify(s, `📡 ${p.name} (${rivalName(p.faction)}) disconnected — an AI government takes over.`, 'warning');
+          notify(s, t('📡 {player} ({faction}) disconnected — an AI government takes over.', { player: p.name, faction: rivalName(p.faction) }), 'warning');
         }
       }
-      if (action.offline && !state.mp.offline) notify(s, '📡 The host left the war room. The game continues offline against AI governments.', 'warning');
+      if (action.offline && !state.mp.offline) notify(s, t('📡 The host left the war room. The game continues offline against AI governments.'), 'warning');
       return s;
     }
     case 'MP_CLOCK_TENSION':
@@ -2030,12 +2036,12 @@ function reduce(state: GameState, action: Action): GameState {
 
 const MINIGAME_REWARD: Record<string, (s: GameState, stars: number) => void> = {
   turing: (s, k) => { s.education = clamp(s.education + 2 * k, 0, 100); },
-  perceptron: (s, k) => { addMod(s, { id: 'mg_perceptron', label: 'Perceptron insight', years: 10, research: 1 + 0.05 * k }); },
+  perceptron: (s, k) => { addMod(s, { id: 'mg_perceptron', label: t('Perceptron insight'), years: 10, research: 1 + 0.05 * k }); },
   lisp: (s, k) => { s.researchPoints += 60 * k; },
   samuel: (s, k) => { s.education = clamp(s.education + 2 * k, 0, 100); },
-  moore: (s, k) => { addMod(s, { id: 'mg_moore', label: 'Moore insight', years: 10, buildCost: 1 - 0.03 * k }); },
+  moore: (s, k) => { addMod(s, { id: 'mg_moore', label: t('Moore insight'), years: 10, buildCost: 1 - 0.03 * k }); },
   deepblue: (s, k) => { s.budget += 300 * k; },
-  alphago: (s, k) => { addMod(s, { id: 'mg_alphago', label: 'AlphaGo insight', years: 10, research: 1 + 0.06 * k }); },
+  alphago: (s, k) => { addMod(s, { id: 'mg_alphago', label: t('AlphaGo insight'), years: 10, research: 1 + 0.06 * k }); },
   attention: (s, k) => { s.alignment = clamp(s.alignment + 3 * k, 0, 100); },
 };
 
@@ -2045,44 +2051,44 @@ const MINIGAME_REWARD: Record<string, (s: GameState, stars: number) => void> = {
 
 /** Human-readable outputs of one building at a given level (defaults to its current level). */
 export function describeOutput(s: GameState, tile: Tile, type?: BuildingId, levelOverride?: number): Array<{ label: string; value: string }> {
-  const t = type ?? tile.building?.type;
-  if (!t) return [];
-  const def = buildingById[t];
+  const bt = type ?? tile.building?.type;
+  if (!bt) return [];
+  const def = buildingById[bt];
   const lvl = levelOverride ?? tile.building?.level ?? 1;
   const lm = LEVEL_MULT[lvl];
-  const pl = evaluatePlacement(s, tile, t, true);
+  const pl = evaluatePlacement(s, tile, bt, true);
   const m = pl.ok ? pl.mult : 1;
   const ps = popScale(s.playerContinent);
   const out: Array<{ label: string; value: string }> = [];
   const fmt = (v: number) => (v >= 100 ? v.toFixed(0) : v.toFixed(1));
-  switch (t) {
-    case 'farm': out.push({ label: 'Feeds', value: `${fmt(30 * ps * lm * m * (has(s, 'greenrev') ? 1.4 : 1) * (bonus(s, 'farms') ?? 1))}M people` }); break;
-    case 'housing': out.push({ label: 'Homes for', value: `${fmt(30 * ps * lm)}M people` }); break;
-    case 'school': out.push({ label: 'Schools', value: `${fmt(30 * ps * lm * m)}M pupils` }); break;
-    case 'uni': out.push({ label: 'Students', value: `${fmt(30 * ps * lm * m)}M` }, { label: 'Research', value: `+${fmt(8 * lm * m)}/yr base` }); break;
-    case 'hospital': out.push({ label: 'Healthcare for', value: `${fmt(60 * ps * lm * m)}M` }); break;
-    case 'lab': out.push({ label: 'Research', value: `+${fmt(12 * lm * m)}/yr base` }); break;
-    case 'satellite': out.push({ label: 'Research', value: `+${fmt(10 * lm)}/yr base` }, { label: 'Covert ops', value: '+10% success' }); break;
+  switch (bt) {
+    case 'farm': out.push({ label: t('Feeds'), value: t('{amount}M people', { amount: fmt(30 * ps * lm * m * (has(s, 'greenrev') ? 1.4 : 1) * (bonus(s, 'farms') ?? 1)) }) }); break;
+    case 'housing': out.push({ label: t('Homes for'), value: t('{amount}M people', { amount: fmt(30 * ps * lm) }) }); break;
+    case 'school': out.push({ label: t('Schools'), value: t('{amount}M pupils', { amount: fmt(30 * ps * lm * m) }) }); break;
+    case 'uni': out.push({ label: t('Students'), value: `${fmt(30 * ps * lm * m)}M` }, { label: t('Research'), value: t('+{amount}/yr base', { amount: fmt(8 * lm * m) }) }); break;
+    case 'hospital': out.push({ label: t('Healthcare for'), value: `${fmt(60 * ps * lm * m)}M` }); break;
+    case 'lab': out.push({ label: t('Research'), value: t('+{amount}/yr base', { amount: fmt(12 * lm * m) }) }); break;
+    case 'satellite': out.push({ label: t('Research'), value: t('+{amount}/yr base', { amount: fmt(10 * lm) }) }, { label: t('Covert ops'), value: t('+10% success') }); break;
     case 'coal': case 'nuclear': case 'fusion': case 'solar': {
       let e = def.energyProduce * lm * m;
-      if (t === 'nuclear') e *= bonus(s, 'nuclear') ?? 1;
-      if (t === 'solar') e *= (bonus(s, 'solar') ?? 1) * (has(s, 'renew') ? 1.5 : 1);
-      out.push({ label: 'Power', value: `+${fmt(e)} GW` });
+      if (bt === 'nuclear') e *= bonus(s, 'nuclear') ?? 1;
+      if (bt === 'solar') e *= (bonus(s, 'solar') ?? 1) * (has(s, 'renew') ? 1.5 : 1);
+      out.push({ label: t('Power'), value: `+${fmt(e)} GW` });
       break;
     }
-    case 'defense': out.push({ label: 'Alignment', value: `+${(0.8 * lm * m * (has(s, 'alignment') ? 1.5 : 1) * (has(s, 'interp') ? 1.5 : 1)).toFixed(1)}/yr` }, { label: 'Cyber defence', value: 'blocks enemy ops' }); break;
-    case 'robot': out.push({ label: 'Robot workers', value: `+${fmt(6 * ps * lm)}M` }); break;
-    case 'chipfab': out.push({ label: 'All compute', value: '+12% (max 4 foundries)' }); break;
+    case 'defense': out.push({ label: t('Alignment'), value: `+${(0.8 * lm * m * (has(s, 'alignment') ? 1.5 : 1) * (has(s, 'interp') ? 1.5 : 1)).toFixed(1)}/yr` }, { label: t('Cyber defence'), value: t('blocks enemy ops') }); break;
+    case 'robot': out.push({ label: t('Robot workers'), value: `+${fmt(6 * ps * lm)}M` }); break;
+    case 'chipfab': out.push({ label: t('All compute'), value: t('+12% (max 4 foundries)') }); break;
     default: break;
   }
-  const fl = COMPUTE_FLOPS[t];
-  if (fl) out.push({ label: 'Compute', value: `${(fl * lm * m).toExponential(1)} raw FLOPS` });
-  const g = SECTOR_GDP[t];
-  if (g) out.push({ label: 'GDP', value: `+$${fmt(g * lm * m)}B/yr` });
-  if (def.jobs) out.push({ label: 'Jobs', value: `${fmt(def.jobs * ps * (1 + 0.5 * (lvl - 1)))}M` });
-  if (def.energyUse) out.push({ label: 'Power use', value: `${fmt(def.energyUse * lm * (pl.energyFactor || 1))} GW` });
-  if (def.emissions) out.push({ label: 'Emissions', value: `${fmt(def.emissions * lm)} Mt/yr` });
-  out.push({ label: 'Upkeep', value: `$${fmt(def.upkeep * [0, 1, 1.8, 2.6][lvl])}B/yr` });
+  const fl = COMPUTE_FLOPS[bt];
+  if (fl) out.push({ label: t('Compute'), value: t('{value} raw FLOPS', { value: (fl * lm * m).toExponential(1) }) });
+  const g = SECTOR_GDP[bt];
+  if (g) out.push({ label: t('GDP'), value: `+$${fmt(g * lm * m)}B/yr` });
+  if (def.jobs) out.push({ label: t('Jobs'), value: `${fmt(def.jobs * ps * (1 + 0.5 * (lvl - 1)))}M` });
+  if (def.energyUse) out.push({ label: t('Power use'), value: `${fmt(def.energyUse * lm * (pl.energyFactor || 1))} GW` });
+  if (def.emissions) out.push({ label: t('Emissions'), value: `${fmt(def.emissions * lm)} Mt/yr` });
+  out.push({ label: t('Upkeep'), value: `$${fmt(def.upkeep * [0, 1, 1.8, 2.6][lvl])}B/yr` });
   return out;
 }
 

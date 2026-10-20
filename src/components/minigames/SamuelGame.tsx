@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { play } from '../../hooks/useSound';
+import { t } from '../../i18n';
 import { MinigameShell, MinigameResultCard, RetroButton } from './MinigameShell';
 import type { MinigameProps, MinigameResult } from './types';
 import {
@@ -60,10 +61,10 @@ export default function SamuelGame({ difficulty, onComplete }: MinigameProps) {
 
   const onPieceClick = (p: Piece) => {
     if (phase !== 'play' || p.side !== 'r') return;
-    if (sel && sel.path.length > 0) { flash(p.id); setMsg('Finish the chain first, or press UNDO to start over.'); return; }
+    if (sel && sel.path.length > 0) { flash(p.id); setMsg(t('Finish the chain first, or press UNDO to start over.')); return; }
     if (jumpsFrom(pieces, p, p.r, p.c).length === 0) {
       flash(p.id);
-      setMsg('That piece has no capture. Pick a glowing piece.');
+      setMsg(t('That piece has no capture. Pick a glowing piece.'));
       play('alert');
       return;
     }
@@ -78,7 +79,7 @@ export default function SamuelGame({ difficulty, onComplete }: MinigameProps) {
       const used = tries + 1;
       setOutcomes(o => [...o, used]);
       setPhase('solved');
-      setMsg(`Perfect: ${path.length} captured in one turn!`);
+      setMsg(t('Perfect: {n} captured in one turn!', { n: path.length }));
       return;
     }
     play('alert');
@@ -87,14 +88,14 @@ export default function SamuelGame({ difficulty, onComplete }: MinigameProps) {
       setTries(failedTries);
       setOutcomes(o => [...o, null]);
       setPhase('failed');
-      setMsg(`Only ${path.length} captured. The best line takes ${puzzle.target}; the numbered dots show it.`);
+      setMsg(t('Only {n} captured. The best line takes {target}; the numbered dots show it.', { n: path.length, target: puzzle.target }));
       setPieces(puzzle.pieces);
       setGhosts([]);
       setSel(null);
     } else {
       setTries(failedTries);
       setPhase('retry');
-      setMsg(`Only ${path.length} captured, but ${puzzle.target} are possible. Look for a longer chain.`);
+      setMsg(t('Only {n} captured, but {target} are possible. Look for a longer chain.', { n: path.length, target: puzzle.target }));
     }
   };
 
@@ -135,8 +136,8 @@ export default function SamuelGame({ difficulty, onComplete }: MinigameProps) {
       const r: MinigameResult = {
         stars,
         summary: stars === 0
-          ? `Only ${solved} of ${TOTAL} combinations found.`
-          : `${solved} of ${TOTAL} combinations found in ${usedTries} tries.`,
+          ? t('Only {solved} of {total} combinations found.', { solved, total: TOTAL })
+          : t('{solved} of {total} combinations found in {tries} tries.', { solved, total: TOTAL, tries: usedTries }),
       };
       setResult(r);
       setPhase('done');
@@ -176,8 +177,8 @@ export default function SamuelGame({ difficulty, onComplete }: MinigameProps) {
   return (
     <MinigameShell
       meta={meta}
-      status={`PUZZLE ${idx + 1}/${TOTAL} · TRIES ${Math.max(0, MAX_TRIES - tries)}/${MAX_TRIES}`}
-      onAbandon={() => finish({ stars: 0, summary: 'Exercise abandoned.' })}
+      status={t('PUZZLE {idx}/{total} · TRIES {left}/{max}', { idx: idx + 1, total: TOTAL, left: Math.max(0, MAX_TRIES - tries), max: MAX_TRIES })}
+      onAbandon={() => finish({ stars: 0, summary: t('Exercise abandoned.') })}
     >
       <style>{`
         @keyframes sam-fade { 0% { opacity: 1; transform: scale(1); } 60% { opacity: .6; transform: scale(1.25) rotate(8deg); } 100% { opacity: 0; transform: scale(0.2) rotate(40deg); } }
@@ -273,7 +274,7 @@ export default function SamuelGame({ difficulty, onComplete }: MinigameProps) {
             {solutionStart && (
               <div className="pointer-events-none absolute" style={{ ...cellStyle(solutionStart.r, solutionStart.c, pct), zIndex: 6 }}>
                 <div className="flex h-full w-full items-center justify-center">
-                  <div className="font-orbitron text-[10px] font-black md:text-xs" style={{ color: '#FFB84D', textShadow: '0 0 6px #000' }}>START</div>
+                  <div className="font-orbitron text-[10px] font-black md:text-xs" style={{ color: '#FFB84D', textShadow: '0 0 6px #000' }}>{t('START')}</div>
                 </div>
               </div>
             )}
@@ -298,12 +299,12 @@ export default function SamuelGame({ difficulty, onComplete }: MinigameProps) {
           style={{ background: 'rgba(12,13,18,0.9)', border: `1px solid ${ACCENT}88`, boxShadow: `0 0 24px ${ACCENT}22` }}
         >
           <div>
-            <div className="font-mono-data text-[10px] tracking-[0.25em]" style={{ color: 'var(--text-tertiary)' }}>OBJECTIVE</div>
+            <div className="font-mono-data text-[10px] tracking-[0.25em]" style={{ color: 'var(--text-tertiary)' }}>{t('OBJECTIVE')}</div>
             <div className="font-orbitron text-2xl font-black md:text-3xl" style={{ color: '#FFF4C2' }}>
-              CAPTURE {puzzle.target}
+              {t('CAPTURE {n}', { n: puzzle.target })}
             </div>
             <div className="font-rajdhani text-sm" style={{ color: 'var(--text-secondary)' }}>
-              in a single turn, the maximum possible
+              {t('in a single turn, the maximum possible')}
             </div>
           </div>
 
@@ -328,14 +329,14 @@ export default function SamuelGame({ difficulty, onComplete }: MinigameProps) {
             }}
           >
             {msg || (sel
-              ? (nextJumps.length > 0 ? 'Keep jumping: click a glowing dot.' : '')
-              : 'Click a glowing red piece to start your chain.')}
+              ? (nextJumps.length > 0 ? t('Keep jumping: click a glowing dot.') : '')
+              : t('Click a glowing red piece to start your chain.'))}
           </div>
 
           <div className="flex gap-2">
             {phase === 'play' ? (
-              <RetroButton accent={ACCENT} onClick={undo} disabled={!sel} className="flex-1 px-3 py-2 text-[11px]" title="Put the pieces back (no penalty)">
-                ↺ UNDO
+              <RetroButton accent={ACCENT} onClick={undo} disabled={!sel} className="flex-1 px-3 py-2 text-[11px]" title={t('Put the pieces back (no penalty)')}>
+                {t('↺ UNDO')}
               </RetroButton>
             ) : (
               <button
@@ -344,15 +345,15 @@ export default function SamuelGame({ difficulty, onComplete }: MinigameProps) {
                 className="flex-1 animate-pulse-glow rounded py-2.5 font-orbitron text-sm font-bold tracking-wider transition-all hover:brightness-125"
                 style={{ background: `${ACCENT}22`, color: ACCENT, border: `2px solid ${ACCENT}` }}
               >
-                {phase === 'retry' ? 'TRY AGAIN ▶' : idx + 1 >= TOTAL ? 'FINISH ▶' : 'NEXT PUZZLE ▶'}
+                {phase === 'retry' ? t('TRY AGAIN ▶') : idx + 1 >= TOTAL ? t('FINISH ▶') : t('NEXT PUZZLE ▶')}
               </button>
             )}
           </div>
 
           <div className="font-mono-data text-[10px] leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-            <span style={{ color: '#00F0FF' }}>●</span> next landing square<br />
-            <span style={{ color: '#FFB84D' }}>- -</span> your chain so far<br />
-            ♛ king: jumps in all four directions
+            <span style={{ color: '#00F0FF' }}>●</span> {t('next landing square')}<br />
+            <span style={{ color: '#FFB84D' }}>- -</span> {t('your chain so far')}<br />
+            {t('♛ king: jumps in all four directions')}
           </div>
         </div>
 

@@ -6,6 +6,7 @@ import SettingsForm from '../components/meta/SettingsForm';
 import SaveSlots, { latestSave, slotLabel } from '../components/meta/SaveSlots';
 import { loadGame, type SaveSlot } from '../game/save';
 import { ACHIEVEMENTS, getUnlocked } from '../game/achievements';
+import { t } from '../i18n';
 
 type Panel = 'howto' | 'settings' | 'credits' | 'load' | 'achievements';
 
@@ -62,15 +63,15 @@ export default function TitleScreen() {
 
 
   const buttons:Array<{label:string;action:()=>void;icon:string;sub?:string}>=[
-    ...(latest?[{label:'CONTINUE',action:()=>{play('click');loadSlot(latest.slot);},icon:'↻',
-      sub:`${slotLabel(latest.slot)} · ${latest.year}`}]:[]),
-    {label:'NEW GAME',action:handleNewGame,icon:'▶'},
-    {label:'WAR ROOM · MULTIPLAYER',action:()=>{play('click');dispatch({type:'SET_SCREEN',screen:'lobby'});},icon:'☢',sub:'Up to 8 players · peer-to-peer'},
-    {label:'LOAD GAME',action:()=>openPanel('load'),icon:'⇩'},
-    {label:'HOW TO PLAY',action:()=>openPanel('howto'),icon:'?'},
-    {label:'ACHIEVEMENTS',action:()=>openPanel('achievements'),icon:'♛'},
-    {label:'SETTINGS',action:()=>openPanel('settings'),icon:'⚙'},
-    {label:'CREDITS',action:()=>openPanel('credits'),icon:'★'},
+    ...(latest?[{label:t('CONTINUE'),action:()=>{play('click');loadSlot(latest.slot);},icon:'↻',
+      sub:t('{slot} · {year}', {slot: slotLabel(latest.slot), year: latest.year})}]:[]),
+    {label:t('NEW GAME'),action:handleNewGame,icon:'▶'},
+    {label:t('WAR ROOM · MULTIPLAYER'),action:()=>{play('click');dispatch({type:'SET_SCREEN',screen:'lobby'});},icon:'☢',sub:t('Up to 8 players · peer-to-peer')},
+    {label:t('LOAD GAME'),action:()=>openPanel('load'),icon:'⇩'},
+    {label:t('HOW TO PLAY'),action:()=>openPanel('howto'),icon:'?'},
+    {label:t('ACHIEVEMENTS'),action:()=>openPanel('achievements'),icon:'♛'},
+    {label:t('SETTINGS'),action:()=>openPanel('settings'),icon:'⚙'},
+    {label:t('CREDITS'),action:()=>openPanel('credits'),icon:'★'},
   ];
 
   const panelBgMap:Record<string,string>={
@@ -106,7 +107,7 @@ export default function TitleScreen() {
             style={{fontSize:'clamp(2rem,5vw,4rem)',color:'#33FF33',
               textShadow:'0 0 20px rgba(51,255,51,0.4),0 2px 4px rgba(0,0,0,0.8),0 4px 12px rgba(0,0,0,0.5)',
               letterSpacing:'0.15em'}}>
-            TERRA COMPUTE
+            {t('TERRA COMPUTE')}
           </h1>
 
           <div style={{width:'100%',maxWidth:'400px',height:'1px',
@@ -116,7 +117,7 @@ export default function TitleScreen() {
             style={{fontSize:'clamp(0.6rem,1.2vw,0.85rem)',color:'#33FF33',
               textShadow:'0 0 8px rgba(51,255,51,0.3),0 1px 2px rgba(0,0,0,0.6)',
               letterSpacing:'0.4em'}}>
-            Race to Artificial Superintelligence
+            {t('Race to Artificial Superintelligence')}
           </p>
 
           <p className="font-mono-data"
@@ -154,7 +155,7 @@ export default function TitleScreen() {
           <div className="flex items-center gap-1 mt-1 px-1">
             <div style={{width:'100%',height:'1px',background:'var(--border)'}}/>
             <span className="font-mono-data text-[8px]" style={{color:'#33FF33',whiteSpace:'nowrap',opacity:0.5}}>
-              v1.0 — Built with AI
+              {t('v1.0 — Built with AI')}
             </span>
             <div style={{width:'100%',height:'1px',background:'var(--border)'}}/>
           </div>
@@ -164,7 +165,7 @@ export default function TitleScreen() {
               hover:shadow-[0_0_8px_rgba(51,255,51,0.2)]"
             style={{background:'var(--surface-elevated)',color:'#33FF33',
               border:'1px solid rgba(51,255,51,0.3)',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>
-            {audioOn?'AUDIO ON':'ENABLE AUDIO'}
+            {audioOn?t('AUDIO ON'):t('ENABLE AUDIO')}
           </button>
         </div>
       </div>
@@ -186,11 +187,11 @@ export default function TitleScreen() {
             style={{borderBottom:'1px solid var(--border)',background:'rgba(22,25,36,0.7)',backdropFilter:'blur(4px)',paddingRight:'92px'}}>
             <h2 className="font-orbitron text-xs font-bold"
               style={{color:'#33FF33',textShadow:'0 1px 3px rgba(0,0,0,0.9)'}}>
-              {activePanel==='howto'&&'HOW TO PLAY'}
-              {activePanel==='settings'&&'SETTINGS'}
-              {activePanel==='credits'&&'CREDITS'}
-              {activePanel==='load'&&'LOAD GAME'}
-              {activePanel==='achievements'&&`ACHIEVEMENTS ${unlockedCount}/${ACHIEVEMENTS.length}`}
+              {activePanel==='howto'&&t('HOW TO PLAY')}
+              {activePanel==='settings'&&t('SETTINGS')}
+              {activePanel==='credits'&&t('CREDITS')}
+              {activePanel==='load'&&t('LOAD GAME')}
+              {activePanel==='achievements'&&t('ACHIEVEMENTS {done}/{total}', {done: unlockedCount, total: ACHIEVEMENTS.length})}
             </h2>
             <button onClick={()=>{play('click');setActivePanel(null);}}
               className="px-2 py-0.5 rounded font-mono-data text-[9px] hover:brightness-125"
@@ -205,33 +206,33 @@ export default function TitleScreen() {
             {activePanel==='howto'&&(
               <div className="flex flex-col gap-4" style={{color:'var(--text-secondary)'}}>
                 <div>
-                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>OBJECTIVE</h3>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>{t('OBJECTIVE')}</h3>
                   <p className="font-rajdhani text-xs leading-relaxed">
-                    Lead your continental bloc from 1960. Build your continent tile by tile — homes, farms, schools, hospitals, kombinats, universities, labs and power — and be the first to ignite a SAFE superintelligence without collapsing the planet.
+                    {t('Lead your continental bloc from 1960. Build your continent tile by tile — homes, farms, schools, hospitals, kombinats, universities, labs and power — and be the first to ignite a SAFE superintelligence without collapsing the planet.')}
                   </p>
                 </div>
                 <div>
-                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>VICTORY CONDITIONS</h3>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>{t('VICTORY CONDITIONS')}</h3>
                   <div className="flex items-start gap-2">
                     <div className="shrink-0 w-5 h-5 rounded flex items-center justify-center font-bold text-[10px]"
                       style={{background:'rgba(51,255,51,0.1)',color:'#33FF33',border:'1px solid rgba(51,255,51,0.3)'}}>V</div>
                     <div>
-                      <span className="font-rajdhani text-xs font-bold" style={{color:'#33FF33'}}>Safe ASI</span>
+                      <span className="font-rajdhani text-xs font-bold" style={{color:'#33FF33'}}>{t('Safe ASI')}</span>
                       <p className="font-mono-data text-[9px]" style={{color:'var(--text-tertiary)'}}>
-                        Superintelligence Theory + 1 YottaFLOP of compute, then IGNITE with alignment ≥ 80%
+                        {t('Superintelligence Theory + 1 YottaFLOP of compute, then IGNITE with alignment ≥ 80%')}
                       </p>
                     </div>
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#FF477E'}}>DEFEAT CONDITIONS</h3>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#FF477E'}}>{t('DEFEAT CONDITIONS')}</h3>
                   <div className="flex flex-col gap-1.5">
                     {[
-                      {icon:'P',text:'Planet health reaches 0% (climate collapse)',clr:'#00E5A0'},
-                      {icon:'R',text:'Any bloc ignites an unaligned ASI',clr:'#7B61FF'},
-                      {icon:'A',text:'A rival ignites a safe ASI before you',clr:'#00F0FF'},
-                      {icon:'V',text:'Revolution: approval under 20% for 3 years',clr:'#FF8C42'},
-                      {icon:'B',text:'Bankruptcy: debt spirals for 3 years',clr:'#FF477E'},
+                      {icon:'P',text:t('Planet health reaches 0% (climate collapse)'),clr:'#00E5A0'},
+                      {icon:'R',text:t('Any bloc ignites an unaligned ASI'),clr:'#7B61FF'},
+                      {icon:'A',text:t('A rival ignites a safe ASI before you'),clr:'#00F0FF'},
+                      {icon:'V',text:t('Revolution: approval under 20% for 3 years'),clr:'#FF8C42'},
+                      {icon:'B',text:t('Bankruptcy: debt spirals for 3 years'),clr:'#FF477E'},
                     ].map(d=>(
                       <div key={d.text} className="flex items-center gap-2">
                         <div className="shrink-0 w-5 h-5 rounded flex items-center justify-center font-bold text-[10px]"
@@ -242,28 +243,28 @@ export default function TitleScreen() {
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>CONTROLS</h3>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>{t('CONTROLS')}</h3>
                   <div className="flex flex-col gap-0.5 font-mono-data text-[9px]" style={{color:'var(--text-secondary)'}}>
-                    <div className="flex justify-between"><span>[B]</span><span style={{color:'var(--text-primary)'}}>Open Build Menu</span></div>
-                    <div className="flex justify-between"><span>[T]</span><span style={{color:'var(--text-primary)'}}>Open Tech Tree</span></div>
-                    <div className="flex justify-between"><span>[D] [S] [A]</span><span style={{color:'var(--text-primary)'}}>Diplomacy · Spy · Covert ops</span></div>
-                    <div className="flex justify-between"><span>[Click map]</span><span style={{color:'var(--text-primary)'}}>Inspect / build on a tile</span></div>
-                    <div className="flex justify-between"><span>[Wheel · drag]</span><span style={{color:'var(--text-primary)'}}>Zoom · pan the continent</span></div>
-                    <div className="flex justify-between"><span>[M]</span><span style={{color:'var(--text-primary)'}}>Continent / world view</span></div>
-                    <div className="flex justify-between"><span>[Space]</span><span style={{color:'var(--text-primary)'}}>Pause / Resume</span></div>
+                    <div className="flex justify-between"><span>[B]</span><span style={{color:'var(--text-primary)'}}>{t('Open Build Menu')}</span></div>
+                    <div className="flex justify-between"><span>[T]</span><span style={{color:'var(--text-primary)'}}>{t('Open Tech Tree')}</span></div>
+                    <div className="flex justify-between"><span>[D] [S] [A]</span><span style={{color:'var(--text-primary)'}}>{t('Diplomacy · Spy · Covert ops')}</span></div>
+                    <div className="flex justify-between"><span>{t('[Click map]')}</span><span style={{color:'var(--text-primary)'}}>{t('Inspect / build on a tile')}</span></div>
+                    <div className="flex justify-between"><span>{t('[Wheel · drag]')}</span><span style={{color:'var(--text-primary)'}}>{t('Zoom · pan the continent')}</span></div>
+                    <div className="flex justify-between"><span>[M]</span><span style={{color:'var(--text-primary)'}}>{t('Continent / world view')}</span></div>
+                    <div className="flex justify-between"><span>[Space]</span><span style={{color:'var(--text-primary)'}}>{t('Pause / Resume')}</span></div>
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>TIPS</h3>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>{t('TIPS')}</h3>
                   <ul className="font-mono-data text-[8px] flex flex-col gap-0.5 list-none" style={{paddingLeft:0}}>
-                    {['Green tiles = location bonus: farms on rivers, solar on deserts, labs next to universities',
-                      'Food, housing and jobs keep approval up — hover any gauge for the full breakdown',
-                      'Every building costs upkeep each year: upgrade to level 3 instead of spreading out',
-                      'Alignment must keep pace with compute: Safety Institutes + safety research',
-                      'Coal is cheap but heats the planet; nuclear, solar and Climate Accords save it',
-                      'Spy on the front-runner — a reckless rival can end the world for everyone'].map(t=>(
-                      <li key={t} style={{display:'flex',gap:'4px'}}>
-                        <span style={{color:'#33FF33'}}>◆</span><span>{t}</span>
+                    {[t('Green tiles = location bonus: farms on rivers, solar on deserts, labs next to universities'),
+                      t('Food, housing and jobs keep approval up — hover any gauge for the full breakdown'),
+                      t('Every building costs upkeep each year: upgrade to level 3 instead of spreading out'),
+                      t('Alignment must keep pace with compute: Safety Institutes + safety research'),
+                      t('Coal is cheap but heats the planet; nuclear, solar and Climate Accords save it'),
+                      t('Spy on the front-runner — a reckless rival can end the world for everyone')].map(tip=>(
+                      <li key={tip} style={{display:'flex',gap:'4px'}}>
+                        <span style={{color:'#33FF33'}}>◆</span><span>{tip}</span>
                       </li>
                     ))}
                   </ul>
@@ -276,8 +277,8 @@ export default function TitleScreen() {
               <div className="flex flex-col gap-3">
                 <SettingsForm accent="#33FF33"/>
                 <div>
-                  <h3 className="font-orbitron text-[10px] mb-1 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>DIFFICULTY</h3>
-                  <p className="font-mono-data text-[9px]" style={{color:'var(--text-tertiary)'}}>Chosen per game on the faction screen, next to BEGIN.</p>
+                  <h3 className="font-orbitron text-[10px] mb-1 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>{t('DIFFICULTY')}</h3>
+                  <p className="font-mono-data text-[9px]" style={{color:'var(--text-tertiary)'}}>{t('Chosen per game on the faction screen, next to BEGIN.')}</p>
                 </div>
               </div>
             )}
@@ -286,7 +287,7 @@ export default function TitleScreen() {
             {activePanel==='load'&&(
               <div className="flex flex-col gap-2">
                 <SaveSlots mode="load" accent="#33FF33" allowDelete onPick={loadSlot} onChanged={()=>setLatest(latestSave())}/>
-                <p className="font-mono-data text-[8.5px]" style={{color:'var(--text-tertiary)'}}>Saves live in this browser. The AUTO slot is written every few in-game years (see Settings).</p>
+                <p className="font-mono-data text-[8.5px]" style={{color:'var(--text-tertiary)'}}>{t('Saves live in this browser. The AUTO slot is written every few in-game years (see Settings).')}</p>
               </div>
             )}
 
@@ -308,9 +309,9 @@ export default function TitleScreen() {
                         {at?a.icon:'✕'}
                       </div>
                       <div className="min-w-0">
-                        <div className="font-orbitron text-[9.5px] font-bold tracking-wider" style={{color:at?'#33FF33':'var(--text-secondary)'}}>{at?a.name:`${a.name} · LOCKED`}</div>
-                        <div className="font-rajdhani text-[11.5px] leading-tight" style={{color:'var(--text-secondary)'}}>{a.description}</div>
-                        {at&&<div className="font-mono-data text-[8.5px]" style={{color:'var(--text-tertiary)'}}>Unlocked {new Date(at).toLocaleDateString()}</div>}
+                        <div className="font-orbitron text-[9.5px] font-bold tracking-wider" style={{color:at?'#33FF33':'var(--text-secondary)'}}>{at?t(a.name):t('{name} · LOCKED', {name: t(a.name)})}</div>
+                        <div className="font-rajdhani text-[11.5px] leading-tight" style={{color:'var(--text-secondary)'}}>{t(a.description)}</div>
+                        {at&&<div className="font-mono-data text-[8.5px]" style={{color:'var(--text-tertiary)'}}>{t('Unlocked {date}', {date: new Date(at).toLocaleDateString()})}</div>}
                       </div>
                     </div>
                   );
@@ -322,8 +323,8 @@ export default function TitleScreen() {
             {activePanel==='credits'&&(
               <div className="flex flex-col gap-4" style={{color:'var(--text-secondary)'}}>
                 <div>
-                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 6px rgba(51,255,51,0.3)'}}>DEVELOPER</h3>
-                  <p className="font-rajdhani text-sm font-bold" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>Francisco Angulo de Lafuente</p>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 6px rgba(51,255,51,0.3)'}}>{t('DEVELOPER')}</h3>
+                  <p className="font-rajdhani text-sm font-bold" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>{t('Francisco Angulo de Lafuente')}</p>
                   <a href="https://github.com/Agnuxo1" target="_blank" rel="noopener noreferrer"
                     className="font-mono-data text-[9px] hover:underline"
                     style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.2)'}}>
@@ -331,31 +332,31 @@ export default function TitleScreen() {
                   </a>
                 </div>
                 <div>
-                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>INSPIRATION</h3>
-                  <p className="font-rajdhani text-xs"><strong style={{color:'#FFB84D'}}>Risk</strong> — Territory control</p>
-                  <p className="font-rajdhani text-xs"><strong style={{color:'#33FF33'}}>StarCraft</strong> — RTS interface</p>
-                  <p className="font-rajdhani text-xs"><strong style={{color:'#00E5A0'}}>Civilization</strong> — Historical progression</p>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>{t('INSPIRATION')}</h3>
+                  <p className="font-rajdhani text-xs"><strong style={{color:'#FFB84D'}}>{t('Risk')}</strong> {t('— Territory control')}</p>
+                  <p className="font-rajdhani text-xs"><strong style={{color:'#33FF33'}}>{t('StarCraft')}</strong> {t('— RTS interface')}</p>
+                  <p className="font-rajdhani text-xs"><strong style={{color:'#00E5A0'}}>{t('Civilization')}</strong> {t('— Historical progression')}</p>
                 </div>
                 <div>
-                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>DATA SOURCES</h3>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>{t('DATA SOURCES')}</h3>
                   <div className="font-mono-data text-[9px] flex flex-col gap-0.5">
-                    <span>◆ World Bank — GDP & Population</span>
-                    <span>◆ IMF — Economic indicators</span>
-                    <span>◆ EIA — Energy statistics</span>
-                    <span>◆ Epoch AI — Training compute</span>
+                    <span>◆ {t('World Bank — GDP & Population')}</span>
+                    <span>◆ {t('IMF — Economic indicators')}</span>
+                    <span>◆ {t('EIA — Energy statistics')}</span>
+                    <span>◆ {t('Epoch AI — Training compute')}</span>
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>TECHNOLOGY</h3>
+                  <h3 className="font-orbitron text-[10px] mb-2 tracking-wider" style={{color:'#33FF33',textShadow:'0 0 4px rgba(51,255,51,0.3)'}}>{t('TECHNOLOGY')}</h3>
                   <div className="font-mono-data text-[9px] flex flex-col gap-0.5">
-                    <span>◆ React 19 + TypeScript</span>
-                    <span>◆ Tailwind CSS v3</span>
-                    <span>◆ Vite v7</span>
-                    <span>◆ Web Audio API</span>
+                    <span>◆ {t('React 19 + TypeScript')}</span>
+                    <span>◆ {t('Tailwind CSS v3')}</span>
+                    <span>◆ {t('Vite v7')}</span>
+                    <span>◆ {t('Web Audio API')}</span>
                   </div>
                 </div>
                 <div className="p-2.5 rounded text-center" style={{background:'var(--surface-elevated)',border:'1px solid var(--border)'}}>
-                  <p className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>Version 1.0 — 2025</p>
+                  <p className="font-mono-data text-[8px]" style={{color:'var(--text-tertiary)'}}>{t('Version 1.0 — 2025')}</p>
                 </div>
               </div>
             )}

@@ -6,6 +6,7 @@ import { RIVAL_LEADERS } from '../../../game/dynamic-events';
 import { isHuman, playerName } from '../../../game/mp';
 import type { TreatyId } from '../../../game/types';
 import { play } from '../../../hooks/useSound';
+import { t } from '../../../i18n';
 import { Bar, PanelHeader } from './common';
 
 const TREATIES: TreatyId[] = ['trade', 'research', 'climate', 'safety'];
@@ -22,10 +23,10 @@ export default function DiplomacyPanel() {
   const gift = giftCost(state);
   return (
     <div className="flex flex-col h-full">
-      <PanelHeader title="DIPLOMACY" accent="#7B61FF" onClose={() => dispatch({ type: 'CLOSE_OVERLAY' })} />
+      <PanelHeader title={t('DIPLOMACY')} accent="#7B61FF" onClose={() => dispatch({ type: 'CLOSE_OVERLAY' })} />
       <div className="px-3 py-2 font-rajdhani text-[12px] leading-snug shrink-0" style={{ color: 'var(--text-tertiary)', borderBottom: '1px solid var(--border)' }}>
-        Aid raises relations. Treaties need a minimum relation and sometimes a technology. Climate Accords cool the planet; AI Safety Treaties make rivals safer and slower.
-        {state.mp && <span style={{ color: '#F2E9DC' }}> 👤 Human heads of state receive your aid as real money and must accept your treaties.</span>}
+        {t('Aid raises relations. Treaties need a minimum relation and sometimes a technology. Climate Accords cool the planet; AI Safety Treaties make rivals safer and slower.')}
+        {state.mp && <span style={{ color: '#F2E9DC' }}> {t('👤 Human heads of state receive your aid as real money and must accept your treaties.')}</span>}
       </div>
       <div className="flex-1 overflow-auto p-2 flex flex-col gap-2 [&>*]:shrink-0">
         {[...state.rivals].sort((a, b) => b.relation - a.relation).map(r => {
@@ -36,23 +37,23 @@ export default function DiplomacyPanel() {
             <div key={r.id} className="rounded p-2" style={{ border: `1px solid ${c.color}55`, background: 'rgba(255,255,255,0.02)' }}>
               <div className="flex items-center justify-between">
                 <span className="font-rajdhani text-[14px] font-bold" style={{ color: c.color }}>
-                  {c.name}
+                  {t(c.name)}
                   {isHuman(state, r.id)
                     ? <span className="font-mono-data text-[9px] font-normal ml-1.5 px-1 rounded" style={{ color: '#050508', background: '#F2E9DC' }}>👤 {playerName(state, r.id)}</span>
-                    : RIVAL_LEADERS[r.id] && <span className="font-mono-data text-[9px] font-normal ml-1.5" style={{ color: 'var(--text-secondary)' }}>{RIVAL_LEADERS[r.id].title} {RIVAL_LEADERS[r.id].name}</span>}
-                  {r.project !== undefined && <span className="font-mono-data text-[8px] ml-1.5 px-1 rounded whitespace-nowrap" style={{ color: '#050508', background: 'var(--rose)' }}>ASI PROJECT</span>}
+                    : RIVAL_LEADERS[r.id] && <span className="font-mono-data text-[9px] font-normal ml-1.5" style={{ color: 'var(--text-secondary)' }}>{t(RIVAL_LEADERS[r.id].title)} {RIVAL_LEADERS[r.id].name}</span>}
+                  {r.project !== undefined && <span className="font-mono-data text-[8px] ml-1.5 px-1 rounded whitespace-nowrap" style={{ color: '#050508', background: 'var(--rose)' }}>{t('ASI PROJECT')}</span>}
                 </span>
-                <span className="font-mono-data text-[10px]" style={{ color: relColor }}>{r.relation >= 30 ? 'FRIENDLY' : r.relation >= 0 ? 'NEUTRAL' : r.relation > -50 ? 'HOSTILE' : 'ENEMY'} {Math.round(r.relation)}</span>
+                <span className="font-mono-data text-[10px]" style={{ color: relColor }}>{r.relation >= 30 ? t('FRIENDLY') : r.relation >= 0 ? t('NEUTRAL') : r.relation > -50 ? t('HOSTILE') : t('ENEMY')} {Math.round(r.relation)}</span>
               </div>
               <div className="my-1"><Bar value={r.relation + 100} max={200} color={relColor} height={4} marker={100} /></div>
               <div className="font-mono-data text-[9px] mb-1.5" style={{ color: 'var(--text-tertiary)' }}>
-                <span title={RIVAL_LEADERS[r.id]?.doctrine}>{STRATEGY_TEXT[r.strategy]}</span>{RIVAL_LEADERS[r.id] && <span style={{ color: 'var(--text-secondary)' }}> · {RIVAL_LEADERS[r.id].doctrine}</span>}{intel ? ` · emissions ${Math.round(r.emissions)} Mt · clean ${Math.round(r.cleanShare * 100)}%` : ''}
+                <span title={RIVAL_LEADERS[r.id]?.doctrine ? t(RIVAL_LEADERS[r.id].doctrine) : undefined}>{t(STRATEGY_TEXT[r.strategy])}</span>{RIVAL_LEADERS[r.id] && <span style={{ color: 'var(--text-secondary)' }}> · {t(RIVAL_LEADERS[r.id].doctrine)}</span>}{intel ? ` · ${t('emissions {emissions} Mt · clean {clean}%', { emissions: Math.round(r.emissions), clean: Math.round(r.cleanShare * 100) })}` : ''}
               </div>
               <div className="grid grid-cols-2 gap-1">
                 <button onClick={() => { play('coin'); dispatch({ type: 'DIPLOMACY', rivalId: r.id, action: 'gift' }); }} disabled={state.budget < gift}
                   className={`font-mono-data text-[9px] py-1 rounded ${state.budget < gift ? 'opacity-40' : 'hover:brightness-125'}`}
-                  style={{ color: 'var(--green)', border: '1px solid var(--green)' }} title="+12 relations">
-                  🎁 AID {fmtMoney(gift)}
+                  style={{ color: 'var(--green)', border: '1px solid var(--green)' }} title={t('+12 relations')}>
+                  🎁 {t('AID {cost}', { cost: fmtMoney(gift) })}
                 </button>
                 {TREATIES.map(tid => {
                   const info = TREATY_INFO[tid];
@@ -69,8 +70,14 @@ export default function DiplomacyPanel() {
                         background: signed ? '#7B61FF' : 'transparent',
                         border: `1px solid ${signed ? '#7B61FF' : relOk ? '#7B61FF' : 'var(--border-light)'}`,
                       }}
-                      title={`${info.name}: ${info.text}\nNeeds relations ≥ ${info.need}${info.tech ? ` and ${techById[info.tech].name}` : ''}.${signed ? '\nClick to cancel (relations −15).' : ''}`}>
-                      {signed ? '✔ ' : ''}{info.name.replace(' Treaty', '').replace('AI ', '').toUpperCase()}{!signed && !techOk ? ' 🔒' : !signed && !relOk ? ` ≥${info.need}` : ''}
+                      title={t('{name}: {text}\nNeeds relations ≥ {need}{tech}.{cancel}', {
+                        name: t(info.name),
+                        text: t(info.text),
+                        need: info.need,
+                        tech: info.tech ? t(' and {tech}', { tech: t(techById[info.tech].name) }) : '',
+                        cancel: signed ? t('\nClick to cancel (relations −15).') : '',
+                      })}>
+                      {signed ? '✔ ' : ''}{t(info.name).replace(' Treaty', '').replace('AI ', '').toUpperCase()}{!signed && !techOk ? ' 🔒' : !signed && !relOk ? ` ≥${info.need}` : ''}
                     </button>
                   );
                 })}

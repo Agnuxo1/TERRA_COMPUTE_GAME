@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState, type DragEvent } from 'react';
 import { play } from '../../hooks/useSound';
+import { t } from '../../i18n';
 import { MinigameResultCard, MinigameShell, RetroButton } from './MinigameShell';
 import type { MinigameProps, MinigameResult } from './types';
 import {
@@ -72,6 +73,13 @@ function Card({
   );
 }
 
+/** Outcome line for a level that was solved: cards used, wrong evaluations and points. */
+function solvedSummary(used: number, par: number, wrong: number, pts: number): string {
+  const cards = used === 1 ? t('{n} card', { n: used }) : t('{n} cards', { n: used });
+  const evals = wrong === 1 ? t('{n} wrong EVAL', { n: wrong }) : t('{n} wrong EVALs', { n: wrong });
+  return t('{cards} (par {par}), {evals} · {pts}/3 points', { cards, par, evals, pts });
+}
+
 export default function LispGame({ difficulty, onComplete }: MinigameProps) {
   const base = useMemo(() => Math.floor(Math.random() * 1e6) + 1, []);
   const levels = useMemo(() => Array.from({ length: LEVELS }, (_, i) => generateLevel(difficulty, base + i * 131)), [difficulty, base]);
@@ -140,7 +148,12 @@ export default function LispGame({ difficulty, onComplete }: MinigameProps) {
     if (li + 1 >= LEVELS) {
       const stars = finalStars(all);
       const solved = all.filter(p => p > 0).length;
-      setFinal({ stars, summary: `${solved}/${LEVELS} pipelines built - score ${all.reduce((a, b) => a + b, 0)}/${LEVELS * 3}.` });
+      setFinal({
+        stars,
+        summary: t('{solved}/{levels} pipelines built - score {score}/{max}.', {
+          solved, levels: LEVELS, score: all.reduce((a, b) => a + b, 0), max: LEVELS * 3,
+        }),
+      });
       setOutcome(null);
       return;
     }
@@ -162,19 +175,21 @@ export default function LispGame({ difficulty, onComplete }: MinigameProps) {
     <MinigameShell
       meta={meta}
       wide
-      status={`LEVEL ${li + 1}/${LEVELS} · PAR ${level.par} · WRONG EVAL ${wrong}/${MAX_WRONG_EVALS}`}
-      onAbandon={() => finish({ stars: 0, summary: 'Exercise abandoned.' })}
+      status={t('LEVEL {level}/{levels} · PAR {par} · WRONG EVAL {wrong}/{maxWrong}', {
+        level: li + 1, levels: LEVELS, par: level.par, wrong, maxWrong: MAX_WRONG_EVALS,
+      })}
+      onAbandon={() => finish({ stars: 0, summary: t('Exercise abandoned.') })}
     >
       <div className="relative flex h-full w-full max-w-[1100px] flex-col justify-center gap-2 md:gap-3">
         {/* Input -> target */}
         <div className="flex flex-wrap items-center justify-center gap-3 rounded-lg p-2" style={{ background: 'rgba(12,13,18,0.9)', border: `1px solid ${ACCENT}55` }}>
           <div className="flex items-center gap-2">
-            <span className="font-mono-data text-[10px] tracking-widest" style={{ color: ACCENT }}>INPUT</span>
+            <span className="font-mono-data text-[10px] tracking-widest" style={{ color: ACCENT }}>{t('INPUT')}</span>
             <Atoms list={level.input} />
           </div>
           <span className="font-orbitron" style={{ color: 'var(--text-tertiary)' }}>⇒ ⇒ ⇒</span>
           <div className="flex items-center gap-2">
-            <span className="font-mono-data text-[10px] tracking-widest" style={{ color: '#00E5A0' }}>TARGET</span>
+            <span className="font-mono-data text-[10px] tracking-widest" style={{ color: '#00E5A0' }}>{t('TARGET')}</span>
             <Atoms list={level.target} />
           </div>
         </div>
@@ -192,7 +207,7 @@ export default function LispGame({ difficulty, onComplete }: MinigameProps) {
           {slots.map((op, i) => (
             <div key={i} className="flex min-w-0 flex-1 items-start gap-1">
               <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
-                <div className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>SLOT {i + 1}</div>
+                <div className="font-mono-data text-[9px]" style={{ color: 'var(--text-tertiary)' }}>{t('SLOT {n}', { n: i + 1 })}</div>
                 <div
                   onClick={() => clickSlot(i)}
                   onDragOver={e => e.preventDefault()}
@@ -205,9 +220,9 @@ export default function LispGame({ difficulty, onComplete }: MinigameProps) {
                     background: op ? 'transparent' : '#00000066',
                     boxShadow: cursor === i ? `0 0 12px ${ACCENT}` : 'none',
                   }}
-                  title={op ? 'Click to remove' : 'Empty slot'}
+                  title={op ? t('Click to remove') : t('Empty slot')}
                 >
-                  {op ? <Card op={op} compact /> : <span className="font-mono-data text-[10px]" style={{ color: 'var(--text-tertiary)' }}>drop card</span>}
+                  {op ? <Card op={op} compact /> : <span className="font-mono-data text-[10px]" style={{ color: 'var(--text-tertiary)' }}>{t('drop card')}</span>}
                 </div>
                 <div className="flex min-h-[28px] items-center justify-center rounded px-1 py-0.5" style={{ background: '#05101388' }}>
                   <Atoms list={stages[i]} target={i === slots.length - 1 ? level.target : undefined} dim />
@@ -234,13 +249,13 @@ export default function LispGame({ difficulty, onComplete }: MinigameProps) {
         {/* Controls */}
         <div className="flex items-center justify-center gap-3">
           <RetroButton accent={ACCENT} onClick={() => { setSlots(Array(level.slots).fill(null)); setCursor(null); play('click'); }} disabled={locked || used === 0} className="px-4 py-2 text-xs tracking-widest">
-            CLEAR
+            {t('CLEAR')}
           </RetroButton>
           <RetroButton accent={matches ? '#00E5A0' : ACCENT} active onClick={evaluate} disabled={locked} className="px-8 py-2 text-sm font-bold tracking-widest">
-            EVAL ▶
+            {t('EVAL ▶')}
           </RetroButton>
           <span className="font-mono-data text-[11px]" style={{ color: matches ? '#00E5A0' : 'var(--text-tertiary)' }}>
-            {matches ? 'Output matches the target!' : `Output ${listText(result)}`}
+            {matches ? t('Output matches the target!') : t('Output {list}', { list: listText(result) })}
           </span>
         </div>
 
@@ -248,15 +263,15 @@ export default function LispGame({ difficulty, onComplete }: MinigameProps) {
           <div className="absolute inset-0 z-10 flex items-center justify-center" style={{ background: 'rgba(5,5,8,0.72)' }}>
             <div className="animate-fade-up w-full max-w-sm rounded-lg p-4 text-center" style={{ background: 'rgba(12,13,18,0.96)', border: `2px solid ${outcome.lost ? '#FF477E' : '#00E5A0'}` }}>
               <div className="font-mono-data text-[10px] tracking-[0.3em]" style={{ color: outcome.lost ? '#FF477E' : '#00E5A0' }}>
-                {outcome.lost ? 'OUT OF EVALS - HERE IS A SOLUTION' : 'PIPELINE VERIFIED'}
+                {outcome.lost ? t('OUT OF EVALS - HERE IS A SOLUTION') : t('PIPELINE VERIFIED')}
               </div>
               <div className="font-rajdhani my-2 text-base" style={{ color: 'var(--text-primary)' }}>
                 {outcome.lost
                   ? level.solution.map(o => opDef(o).label).join(' → ')
-                  : `${used} ${used === 1 ? 'card' : 'cards'} (par ${level.par}), ${wrong} wrong EVAL${wrong === 1 ? '' : 's'} · ${outcome.pts}/3 points`}
+                  : solvedSummary(used, level.par, wrong, outcome.pts)}
               </div>
               <RetroButton accent={ACCENT} active onClick={next} className="w-full py-2 text-xs font-bold tracking-widest">
-                {li + 1 >= LEVELS ? 'FINISH ▶' : 'NEXT LEVEL ▶'}
+                {li + 1 >= LEVELS ? t('FINISH ▶') : t('NEXT LEVEL ▶')}
               </RetroButton>
             </div>
           </div>

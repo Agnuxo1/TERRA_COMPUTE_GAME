@@ -5,6 +5,7 @@ import { alignmentCap, marketPrice, pol, requiredAlignment } from '../../game/en
 import { GOOD_INFO } from '../../game/market';
 import { ERA_NAMES, techById } from '../../game/data';
 import { capabilityLabel, fmtFlops, fmtMoney, fmtPop, fmtSigned } from '../../game/format';
+import { t } from '../../i18n';
 
 function clampPercent(v: number) { return Math.max(0, Math.min(100, v)); }
 function gaugeColor(p: number) { return p >= 75 ? '#00E5A0' : p >= 45 ? '#FFB84D' : '#FF477E'; }
@@ -36,13 +37,13 @@ function Gauge({ g, open, onOpen }: { g: GaugeDef; open: boolean; onOpen: (v: bo
         <circle className="hud-gauge-inner" cx="44" cy="44" r="25" />
       </svg>
       <div className="hud-gauge-readout">
-        <span className="hud-gauge-label">{g.label}</span>
+        <span className="hud-gauge-label">{t(g.label)}</span>
         <strong className="hud-gauge-value">{g.value}</strong>
         {g.sub && <span className="hud-gauge-sub">{g.sub}</span>}
       </div>
       {open && (
         <div className="hud-detail animate-fade-up">
-          <div className="font-mono-data text-[10px] tracking-widest mb-1" style={{ color: g.color }}>{g.label}</div>
+          <div className="font-mono-data text-[10px] tracking-widest mb-1" style={{ color: g.color }}>{t(g.label)}</div>
           {g.detail}
         </div>
       )}
@@ -76,7 +77,7 @@ export default function ResourceBar() {
   const research = state.researching ? techById[state.researching] : null;
   // Goods: steel has no running consumption (only construction); chips are burnt by hardware every year.
   const qty = (v: number) => (v >= 10000 ? `${(v / 1000).toFixed(0)}k` : v >= 1000 ? `${(v / 1000).toFixed(1)}k` : `${Math.round(v)}`);
-  const perYr = (v: number) => `${fmtSigned(v, Math.abs(v) < 10 && Math.abs(v) >= 0.05 ? 1 : 0)}/yr`;
+  const perYr = (v: number) => t('{value}/yr', { value: fmtSigned(v, Math.abs(v) < 10 && Math.abs(v) >= 0.05 ? 1 : 0) });
   const steelNet = e.steelProd - e.steelUse;
   const chipNet = e.chipProd - e.chipUse;
   const chipRunway = chipNet < 0 ? state.chips / -chipNet : Infinity;
@@ -84,71 +85,71 @@ export default function ResourceBar() {
   const chipsColor = chipCrisis || e.chipFactor < 0.999 ? '#FF477E' : chipNet < 0 ? '#FFB84D' : GOOD_INFO.chips.color;
   const priceRows = (g: 'steel' | 'chips') => (
     <>
-      <Row k="Buy price" v={pol(state, 'autarky') ? 'banned (Autarky)' : `$${marketPrice(state, g, 'buy').toFixed(2)}B`} tone={pol(state, 'autarky') ? 'dim' : undefined} />
-      <Row k="Sell price" v={`$${marketPrice(state, g, 'sell').toFixed(2)}B`} />
-      <Row k="World price" v={state.priceMod[g] > 1.01 ? `rising +${Math.round((state.priceMod[g] - 1) * 100)}%` : state.priceMod[g] < 0.99 ? `falling ${Math.round((state.priceMod[g] - 1) * 100)}%` : 'stable'} tone={state.priceMod[g] > 1.01 ? 'bad' : state.priceMod[g] < 0.99 ? 'good' : 'dim'} />
+      <Row k={t('Buy price')} v={pol(state, 'autarky') ? t('banned (Autarky)') : `$${marketPrice(state, g, 'buy').toFixed(2)}B`} tone={pol(state, 'autarky') ? 'dim' : undefined} />
+      <Row k={t('Sell price')} v={`$${marketPrice(state, g, 'sell').toFixed(2)}B`} />
+      <Row k={t('World price')} v={state.priceMod[g] > 1.01 ? t('rising +{pct}%', { pct: Math.round((state.priceMod[g] - 1) * 100) }) : state.priceMod[g] < 0.99 ? t('falling {pct}%', { pct: Math.round((state.priceMod[g] - 1) * 100) }) : t('stable')} tone={state.priceMod[g] > 1.01 ? 'bad' : state.priceMod[g] < 0.99 ? 'good' : 'dim'} />
     </>
   );
 
   const gauges: GaugeDef[] = [
     {
-      label: 'YEAR', value: String(year), sub: ERA_NAMES[era].toUpperCase(), percent: ((state.year - 1960) / 80) * 100,
+      label: 'YEAR', value: String(year), sub: t(ERA_NAMES[era]).toUpperCase(), percent: ((state.year - 1960) / 80) * 100,
       color: state.year < 2020 ? '#00F0FF' : state.year < 2030 ? '#FFB84D' : '#FF477E', pulse: state.year >= 2030,
-      detail: <><Row k="Era" v={ERA_NAMES[era]} /><Row k="Hard deadline" v="2040" /><Tip>Each year lasts 15 seconds at 1×. Rivals typically reach superintelligence in the early 2030s.</Tip></>,
+      detail: <><Row k={t('Era')} v={t(ERA_NAMES[era])} /><Row k={t('Hard deadline')} v="2040" /><Tip>{t('Each year lasts 15 seconds at 1×. Rivals typically reach superintelligence in the early 2030s.')}</Tip></>,
     },
     {
-      label: 'BUDGET', value: fmtMoney(state.budget), sub: `${fmtSigned(e.netBudget)}B/yr`, percent: clampPercent(50 + e.netBudget / Math.max(1, e.income) * 100),
+      label: 'BUDGET', value: fmtMoney(state.budget), sub: t('{value}B/yr', { value: fmtSigned(e.netBudget) }), percent: clampPercent(50 + e.netBudget / Math.max(1, e.income) * 100),
       color: state.budget < 0 ? '#FF477E' : e.netBudget >= 0 ? '#00E5A0' : '#FFB84D', pulse: state.budget < 0,
       detail: (
         <>
-          <Row k="GDP" v={`${fmtMoney(e.gdp)}/yr`} />
-          <Row k={`Taxes (${Math.round(state.taxRate * 100)}%)`} v={`+${fmtMoney(e.gdp * state.taxRate)}`} tone="good" />
-          <Row k="Trade treaties" v={`+${fmtMoney(e.income - e.gdp * state.taxRate)}`} tone="good" />
-          <Row k="Building upkeep" v={`-${fmtMoney(e.upkeep)}`} tone="bad" />
-          <Row k="Net per year" v={`${fmtSigned(e.netBudget)}B`} tone={e.netBudget >= 0 ? 'good' : 'bad'} />
-          <div className="mt-2 font-mono-data text-[10px]" style={{ color: 'var(--text-secondary)' }}>TAX RATE {Math.round(state.taxRate * 100)}%</div>
+          <Row k={t('GDP')} v={t('{amount}/yr', { amount: fmtMoney(e.gdp) })} />
+          <Row k={t('Taxes ({rate}%)', { rate: Math.round(state.taxRate * 100) })} v={`+${fmtMoney(e.gdp * state.taxRate)}`} tone="good" />
+          <Row k={t('Trade treaties')} v={`+${fmtMoney(e.income - e.gdp * state.taxRate)}`} tone="good" />
+          <Row k={t('Building upkeep')} v={`-${fmtMoney(e.upkeep)}`} tone="bad" />
+          <Row k={t('Net per year')} v={`${fmtSigned(e.netBudget)}B`} tone={e.netBudget >= 0 ? 'good' : 'bad'} />
+          <div className="mt-2 font-mono-data text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('TAX RATE {rate}%', { rate: Math.round(state.taxRate * 100) })}</div>
           <input type="range" min={10} max={40} step={1} value={Math.round(state.taxRate * 100)}
             onChange={ev => dispatch({ type: 'SET_TAX', rate: Number(ev.target.value) / 100 })}
             className="w-full accent-[#00E5A0]" />
-          <Tip>Higher taxes fund more buildings but cost approval (−1 per point above 20%).</Tip>
+          <Tip>{t('Higher taxes fund more buildings but cost approval (−1 per point above 20%).')}</Tip>
         </>
       ),
     },
     {
-      label: 'POP', value: fmtPop(state.population), sub: `${Math.round(e.workers)}M workers`, percent: clampPercent(hr * 60),
+      label: 'POP', value: fmtPop(state.population), sub: t('{n}M workers', { n: Math.round(e.workers) }), percent: clampPercent(hr * 60),
       color: '#8BE9FD',
-      detail: <><Row k="Population" v={fmtPop(state.population)} /><Row k="Working age" v={`${e.workers.toFixed(0)}M`} /><Tip>Grows when food and housing are sufficient. Education slows growth (demographic transition).</Tip></>,
+      detail: <><Row k={t('Population')} v={fmtPop(state.population)} /><Row k={t('Working age')} v={`${e.workers.toFixed(0)}M`} /><Tip>{t('Grows when food and housing are sufficient. Education slows growth (demographic transition).')}</Tip></>,
     },
     {
-      label: 'FOOD', value: `${Math.round(fr * 100)}%`, sub: fr >= 1 ? 'fed' : 'HUNGER', percent: clampPercent(fr * 80),
+      label: 'FOOD', value: `${Math.round(fr * 100)}%`, sub: fr >= 1 ? t('fed') : t('HUNGER'), percent: clampPercent(fr * 80),
       color: fr >= 1.05 ? '#00E5A0' : fr >= 1 ? '#FFB84D' : '#FF477E', pulse: fr < 1,
-      detail: <><Row k="Supply" v={`${e.foodSupply.toFixed(0)}M fed`} /><Row k="Demand" v={`${e.foodDemand.toFixed(0)}M people`} /><Tip>Below 100%: population shrinks and approval collapses. Farms love river valleys (+50%).</Tip></>,
+      detail: <><Row k={t('Supply')} v={t('{n}M fed', { n: e.foodSupply.toFixed(0) })} /><Row k={t('Demand')} v={t('{n}M people', { n: e.foodDemand.toFixed(0) })} /><Tip>{t('Below 100%: population shrinks and approval collapses. Farms love river valleys (+50%).')}</Tip></>,
     },
     {
-      label: 'HOUSING', value: `${Math.round(hr * 100)}%`, sub: hr >= 1 ? 'capacity' : 'CROWDED', percent: clampPercent(hr * 80),
+      label: 'HOUSING', value: `${Math.round(hr * 100)}%`, sub: hr >= 1 ? t('capacity') : t('CROWDED'), percent: clampPercent(hr * 80),
       color: hr >= 1.04 ? '#00E5A0' : hr >= 1 ? '#FFB84D' : '#FF477E', pulse: hr < 1,
-      detail: <><Row k="Capacity" v={`${e.housingCap.toFixed(0)}M`} /><Row k="Population" v={`${state.population.toFixed(0)}M`} /><Row k="Neighbourhood comfort" v={e.comfort.toFixed(1)} tone={e.comfort >= 0 ? 'good' : 'bad'} /><Tip>No room = no growth. Housing next to schools, hospitals and markets is happier; next to smoke it is miserable.</Tip></>,
+      detail: <><Row k={t('Capacity')} v={`${e.housingCap.toFixed(0)}M`} /><Row k={t('Population')} v={`${state.population.toFixed(0)}M`} /><Row k={t('Neighbourhood comfort')} v={e.comfort.toFixed(1)} tone={e.comfort >= 0 ? 'good' : 'bad'} /><Tip>{t('No room = no growth. Housing next to schools, hospitals and markets is happier; next to smoke it is miserable.')}</Tip></>,
     },
     {
-      label: 'JOBS', value: `${Math.round(e.unemployment * 100)}%`, sub: e.staffing < 0.98 ? `staff ${Math.round(e.staffing * 100)}%` : 'unemployed',
+      label: 'JOBS', value: `${Math.round(e.unemployment * 100)}%`, sub: e.staffing < 0.98 ? t('staff {pct}%', { pct: Math.round(e.staffing * 100) }) : t('unemployed'),
       percent: clampPercent(100 - e.unemployment * 300), color: gaugeColor(100 - e.unemployment * 400 - (1 - e.staffing) * 200), pulse: e.unemployment > 0.12,
-      detail: <><Row k="Jobs" v={`${e.jobs.toFixed(0)}M`} /><Row k="Workers" v={`${e.workers.toFixed(0)}M`} /><Row k="Unemployment" v={`${(e.unemployment * 100).toFixed(1)}%`} tone={e.unemployment > 0.08 ? 'bad' : 'good'} /><Row k="Staffing" v={`${(e.staffing * 100).toFixed(0)}%`} tone={e.staffing < 0.95 ? 'bad' : 'good'} /><Tip>Unemployment angers people; a labour shortage slows every building. Kombinats and markets create jobs, robots fill shortages.</Tip></>,
+      detail: <><Row k={t('Jobs')} v={`${e.jobs.toFixed(0)}M`} /><Row k={t('Workers')} v={`${e.workers.toFixed(0)}M`} /><Row k={t('Unemployment')} v={`${(e.unemployment * 100).toFixed(1)}%`} tone={e.unemployment > 0.08 ? 'bad' : 'good'} /><Row k={t('Staffing')} v={`${(e.staffing * 100).toFixed(0)}%`} tone={e.staffing < 0.95 ? 'bad' : 'good'} /><Tip>{t('Unemployment angers people; a labour shortage slows every building. Kombinats and markets create jobs, robots fill shortages.')}</Tip></>,
     },
     {
       label: 'POWER', value: `${Math.round(er * 100)}%`, sub: `${Math.round(e.energySupply)} GW`, percent: clampPercent(er * 75),
       color: er >= 1.1 ? '#00E5A0' : er >= 1 ? '#FFB84D' : '#FF477E', pulse: er < 1,
-      detail: <><Row k="Supply" v={`${e.energySupply.toFixed(0)} GW`} /><Row k="Demand" v={`${e.energyDemand.toFixed(0)} GW`} /><Row k="Your emissions" v={`${e.emissions.toFixed(0)} Mt/yr`} tone={e.emissions > 200 ? 'bad' : 'dim'} /><Tip>Below 100% there are blackouts: research, compute and GDP all drop. Old pre-1960 plants slowly retire.</Tip></>,
+      detail: <><Row k={t('Supply')} v={`${e.energySupply.toFixed(0)} GW`} /><Row k={t('Demand')} v={`${e.energyDemand.toFixed(0)} GW`} /><Row k={t('Your emissions')} v={t('{n} Mt/yr', { n: e.emissions.toFixed(0) })} tone={e.emissions > 200 ? 'bad' : 'dim'} /><Tip>{t('Below 100% there are blackouts: research, compute and GDP all drop. Old pre-1960 plants slowly retire.')}</Tip></>,
     },
     {
       label: 'STEEL', value: qty(state.steel), sub: perYr(steelNet), percent: clampPercent((state.steel / 250) * 100),
       color: e.steelProd <= 0 && state.steel < 20 ? '#FFB84D' : GOOD_INFO.steel.color,
       detail: (
         <>
-          <Row k="Stock" v={`${Math.floor(state.steel)} ${GOOD_INFO.steel.unit}`} />
-          <Row k="Kombinat output" v={`+${e.steelProd.toFixed(1)}/yr`} tone={e.steelProd > 0 ? 'good' : 'dim'} />
-          {e.steelUse > 0 && <Row k="Consumption" v={`-${e.steelUse.toFixed(1)}/yr`} tone="bad" />}
+          <Row k={t('Stock')} v={`${Math.floor(state.steel)} ${GOOD_INFO.steel.unit}`} />
+          <Row k={t('Kombinat output')} v={t('+{n}/yr', { n: e.steelProd.toFixed(1) })} tone={e.steelProd > 0 ? 'good' : 'dim'} />
+          {e.steelUse > 0 && <Row k={t('Consumption')} v={t('-{n}/yr', { n: e.steelUse.toFixed(1) })} tone="bad" />}
           {priceRows('steel')}
-          <Tip>Every building needs steel. Missing steel is imported at the buy price when you build. Press [E] to trade.</Tip>
+          <Tip>{t('Every building needs steel. Missing steel is imported at the buy price when you build. Press [E] to trade.')}</Tip>
         </>
       ),
     },
@@ -158,44 +159,44 @@ export default function ResourceBar() {
       color: chipsColor, pulse: chipCrisis || e.chipFactor < 0.999,
       detail: (
         <>
-          <Row k="Stock" v={`${Math.floor(state.chips)} ${GOOD_INFO.chips.unit}`} />
-          <Row k="Foundry output" v={`+${e.chipProd.toFixed(1)}/yr`} tone={e.chipProd > 0 ? 'good' : 'dim'} />
-          <Row k="Hardware burn" v={`-${e.chipUse.toFixed(1)}/yr`} tone={e.chipUse > e.chipProd ? 'bad' : 'dim'} />
-          {Number.isFinite(chipRunway) && <Row k="Stock lasts" v={`${chipRunway.toFixed(1)} yrs`} tone={chipRunway < 1 ? 'bad' : undefined} />}
-          {e.imports > 0 && <Row k="Auto-imports" v={`-${fmtMoney(e.imports)}/yr`} tone="bad" />}
-          {e.chipFactor < 0.999 && <Row k="Compute throttled" v={`${Math.round(e.chipFactor * 100)}%`} tone="bad" />}
+          <Row k={t('Stock')} v={`${Math.floor(state.chips)} ${GOOD_INFO.chips.unit}`} />
+          <Row k={t('Foundry output')} v={t('+{n}/yr', { n: e.chipProd.toFixed(1) })} tone={e.chipProd > 0 ? 'good' : 'dim'} />
+          <Row k={t('Hardware burn')} v={t('-{n}/yr', { n: e.chipUse.toFixed(1) })} tone={e.chipUse > e.chipProd ? 'bad' : 'dim'} />
+          {Number.isFinite(chipRunway) && <Row k={t('Stock lasts')} v={t('{years} yrs', { years: chipRunway.toFixed(1) })} tone={chipRunway < 1 ? 'bad' : undefined} />}
+          {e.imports > 0 && <Row k={t('Auto-imports')} v={t('-{cost}/yr', { cost: fmtMoney(e.imports) })} tone="bad" />}
+          {e.chipFactor < 0.999 && <Row k={t('Compute throttled')} v={`${Math.round(e.chipFactor * 100)}%`} tone="bad" />}
           {priceRows('chips')}
-          <Tip>Computers burn chips every year. When the stock runs out, the shortfall is imported automatically (or compute throttles under Autarky). Chip Foundries fix it.</Tip>
+          <Tip>{t('Computers burn chips every year. When the stock runs out, the shortfall is imported automatically (or compute throttles under Autarky). Chip Foundries fix it.')}</Tip>
         </>
       ),
     },
     {
       label: 'EDU', value: `${Math.round(state.education)}`, sub: `→ ${Math.round(e.eduTarget)}`, percent: state.education, color: '#FFB84D',
-      detail: <><Row k="Education" v={state.education.toFixed(1)} /><Row k="Target (schools/unis)" v={e.eduTarget.toFixed(0)} /><Tip>Education multiplies GDP and research. Schools lift it to ~70, universities beyond. It changes slowly.</Tip></>,
+      detail: <><Row k={t('Education')} v={state.education.toFixed(1)} /><Row k={t('Target (schools/unis)')} v={e.eduTarget.toFixed(0)} /><Tip>{t('Education multiplies GDP and research. Schools lift it to ~70, universities beyond. It changes slowly.')}</Tip></>,
     },
     {
-      label: 'RESEARCH', value: `${Math.round(e.researchRate)}`, sub: research ? research.name : 'IDLE — pick tech', percent: clampPercent(Math.log10(e.researchRate + 1) * 25),
+      label: 'RESEARCH', value: `${Math.round(e.researchRate)}`, sub: research ? t(research.name) : t('IDLE — pick tech'), percent: clampPercent(Math.log10(e.researchRate + 1) * 25),
       color: research ? '#A78BFA' : '#FF477E', pulse: !research,
-      detail: <><Row k="Research / year" v={e.researchRate.toFixed(0)} /><Row k="Stored points" v={state.researchPoints.toFixed(0)} /><Row k="Current" v={research ? research.name : 'none'} tone={research ? undefined : 'bad'} /><Tip>Press [T] to choose research. Institutes and universities produce it; after Deep Learning, compute does too.</Tip></>,
+      detail: <><Row k={t('Research / year')} v={e.researchRate.toFixed(0)} /><Row k={t('Stored points')} v={state.researchPoints.toFixed(0)} /><Row k={t('Current')} v={research ? t(research.name) : t('none')} tone={research ? undefined : 'bad'} /><Tip>{t('Press [T] to choose research. Institutes and universities produce it; after Deep Learning, compute does too.')}</Tip></>,
     },
     {
       label: 'COMPUTE', value: capabilityLabel(state.capability), sub: fmtFlops(state.compute), percent: clampPercent(((state.capability - 6) / 18) * 100), color: '#00F0FF',
-      detail: <><Row k="Effective" v={fmtFlops(state.compute)} /><Row k="Hardware" v={fmtFlops(e.computeRaw)} /><Row k="Tech multiplier" v={`×${e.computeMult.toFixed(1)}`} /><Row k="Goal" v="1 YottaFLOP (10²⁴)" /><Tip>Superintelligence needs 1 YottaFLOP plus the Superintelligence Theory tech.</Tip></>,
+      detail: <><Row k={t('Effective')} v={fmtFlops(state.compute)} /><Row k={t('Hardware')} v={fmtFlops(e.computeRaw)} /><Row k={t('Tech multiplier')} v={`×${e.computeMult.toFixed(1)}`} /><Row k={t('Goal')} v={t('1 YottaFLOP (10²⁴)')} /><Tip>{t('Superintelligence needs 1 YottaFLOP plus the Superintelligence Theory tech.')}</Tip></>,
     },
     {
       label: 'APPROVAL', value: `${Math.round(state.approval)}%`, sub: `→ ${Math.round(e.approvalTarget)}`, percent: state.approval,
       color: gaugeColor(state.approval), pulse: state.approval < 35,
       detail: (
         <>
-          {e.approvalFactors.map(f => <Row key={f.label} k={f.label} v={fmtSigned(f.value, 0)} tone={f.value > 0.5 ? 'good' : f.value < -0.5 ? 'bad' : 'dim'} />)}
-          <Tip>Below 35%: unrest (slower building, −15% GDP). Below 20% for 3 years: revolution.</Tip>
+          {e.approvalFactors.map(f => <Row key={f.label} k={t(f.label)} v={fmtSigned(f.value, 0)} tone={f.value > 0.5 ? 'good' : f.value < -0.5 ? 'bad' : 'dim'} />)}
+          <Tip>{t('Below 35%: unrest (slower building, −15% GDP). Below 20% for 3 years: revolution.')}</Tip>
         </>
       ),
     },
     {
-      label: 'ALIGN', value: `${Math.round(state.alignment)}%`, sub: `need ${req}`, percent: state.alignment,
+      label: 'ALIGN', value: `${Math.round(state.alignment)}%`, sub: t('need {req}', { req }), percent: state.alignment,
       color: state.alignment >= req ? '#00E5A0' : state.alignment >= 55 ? '#FFB84D' : '#FF477E', pulse: state.capability > 15 && state.alignment < 45,
-      detail: <><Row k="Institutes" v={`+${e.alignmentGain.toFixed(1)}/yr`} tone="good" /><Row k="Capability pressure" v={`-${e.alignmentPressure.toFixed(1)}/yr`} tone="bad" /><Row k="Ceiling (safety science)" v={`${alignmentCap(state)}%`} /><Row k="Needed for safe ASI" v={`${req}%`} /><Tip>Stronger AI is harder to align. Safety Institutes raise alignment; Alignment Research, Interpretability and AGI raise the ceiling.</Tip></>,
+      detail: <><Row k={t('Institutes')} v={`+${e.alignmentGain.toFixed(1)}/yr`} tone="good" /><Row k={t('Capability pressure')} v={`-${e.alignmentPressure.toFixed(1)}/yr`} tone="bad" /><Row k={t('Ceiling (safety science)')} v={`${alignmentCap(state)}%`} /><Row k={t('Needed for safe ASI')} v={`${req}%`} /><Tip>{t('Stronger AI is harder to align. Safety Institutes raise alignment; Alignment Research, Interpretability and AGI raise the ceiling.')}</Tip></>,
     },
   ];
 
@@ -204,9 +205,9 @@ export default function ResourceBar() {
   return (
     <>
       <style>{HUD_CSS}</style>
-      <header className="hud-strip" aria-label="Strategic indicators" data-tutorial="hud">
+      <header className="hud-strip" aria-label={t('Strategic indicators')} data-tutorial="hud">
         {gauges.map(g => <Gauge key={g.label} g={g} open={open === g.label} onOpen={v => setOpen(v ? g.label : null)} />)}
-        <div className="hud-speed-dock" aria-label="Time controls">
+        <div className="hud-speed-dock" aria-label={t('Time controls')}>
           <button onClick={() => { play('click'); dispatch({ type: 'TOGGLE_PAUSE' }); }} className="hud-speed-button"
             style={{ background: state.paused ? 'var(--amber-dim)' : 'var(--green-dim)', color: state.paused ? 'var(--amber)' : 'var(--green)', border: `1px solid ${state.paused ? 'var(--amber)' : 'var(--green)'}` }}>
             {state.paused ? '▶' : 'II'}

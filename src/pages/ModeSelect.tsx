@@ -4,6 +4,7 @@ import type { GameMode } from '../game/types';
 import { play } from '../hooks/useSound';
 import { isVideoPlayed, markVideoPlayed, getVideoUrl } from '../hooks/useVideo';
 import VideoPlayer from '../components/game/VideoPlayer';
+import { t } from '../i18n';
 
 export const COMPLETE_UNLOCK_KEY = 'terra_compute_complete_unlocked';
 function isCompleteUnlocked(): boolean {
@@ -14,57 +15,60 @@ function isCompleteUnlocked(): boolean {
   }
 }
 
-const modes = [
-  {
-    id: 'pioneer' as const,
-    name: 'PIONEER',
-    startYear: 1960,
-    color: '#33FF33',
-    description: 'Learn every system at your own pace. Rivals trade and talk but never ignite an ASI, and you cannot lose.',
-    features: ['Start in 1960', 'No defeat states', 'Goal: 10^22 FLOPS · 70% alignment', 'Win to unlock Completo'],
-    gradient: 'from-green-900 to-green-700',
-    accent: '#33FF33',
-    unlocked: true,
-    cardImage: './assets/cards/PIONEER.jpg',
-  },
-  {
-    id: 'strategist' as const,
-    name: 'ESTRATEGA',
-    startYear: 1980,
-    color: '#00F0FF',
-    description: 'Start in 1980 with a working industrial base. Seven rivals race you to superintelligence — and some of them are reckless.',
-    features: ['Start in 1980', '7 active rivals', 'Goal: 1 YottaFLOP · 80% alignment', 'Win to unlock Completo'],
-    gradient: 'from-cyan-900 to-cyan-700',
-    accent: '#00F0FF',
-    unlocked: true,
-    cardImage: './assets/cards/ESTRATEGA.jpg',
-  },
-  {
-    id: 'complete' as const,
-    name: 'COMPLETO',
-    startYear: 1960,
-    color: '#7B61FF',
-    description: 'The full campaign from 1960: every crisis, every breakthrough, every rival. Keep the planet alive until the machine wakes up.',
-    features: ['Full timeline 1960+', 'All systems active', 'Full rival competition', 'The ultimate race'],
-    gradient: 'from-purple-900 to-purple-700',
-    accent: '#7B61FF',
-    get unlocked() { return isCompleteUnlocked(); },
-    cardImage: './assets/cards/COMPLETE.jpg',
-  },
-  {
-    id: 'logic' as const,
-    name: 'LOGIC',
-    startYear: 1950,
-    startLabel: 'PUZZLES',
-    color: '#FFF4C2',
-    description: 'Standalone intelligence exercises based on the historical technology events.',
-    features: ['8 historical exercises', '3 difficulty levels', 'Star records', 'No economy pressure'],
-    gradient: 'from-amber-950 to-green-950',
-    accent: '#FFF4C2',
-    unlocked: true,
-    cardImage: './assets/cards/LOGIC.png',
-  },
-];
+// Built at render time so the copy follows the active language.
+function buildModes() {
+  return [
+    {
+      id: 'pioneer' as const,
+      name: t('PIONEER'),
+      startYear: 1960,
+      color: '#33FF33',
+      description: t('Learn every system at your own pace. Rivals trade and talk but never ignite an ASI, and you cannot lose.'),
+      features: [t('Start in 1960'), t('No defeat states'), t('Goal: 10^22 FLOPS · 70% alignment'), t('Win to unlock Completo')],
+      gradient: 'from-green-900 to-green-700',
+      accent: '#33FF33',
+      unlocked: true,
+      cardImage: './assets/cards/PIONEER.jpg',
+    },
+    {
+      id: 'strategist' as const,
+      name: t('ESTRATEGA'),
+      startYear: 1980,
+      color: '#00F0FF',
+      description: t('Start in 1980 with a working industrial base. Seven rivals race you to superintelligence — and some of them are reckless.'),
+      features: [t('Start in 1980'), t('7 active rivals'), t('Goal: 1 YottaFLOP · 80% alignment'), t('Win to unlock Completo')],
+      gradient: 'from-cyan-900 to-cyan-700',
+      accent: '#00F0FF',
+      unlocked: true,
+      cardImage: './assets/cards/ESTRATEGA.jpg',
+    },
+    {
+      id: 'complete' as const,
+      name: t('COMPLETO'),
+      startYear: 1960,
+      color: '#7B61FF',
+      description: t('The full campaign from 1960: every crisis, every breakthrough, every rival. Keep the planet alive until the machine wakes up.'),
+      features: [t('Full timeline 1960+'), t('All systems active'), t('Full rival competition'), t('The ultimate race')],
+      gradient: 'from-purple-900 to-purple-700',
+      accent: '#7B61FF',
+      get unlocked() { return isCompleteUnlocked(); },
+      cardImage: './assets/cards/COMPLETE.jpg',
+    },
+    {
+      id: 'logic' as const,
+      name: t('LOGIC'),
+      startYear: 1950,
+      startLabel: t('PUZZLES'),
+      color: '#FFF4C2',
+      description: t('Standalone intelligence exercises based on the historical technology events.'),
+      features: [t('8 historical exercises'), t('3 difficulty levels'), t('Star records'), t('No economy pressure')],
+      gradient: 'from-amber-950 to-green-950',
+      accent: '#FFF4C2',
+      unlocked: true,
+      cardImage: './assets/cards/LOGIC.png',
+    },
+  ];
+}
 
 const videoMap: Record<string, string> = {
   pioneer: 'mode-pioneer',
@@ -76,6 +80,7 @@ export default function ModeSelect() {
   const { dispatch } = useGame();
   const [videoSrc, setVideoSrc] = useState<string | null>(null);
   const [pendingMode, setPendingMode] = useState<string | null>(null);
+  const modes = buildModes();
 
   const handleSelectMode = (modeId: string) => {
     play('click');
@@ -109,10 +114,10 @@ export default function ModeSelect() {
       <div className="text-center mb-2">
         <h1 className="font-orbitron text-2xl md:text-3xl font-bold tracking-wider"
           style={{ color: '#33FF33', textShadow: '0 0 20px rgba(51,255,51,0.3)' }}>
-          SELECT MODE
+          {t('SELECT MODE')}
         </h1>
         <p className="font-rajdhani text-sm mt-1" style={{ color: 'var(--text-tertiary)' }}>
-          Three paths to superintelligence
+          {t('Three paths to superintelligence')}
         </p>
       </div>
 
@@ -146,7 +151,7 @@ export default function ModeSelect() {
                 </span>
                 {!mode.unlocked && (
                   <span className="font-orbitron text-[8px] tracking-wider" style={{ color: '#888' }}>
-                    🔒 LOCKED
+                    🔒 {t('LOCKED')}
                   </span>
                 )}
               </div>
@@ -157,7 +162,7 @@ export default function ModeSelect() {
                   {mode.name}
                 </h2>
                 <div className="font-mono-data text-[9px] mb-2" style={{ color: 'var(--text-tertiary)' }}>
-                  START: {'startLabel' in mode ? mode.startLabel : mode.startYear}
+                  {t('START: {when}', { when: ('startLabel' in mode ? mode.startLabel : mode.startYear) ?? '' })}
                 </div>
                 <p className="font-rajdhani text-xs leading-relaxed mb-3" style={{ color: 'var(--text-secondary)' }}>
                   {mode.description}
@@ -174,12 +179,12 @@ export default function ModeSelect() {
                   <div className="font-orbitron text-[10px] font-bold tracking-wider py-2 rounded text-center
                     transition-all group-hover:brightness-125"
                     style={{ background: mode.accent + '22', color: mode.accent, border: `1px solid ${mode.accent}` }}>
-                    ▶ PLAY
+                    ▶ {t('PLAY')}
                   </div>
                 ) : (
                   <div className="font-orbitron text-[9px] tracking-wider py-2 rounded text-center"
                     style={{ background: 'rgba(100,100,100,0.1)', color: '#666', border: '1px solid #333' }}>
-                    Complete Estratega to unlock
+                    {t('Complete Estratega to unlock')}
                   </div>
                 )}
               </div>
@@ -192,7 +197,7 @@ export default function ModeSelect() {
         className="px-4 py-1.5 rounded font-orbitron text-[9px] font-bold tracking-wider transition-all hover:brightness-125"
         style={{ background: 'var(--surface-elevated)', color: '#33FF33', border: '1px solid rgba(51,255,51,0.3)',
           textShadow: '0 0 6px rgba(51,255,51,0.3)' }}>
-        ← BACK TO MENU
+        ← {t('BACK TO MENU')}
       </button>
 
       {videoSrc && (

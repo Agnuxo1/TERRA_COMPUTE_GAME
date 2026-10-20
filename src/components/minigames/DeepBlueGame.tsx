@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { play } from '../../hooks/useSound';
+import { t } from '../../i18n';
 import { MinigameShell, MinigameResultCard } from './MinigameShell';
 import type { MinigameProps, MinigameResult } from './types';
 import {
@@ -35,7 +36,7 @@ export default function DeepBlueGame({ difficulty, onComplete }: MinigameProps) 
   const [wrongMove, setWrongMove] = useState<Move | null>(null);
   const [hint, setHint] = useState<Move | null>(null);
   const [solutionText, setSolutionText] = useState('');
-  const [quote, setQuote] = useState('Your move, engineer.');
+  const [quote, setQuote] = useState(() => t('Your move, engineer.'));
   const [results, setResults] = useState<(number | null)[]>([]);
   const [result, setResult] = useState<MinigameResult | null>(null);
 
@@ -87,7 +88,7 @@ export default function DeepBlueGame({ difficulty, onComplete }: MinigameProps) 
       setLastMove(m);
       setPhase('solved');
       setResults(r => [...r, mistakes]);
-      setQuote('Impossible... the machine resigns.');
+      setQuote(t('Impossible... the machine resigns.'));
       return;
     }
     if (goodFirst) {
@@ -95,7 +96,7 @@ export default function DeepBlueGame({ difficulty, onComplete }: MinigameProps) 
       setPos(after);
       setLastMove(m);
       setPhase('reply');
-      setQuote('Hmm. I am forced to answer.');
+      setQuote(t('Hmm. I am forced to answer.'));
       later(() => {
         const reply = bestDefense(after);
         if (!reply) return;
@@ -115,7 +116,7 @@ export default function DeepBlueGame({ difficulty, onComplete }: MinigameProps) 
     setLastMove(m);
     setWrongMove(m);
     setPhase('wrong');
-    setQuote('Is that the best you can do?');
+    setQuote(t('Is that the best you can do?'));
     const total = mistakes + 1;
     later(() => {
       setWrongMove(null);
@@ -126,7 +127,7 @@ export default function DeepBlueGame({ difficulty, onComplete }: MinigameProps) 
         setPos(before);
         setLastMove(null);
         setPhase('play');
-        setQuote(total === 2 ? 'One more slip and I win.' : 'Try again.');
+        setQuote(total === 2 ? t('One more slip and I win.') : t('Try again.'));
       }
     }, 950);
   };
@@ -154,7 +155,7 @@ export default function DeepBlueGame({ difficulty, onComplete }: MinigameProps) 
     setLastMove(null);
     setResults(r => [...r, null]);
     setPhase('failed');
-    setQuote('Study this one, engineer.');
+    setQuote(t('Study this one, engineer.'));
   };
 
   const advance = () => {
@@ -166,8 +167,10 @@ export default function DeepBlueGame({ difficulty, onComplete }: MinigameProps) 
       const r: MinigameResult = {
         stars,
         summary: solved === 0
-          ? 'The champion survived every line.'
-          : `Mated the champion in ${solved} of ${TOTAL} puzzles with ${totalMistakes} mistake${totalMistakes === 1 ? '' : 's'}.`,
+          ? t('The champion survived every line.')
+          : totalMistakes === 1
+            ? t('Mated the champion in {solved} of {total} puzzles with {mistakes} mistake.', { solved, total: TOTAL, mistakes: totalMistakes })
+            : t('Mated the champion in {solved} of {total} puzzles with {mistakes} mistakes.', { solved, total: TOTAL, mistakes: totalMistakes }),
       };
       setResult(r);
       setPhase('done');
@@ -183,20 +186,20 @@ export default function DeepBlueGame({ difficulty, onComplete }: MinigameProps) 
     setWrongMove(null);
     setHint(null);
     setSolutionText('');
-    setQuote('Next position. Concentrate.');
+    setQuote(t('Next position. Concentrate.'));
     setPhase('play');
   };
 
   const checkedKing = isInCheck(pos, pos.turn) ? kingSquare(pos.board, pos.turn) : -1;
   const whiteToPlayPrompt = puzzle.mateIn === 1
-    ? 'White to move: mate in 1'
-    : step === 0 ? 'White to move: mate in 2' : 'Now finish it: mate in 1';
+    ? t('White to move: mate in 1')
+    : step === 0 ? t('White to move: mate in 2') : t('Now finish it: mate in 1');
 
   return (
     <MinigameShell
       meta={meta}
-      status={`PUZZLE ${idx + 1}/${TOTAL} · MISTAKES ${mistakes}/${MAX_MISTAKES}`}
-      onAbandon={() => finish({ stars: 0, summary: 'Exercise abandoned.' })}
+      status={t('PUZZLE {idx}/{total} · MISTAKES {mistakes}/{max}', { idx: idx + 1, total: TOTAL, mistakes, max: MAX_MISTAKES })}
+      onAbandon={() => finish({ stars: 0, summary: t('Exercise abandoned.') })}
     >
       <style>{`
         @keyframes db-shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-6px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(4px); } }
@@ -319,15 +322,15 @@ export default function DeepBlueGame({ difficulty, onComplete }: MinigameProps) 
 
           <div>
             <div className="font-mono-data text-[10px] tracking-[0.25em]" style={{ color: 'var(--text-tertiary)' }}>
-              {puzzle.theme.toUpperCase()}
+              {puzzle.theme().toUpperCase()}
             </div>
             <div className="font-orbitron text-lg font-black leading-tight md:text-xl" style={{ color: '#FFF4C2' }}>
-              {phase === 'solved' ? 'CHECKMATE!' : whiteToPlayPrompt}
+              {phase === 'solved' ? t('CHECKMATE!') : whiteToPlayPrompt}
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="font-mono-data text-[10px]" style={{ color: 'var(--text-tertiary)' }}>MISTAKES</span>
+            <span className="font-mono-data text-[10px]" style={{ color: 'var(--text-tertiary)' }}>{t('MISTAKES')}</span>
             {Array.from({ length: MAX_MISTAKES }, (_, i) => (
               <div
                 key={i}
@@ -345,15 +348,15 @@ export default function DeepBlueGame({ difficulty, onComplete }: MinigameProps) 
             className="min-h-[44px] font-rajdhani text-[15px] font-semibold leading-snug"
             style={{ color: phase === 'wrong' ? '#FF477E' : phase === 'solved' ? '#00E5A0' : 'var(--text-primary)' }}
           >
-            {phase === 'wrong' && 'That does not force mate. Resetting the position...'}
-            {phase === 'reply' && 'Black answers with its best defence...'}
-            {phase === 'solved' && 'The champion has no answer.'}
+            {phase === 'wrong' && t('That does not force mate. Resetting the position...')}
+            {phase === 'reply' && t('Black answers with its best defence...')}
+            {phase === 'solved' && t('The champion has no answer.')}
             {phase === 'failed' && (
               <span style={{ color: '#FFB84D' }}>
-                Solution: <span className="font-mono-data">{solutionText}</span>
+                {t('Solution:')} <span className="font-mono-data">{solutionText}</span>
               </span>
             )}
-            {phase === 'play' && (selected === null ? 'Click one of your cream pieces.' : 'Pick a green square.')}
+            {phase === 'play' && (selected === null ? t('Click one of your cream pieces.') : t('Pick a green square.'))}
           </div>
 
           {(phase === 'solved' || phase === 'failed') && (
@@ -363,13 +366,13 @@ export default function DeepBlueGame({ difficulty, onComplete }: MinigameProps) 
               className="animate-pulse-glow rounded py-2.5 font-orbitron text-sm font-bold tracking-wider transition-all hover:brightness-125"
               style={{ background: `${ACCENT}22`, color: ACCENT, border: `2px solid ${ACCENT}` }}
             >
-              {idx + 1 >= TOTAL ? 'FINISH ▶' : 'NEXT PUZZLE ▶'}
+              {idx + 1 >= TOTAL ? t('FINISH ▶') : t('NEXT PUZZLE ▶')}
             </button>
           )}
 
           <div className="font-mono-data text-[10px] leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-            <span style={{ color: '#00E5A0' }}>●</span> legal move &nbsp; <span style={{ color: '#00E5A0' }}>◯</span> capture<br />
-            Pawns promote to a queen.
+            <span style={{ color: '#00E5A0' }}>●</span> {t('legal move')} &nbsp; <span style={{ color: '#00E5A0' }}>◯</span> {t('capture')}<br />
+            {t('Pawns promote to a queen.')}
           </div>
         </div>
 

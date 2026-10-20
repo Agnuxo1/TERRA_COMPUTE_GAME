@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { t } from '../../../i18n';
 
 export function PanelHeader({ title, accent = 'var(--cyan)', onClose, right }: { title: string; accent?: string; onClose?: () => void; right?: ReactNode }) {
   return (
@@ -7,7 +8,7 @@ export function PanelHeader({ title, accent = 'var(--cyan)', onClose, right }: {
       <div className="flex items-center gap-2">
         {right}
         {onClose && (
-          <button onClick={onClose} className="font-mono-data text-[10px] px-1.5 rounded hover:brightness-150" style={{ color: 'var(--text-tertiary)', border: '1px solid var(--border-light)' }} title="Close [Esc]">✕</button>
+          <button onClick={onClose} className="font-mono-data text-[10px] px-1.5 rounded hover:brightness-150" style={{ color: 'var(--text-tertiary)', border: '1px solid var(--border-light)' }} title={t('Close [Esc]')}>✕</button>
         )}
       </div>
     </div>

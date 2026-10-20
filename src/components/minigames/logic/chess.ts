@@ -2,6 +2,7 @@
 // Supported: all piece moves, check detection, promotion (always to queen).
 // Not supported (puzzle positions never need them): castling, en passant.
 import { mulberry32, shuffle } from './rng.ts';
+import { t } from '../../../i18n/index.ts';
 
 export type Color = 'w' | 'b';
 /** Uppercase = white, lowercase = black. null = empty. Index = rank8-first: idx = row*8 + col, row 0 = rank 8. */
@@ -213,33 +214,34 @@ export interface MatePuzzle {
   id: string;
   fen: string;
   mateIn: 1 | 2;
-  theme: string;
+  /** Translated when read (not at import). */
+  theme: () => string;
 }
 
 export const MATE_IN_1: MatePuzzle[] = [
-  { id: 'm1-backrank-rook', fen: '6k1/5ppp/8/8/8/8/8/R3K3 w', mateIn: 1, theme: 'Back-rank mate' },
-  { id: 'm1-backrank-capture', fen: '3r2k1/5ppp/8/8/8/8/5PPP/3R2K1 w', mateIn: 1, theme: 'Back-rank mate by capture' },
-  { id: 'm1-smothered', fen: '6rk/6pp/8/6N1/8/8/8/6K1 w', mateIn: 1, theme: 'Smothered mate' },
-  { id: 'm1-queen-king', fen: '7k/8/5K2/8/8/8/8/6Q1 w', mateIn: 1, theme: 'Queen and king' },
-  { id: 'm1-rook-ladder', fen: 'k7/8/1K6/8/8/8/8/7R w', mateIn: 1, theme: 'Rook finishes the ladder' },
-  { id: 'm1-anastasia', fen: '8/4N1pk/8/8/8/8/K7/3R4 w', mateIn: 1, theme: "Anastasia's mate" },
-  { id: 'm1-arabian', fen: '7k/R7/5N2/8/8/8/8/K7 w', mateIn: 1, theme: 'Arabian mate' },
-  { id: 'm1-scholar', fen: 'r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w', mateIn: 1, theme: "Scholar's mate" },
-  { id: 'm1-two-rooks', fen: '6k1/R7/8/8/8/8/8/1R4K1 w', mateIn: 1, theme: 'Two rooks' },
-  { id: 'm1-queen-bishop', fen: '7k/5Q2/4N3/8/8/8/8/K7 w', mateIn: 1, theme: 'Queen backed by a knight' },
-  { id: 'm1-opposition', fen: '4k3/R7/4K3/8/8/8/8/8 w', mateIn: 1, theme: 'Opposition mate' },
-  { id: 'm1-queen-backrank', fen: '2r3k1/5ppp/8/8/8/8/5PPP/2Q3K1 w', mateIn: 1, theme: 'Queen takes on the back rank' },
+  { id: 'm1-backrank-rook', fen: '6k1/5ppp/8/8/8/8/8/R3K3 w', mateIn: 1, theme: () => t('Back-rank mate') },
+  { id: 'm1-backrank-capture', fen: '3r2k1/5ppp/8/8/8/8/5PPP/3R2K1 w', mateIn: 1, theme: () => t('Back-rank mate by capture') },
+  { id: 'm1-smothered', fen: '6rk/6pp/8/6N1/8/8/8/6K1 w', mateIn: 1, theme: () => t('Smothered mate') },
+  { id: 'm1-queen-king', fen: '7k/8/5K2/8/8/8/8/6Q1 w', mateIn: 1, theme: () => t('Queen and king') },
+  { id: 'm1-rook-ladder', fen: 'k7/8/1K6/8/8/8/8/7R w', mateIn: 1, theme: () => t('Rook finishes the ladder') },
+  { id: 'm1-anastasia', fen: '8/4N1pk/8/8/8/8/K7/3R4 w', mateIn: 1, theme: () => t("Anastasia's mate") },
+  { id: 'm1-arabian', fen: '7k/R7/5N2/8/8/8/8/K7 w', mateIn: 1, theme: () => t('Arabian mate') },
+  { id: 'm1-scholar', fen: 'r1bqkbnr/pppp1ppp/2n5/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w', mateIn: 1, theme: () => t("Scholar's mate") },
+  { id: 'm1-two-rooks', fen: '6k1/R7/8/8/8/8/8/1R4K1 w', mateIn: 1, theme: () => t('Two rooks') },
+  { id: 'm1-queen-bishop', fen: '7k/5Q2/4N3/8/8/8/8/K7 w', mateIn: 1, theme: () => t('Queen backed by a knight') },
+  { id: 'm1-opposition', fen: '4k3/R7/4K3/8/8/8/8/8 w', mateIn: 1, theme: () => t('Opposition mate') },
+  { id: 'm1-queen-backrank', fen: '2r3k1/5ppp/8/8/8/8/5PPP/2Q3K1 w', mateIn: 1, theme: () => t('Queen takes on the back rank') },
 ];
 
 export const MATE_IN_2: MatePuzzle[] = [
-  { id: 'm2-rook-ladder', fen: '4k3/8/8/8/8/8/R7/1R5K w', mateIn: 2, theme: 'Rook ladder' },
-  { id: 'm2-queen-net', fen: 'k7/8/2K5/8/8/8/8/6Q1 w', mateIn: 2, theme: 'Queen net' },
-  { id: 'm2-corner-ladder', fen: '7k/8/8/8/8/8/1R6/R6K w', mateIn: 2, theme: 'Corner ladder' },
-  { id: 'm2-philidor', fen: '5r1k/6pp/8/3QN3/2B5/8/8/6K1 w', mateIn: 2, theme: 'Queen sacrifice, smothered mate' },
-  { id: 'm2-queen-rook-net', fen: '4k3/8/8/8/8/RK6/8/1Q6 w', mateIn: 2, theme: 'Queen and rook net' },
-  { id: 'm2-rook-capture', fen: '7k/R7/8/2b2R2/8/8/8/1K6 w', mateIn: 2, theme: 'Rooks on the seventh' },
-  { id: 'm2-h-file', fen: '2k5/7p/6R1/5p2/8/7Q/7B/7K w', mateIn: 2, theme: 'Queen and rook battery' },
-  { id: 'm2-check-drive', fen: '4k3/2R5/8/1r6/5Q2/8/6K1/8 w', mateIn: 2, theme: 'Queen check drives the king' },
+  { id: 'm2-rook-ladder', fen: '4k3/8/8/8/8/8/R7/1R5K w', mateIn: 2, theme: () => t('Rook ladder') },
+  { id: 'm2-queen-net', fen: 'k7/8/2K5/8/8/8/8/6Q1 w', mateIn: 2, theme: () => t('Queen net') },
+  { id: 'm2-corner-ladder', fen: '7k/8/8/8/8/8/1R6/R6K w', mateIn: 2, theme: () => t('Corner ladder') },
+  { id: 'm2-philidor', fen: '5r1k/6pp/8/3QN3/2B5/8/8/6K1 w', mateIn: 2, theme: () => t('Queen sacrifice, smothered mate') },
+  { id: 'm2-queen-rook-net', fen: '4k3/8/8/8/8/RK6/8/1Q6 w', mateIn: 2, theme: () => t('Queen and rook net') },
+  { id: 'm2-rook-capture', fen: '7k/R7/8/2b2R2/8/8/8/1K6 w', mateIn: 2, theme: () => t('Rooks on the seventh') },
+  { id: 'm2-h-file', fen: '2k5/7p/6R1/5p2/8/7Q/7B/7K w', mateIn: 2, theme: () => t('Queen and rook battery') },
+  { id: 'm2-check-drive', fen: '4k3/2R5/8/1r6/5Q2/8/6K1/8 w', mateIn: 2, theme: () => t('Queen check drives the king') },
 ];
 
 export function puzzleCounts(difficulty: 1 | 2 | 3): { m1: number; m2: number } {

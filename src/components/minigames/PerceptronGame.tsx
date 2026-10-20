@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { play } from '../../hooks/useSound';
+import { t } from '../../i18n';
 import { MinigameResultCard, MinigameShell, RetroButton, StarRow } from './MinigameShell';
 import type { MinigameProps, MinigameResult, Stars } from './types';
 import {
@@ -124,7 +125,10 @@ export default function PerceptronGame({ difficulty, onComplete }: MinigameProps
     setScores(all);
     if (round + 1 >= ROUNDS) {
       const stars = finalStars(all);
-      const summary = `Rounds: ${all.map(s => `${s}★`).join(' · ')} - average ${(all.reduce((a, b) => a + b, 0) / all.length).toFixed(1)}.`;
+      const summary = t('Rounds: {rounds} - average {avg}.', {
+        rounds: all.map(s => `${s}★`).join(' · '),
+        avg: (all.reduce((a, b) => a + b, 0) / all.length).toFixed(1),
+      });
       setFinal({ stars, summary });
       setRoundDone(null);
       return;
@@ -166,8 +170,10 @@ export default function PerceptronGame({ difficulty, onComplete }: MinigameProps
     <MinigameShell
       meta={meta}
       wide
-      status={`ROUND ${round + 1}/${ROUNDS} · ACTIONS ${actions}/${ACTION_BUDGET} · 3★ ≤ ${cfg.star3}`}
-      onAbandon={() => finish({ stars: 0, summary: 'Exercise abandoned.' })}
+      status={t('ROUND {round}/{rounds} · ACTIONS {actions}/{budget} · 3★ ≤ {star3}', {
+        round: round + 1, rounds: ROUNDS, actions, budget: ACTION_BUDGET, star3: cfg.star3,
+      })}
+      onAbandon={() => finish({ stars: 0, summary: t('Exercise abandoned.') })}
     >
       <div className="relative flex h-full w-full flex-col items-center justify-center gap-3 md:flex-row md:gap-5">
         {/* Plot */}
@@ -175,7 +181,7 @@ export default function PerceptronGame({ difficulty, onComplete }: MinigameProps
           className="relative aspect-square h-full max-h-[min(100%,620px)] shrink rounded-lg p-1.5"
           style={{ background: 'rgba(12,13,18,0.92)', border: `2px solid ${ACCENT}`, boxShadow: `0 0 28px ${ACCENT}33` }}
         >
-          <svg viewBox={`${-VIEW} ${-VIEW} ${2 * VIEW} ${2 * VIEW}`} className="h-full w-full" role="img" aria-label="Scatter plot with decision line">
+          <svg viewBox={`${-VIEW} ${-VIEW} ${2 * VIEW} ${2 * VIEW}`} className="h-full w-full" role="img" aria-label={t('Scatter plot with decision line')}>
             {redPoly.length > 2 && <polygon points={poly(redPoly)} fill={RED} fillOpacity={0.13} />}
             {cyanPoly.length > 2 && <polygon points={poly(cyanPoly)} fill={CYAN} fillOpacity={0.1} />}
             {grid}
@@ -205,14 +211,14 @@ export default function PerceptronGame({ difficulty, onComplete }: MinigameProps
             <div className="absolute inset-0 flex items-center justify-center" style={{ background: 'rgba(5,5,8,0.66)' }}>
               <div className="animate-fade-up rounded-lg p-4 text-center" style={{ background: 'rgba(12,13,18,0.96)', border: `2px solid ${roundDone.failed ? RED : ACCENT}` }}>
                 <div className="font-mono-data text-[10px] tracking-[0.3em]" style={{ color: roundDone.failed ? RED : ACCENT }}>
-                  {roundDone.failed ? 'ADJUSTMENT BUDGET SPENT' : 'ALL SIGNALS SEPARATED'}
+                  {roundDone.failed ? t('ADJUSTMENT BUDGET SPENT') : t('ALL SIGNALS SEPARATED')}
                 </div>
                 <StarRow stars={roundDone.stars} accent={ACCENT} size={28} />
                 <div className="font-rajdhani text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>
-                  {roundDone.failed ? 'Round lost.' : `${actions} adjustments.`}
+                  {roundDone.failed ? t('Round lost.') : t('{n} adjustments.', { n: actions })}
                 </div>
                 <RetroButton accent={ACCENT} active onClick={nextRound} className="px-5 py-2 text-xs font-bold tracking-widest">
-                  {round + 1 >= ROUNDS ? 'FINISH ▶' : 'NEXT ROUND ▶'}
+                  {round + 1 >= ROUNDS ? t('FINISH ▶') : t('NEXT ROUND ▶')}
                 </RetroButton>
               </div>
             </div>
@@ -225,17 +231,17 @@ export default function PerceptronGame({ difficulty, onComplete }: MinigameProps
           style={{ background: 'rgba(12,13,18,0.9)', border: '1px solid var(--border-light)' }}
         >
           <div className="flex items-center justify-between">
-            <span className="font-mono-data text-[10px] tracking-[0.25em]" style={{ color: ACCENT }}>WEIGHT BOARD</span>
+            <span className="font-mono-data text-[10px] tracking-[0.25em]" style={{ color: ACCENT }}>{t('WEIGHT BOARD')}</span>
             <span className="font-mono-data text-xs tabular-nums" style={{ color: wrong.length === 0 ? ACCENT : RED }}>
-              {correct}/{ds.points.length} CORRECT
+              {t('{correct}/{total} CORRECT', { correct, total: ds.points.length })}
             </span>
           </div>
           <div className="font-mono-data text-[11px] text-center rounded py-1 tabular-nums" style={{ background: '#05060A', color: 'var(--text-secondary)' }}>
             {fmt(params.w1)}·x {params.w2 < 0 ? '−' : '+'} {fmt(Math.abs(params.w2))}·y {params.b < 0 ? '−' : '+'} {fmt(Math.abs(params.b))} = 0
           </div>
-          <Knob label="w1" hint="tilt (x)" value={params.w1} min={W_MIN} max={W_MAX} step={W_STEP} disabled={locked} onChange={setParam('w1')} />
-          <Knob label="w2" hint="tilt (y)" value={params.w2} min={W_MIN} max={W_MAX} step={W_STEP} disabled={locked} onChange={setParam('w2')} />
-          <Knob label="b" hint="bias (slide)" value={params.b} min={B_MIN} max={B_MAX} step={B_STEP} disabled={locked} onChange={setParam('b')} />
+          <Knob label="w1" hint={t('tilt (x)')} value={params.w1} min={W_MIN} max={W_MAX} step={W_STEP} disabled={locked} onChange={setParam('w1')} />
+          <Knob label="w2" hint={t('tilt (y)')} value={params.w2} min={W_MIN} max={W_MAX} step={W_STEP} disabled={locked} onChange={setParam('w2')} />
+          <Knob label="b" hint={t('bias (slide)')} value={params.b} min={B_MIN} max={B_MAX} step={B_STEP} disabled={locked} onChange={setParam('b')} />
           <div className="flex items-center gap-2">
             <RetroButton
               accent={ACCENT}
@@ -243,18 +249,18 @@ export default function PerceptronGame({ difficulty, onComplete }: MinigameProps
               onClick={train}
               disabled={locked || energy <= 0 || wrong.length === 0}
               className="flex-1 px-3 py-2 text-xs font-bold tracking-widest"
-              title="One Rosenblatt update: w += 0.25·label·input on the first wrong point"
+              title={t('One Rosenblatt update: w += 0.25·label·input on the first wrong point')}
             >
-              TRAIN STEP ⚡
+              {t('TRAIN STEP ⚡')}
             </RetroButton>
-            <div className="flex gap-1" title={`Energy ${energy}/${ENERGY}`}>
+            <div className="flex gap-1" title={t('Energy {energy}/{max}', { energy, max: ENERGY })}>
               {energyLamps.map((on, i) => (
                 <span key={i} style={{ width: 8, height: 18, borderRadius: 2, background: on ? '#FFB84D' : '#1A1C26', boxShadow: on ? '0 0 6px #FFB84D' : 'none' }} />
               ))}
             </div>
           </div>
           <div className="pcp-hint font-mono-data text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
-            Red ● must sit in the red-shaded side (the arrow points there). Cyan ■ on the other.
+            {t('Red ● must sit in the red-shaded side (the arrow points there). Cyan ■ on the other.')}
           </div>
         </div>
 

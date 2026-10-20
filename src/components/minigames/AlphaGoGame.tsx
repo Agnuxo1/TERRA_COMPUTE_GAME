@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { play } from '../../hooks/useSound';
+import { t } from '../../i18n';
 import { MinigameShell, MinigameResultCard } from './MinigameShell';
 import type { MinigameProps, MinigameResult } from './types';
 import { mulberry32 } from './logic/rng.ts';
@@ -16,6 +17,8 @@ export { meta };
 
 const ACCENT = meta.accent;
 const LIVES = 2;
+/** Placeholder marking where a styled value goes inside a translated sentence. */
+const SLOT = '\u0001';
 
 type Phase = 'play' | 'ended';
 
@@ -47,21 +50,21 @@ export default function AlphaGoGame({ difficulty, onComplete }: MinigameProps) {
   useEffect(() => {
     if (phase !== 'play' || st.winner !== 0 || st.turn !== WHITE) return;
     setThinking(true);
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       const mv = aiMove(st.board, WHITE, level, rng);
       setThinking(false);
       if (mv === null) return;
       const nx = applyGameMove(st, mv);
       if (nx) { play('build'); setSt(nx); }
     }, 650);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [st, phase, level, rng]);
 
   // Game end handling
   useEffect(() => {
     if (st.winner === 0 || phase !== 'play') return;
     const playerWon = st.winner === BLACK;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       if (playerWon) {
         const o: GoOutcome = gameNo === 1 ? (st.playerMoves <= fastLimit ? 'win-fast' : 'win') : 'win-second';
         play('coin');
@@ -70,10 +73,10 @@ export default function AlphaGoGame({ difficulty, onComplete }: MinigameProps) {
         setResult({
           stars,
           summary: o === 'win-fast'
-            ? `Captured in ${st.playerMoves} moves. Proto-AlphaGo is shaken.`
+            ? t('Captured in {moves} moves. Proto-AlphaGo is shaken.', { moves: st.playerMoves })
             : o === 'win'
-              ? `Captured in ${st.playerMoves} moves. Try for ${fastLimit} or fewer next time.`
-              : 'You won the rematch on your second life.',
+              ? t('Captured in {moves} moves. Try for {limit} or fewer next time.', { moves: st.playerMoves, limit: fastLimit })
+              : t('You won the rematch on your second life.'),
         });
         setPhase('ended');
       } else {
@@ -81,20 +84,20 @@ export default function AlphaGoGame({ difficulty, onComplete }: MinigameProps) {
         setPhase('ended');
         setOutcome('lose');
         if (lives - 1 <= 0) {
-          setResult({ stars: 0, summary: 'Proto-AlphaGo won both games.' });
+          setResult({ stars: 0, summary: t('Proto-AlphaGo won both games.') });
         }
       }
     }, 1100);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [st.winner, phase, st.playerMoves, gameNo, fastLimit, lives]);
 
   const cell = (i: number) => ({ x: (i % n) + 1, y: Math.floor(i / n) + 1 });
 
   const onPoint = (i: number) => {
     if (phase !== 'play' || st.winner !== 0 || st.turn !== BLACK) return;
-    if (st.board[i] !== EMPTY) { setNote('That point is taken.'); return; }
+    if (st.board[i] !== EMPTY) { setNote(t('That point is taken.')); return; }
     const nx = applyGameMove(st, i);
-    if (!nx) { setNote('Illegal: that stone would have no liberties and capture nothing.'); play('alert'); return; }
+    if (!nx) { setNote(t('Illegal: that stone would have no liberties and capture nothing.')); play('alert'); return; }
     setNote('');
     play('click');
     setSt(nx);
@@ -127,20 +130,23 @@ export default function AlphaGoGame({ difficulty, onComplete }: MinigameProps) {
     : [[3, 3]];
 
   const statusLine = st.winner !== 0
-    ? (st.winner === BLACK ? 'CAPTURE! You win this game.' : 'White captured your stones.')
-    : thinking || st.turn === WHITE ? 'Proto-AlphaGo is thinking...' : 'Your move, Black.';
+    ? (st.winner === BLACK ? t('CAPTURE! You win this game.') : t('White captured your stones.'))
+    : thinking || st.turn === WHITE ? t('Proto-AlphaGo is thinking...') : t('Your move, Black.');
 
   const hint = atariBlack.length > 0 && st.winner === 0
-    ? 'DANGER: a black group is in atari. Extend it or capture first!'
+    ? t('DANGER: a black group is in atari. Extend it or capture first!')
     : atariWhite.length > 0 && st.winner === 0
-      ? 'A white group is in atari. Capture it at the marked point!'
-      : note || 'Reduce white liberties while keeping yours high.';
+      ? t('A white group is in atari. Capture it at the marked point!')
+      : note || t('Reduce white liberties while keeping yours high.');
+
+  // "YOUR MOVES n / limit for ★★★": the move count is styled, so the sentence is split around it.
+  const [movesBefore, movesAfter] = t('YOUR MOVES {moves} / {limit} for ★★★', { moves: SLOT, limit: fastLimit }).split(SLOT);
 
   return (
     <MinigameShell
       meta={meta}
-      status={`GAME ${gameNo}/${LIVES} · LIVES ${lives}/${LIVES}`}
-      onAbandon={() => finish({ stars: 0, summary: 'Exercise abandoned.' })}
+      status={t('GAME {game}/{max} · LIVES {left}/{max}', { game: gameNo, max: LIVES, left: lives })}
+      onAbandon={() => finish({ stars: 0, summary: t('Exercise abandoned.') })}
     >
       <style>{`
         @keyframes go-atari { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
@@ -245,7 +251,7 @@ export default function AlphaGoGame({ difficulty, onComplete }: MinigameProps) {
         >
           <div>
             <div className="font-mono-data text-[10px] tracking-[0.25em]" style={{ color: 'var(--text-tertiary)' }}>
-              {n}x{n} BOARD · AI LEVEL {level}
+              {t('{n}x{n} BOARD · AI LEVEL {level}', { n, level })}
             </div>
             <div className="font-orbitron text-lg font-black leading-tight md:text-xl" style={{ color: '#FFF4C2' }}>
               {statusLine}
@@ -253,14 +259,14 @@ export default function AlphaGoGame({ difficulty, onComplete }: MinigameProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="font-mono-data text-[10px]" style={{ color: 'var(--text-tertiary)' }}>LIVES</span>
+            <span className="font-mono-data text-[10px]" style={{ color: 'var(--text-tertiary)' }}>{t('LIVES')}</span>
             {Array.from({ length: LIVES }, (_, i) => (
               <span key={i} style={{ color: i < lives ? '#FF477E' : '#2A2E42', textShadow: i < lives ? '0 0 10px #FF477E' : 'none', fontSize: 18 }}>♥</span>
             ))}
           </div>
 
           <div className="font-mono-data text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-            YOUR MOVES <span style={{ color: st.playerMoves <= fastLimit ? '#00E5A0' : '#FFB84D' }}>{st.playerMoves}</span> / {fastLimit} for ★★★
+            {movesBefore}<span style={{ color: st.playerMoves <= fastLimit ? '#00E5A0' : '#FFB84D' }}>{st.playerMoves}</span>{movesAfter}
           </div>
 
           <div
@@ -272,26 +278,26 @@ export default function AlphaGoGame({ difficulty, onComplete }: MinigameProps) {
 
           <div className="grid grid-cols-2 gap-2 font-mono-data text-[10px]" style={{ color: 'var(--text-secondary)' }}>
             <div className="rounded p-2" style={{ background: '#000A', border: '1px solid var(--border-light)' }}>
-              <span style={{ color: '#fff' }}>● BLACK (you)</span><br />liberties {bLib}
+              <span style={{ color: '#fff' }}>{t('● BLACK (you)')}</span><br />{t('liberties {n}', { n: bLib })}
             </div>
             <div className="rounded p-2" style={{ background: '#000A', border: '1px solid var(--border-light)' }}>
-              <span style={{ color: '#ddd' }}>○ WHITE (AI)</span><br />liberties {wLib}
+              <span style={{ color: '#ddd' }}>{t('○ WHITE (AI)')}</span><br />{t('liberties {n}', { n: wLib })}
             </div>
           </div>
 
           <div className="font-mono-data text-[10px] leading-relaxed" style={{ color: 'var(--text-tertiary)' }}>
-            <span style={{ color: '#FF477E' }}>◇</span> last liberty of a group in atari<br />
-            Board full, no capture: more total liberties wins (tie: Black).
+            <span style={{ color: '#FF477E' }}>◇</span> {t('last liberty of a group in atari')}<br />
+            {t('Board full, no capture: more total liberties wins (tie: Black).')}
           </div>
         </div>
 
         {phase === 'ended' && outcome === 'lose' && lives > 1 && (
           <Overlay>
-            <div className="font-mono-data text-[10px] tracking-[0.3em] mb-1" style={{ color: '#FF477E' }}>LIFE LOST</div>
+            <div className="font-mono-data text-[10px] tracking-[0.3em] mb-1" style={{ color: '#FF477E' }}>{t('LIFE LOST')}</div>
             <p className="font-rajdhani text-base mb-4" style={{ color: 'var(--text-primary)' }}>
-              Proto-AlphaGo captured first. You have one life left: win the rematch to earn a star.
+              {t('Proto-AlphaGo captured first. You have one life left: win the rematch to earn a star.')}
             </p>
-            <OverlayButton onClick={next}>REMATCH ▶</OverlayButton>
+            <OverlayButton onClick={next}>{t('REMATCH ▶')}</OverlayButton>
           </Overlay>
         )}
         {phase === 'ended' && result && (
