@@ -1,6 +1,6 @@
 {
   "name": "terra-compute-android",
-  "version": "4.2.0",
+  "version": "4.3.0",
   "private": true,
   "description": "Terra Compute for Android (Capacitor): the same web build as the desktop and itch.io versions, bundled inside the APK.",
   "scripts": {
