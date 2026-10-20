@@ -5,7 +5,7 @@ import { t } from '../i18n/index.ts';
 export interface ScoreLine { label: string; points: number }
 export interface FinalScore { total: number; raw: number; rank: 'S' | 'A' | 'B' | 'C' | 'D'; title: string; lines: ScoreLine[]; mult: number }
 
-const DIFF_MULT = { easy: 0.8, normal: 1, hard: 1.3 } as const;
+const DIFF_MULT = { easy: 0.8, normal: 1, hard: 1.3, doomsday: 1.6 } as const;
 const MODE_MULT: Record<string, number> = { pioneer: 0.6, strategist: 0.9, complete: 1 };
 
 export function finalScore(s: GameState): FinalScore {

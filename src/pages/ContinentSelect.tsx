@@ -18,13 +18,14 @@ function buildDifficulties(): Array<{ id: Difficulty; label: string; color: stri
     { id: 'easy', label: t('EASY'), color: 'var(--green)', text: t('Rivals research slower, milder climate, more starting budget.') },
     { id: 'normal', label: t('NORMAL'), color: 'var(--cyan)', text: t('The historical race as balanced. Recommended first game.') },
     { id: 'hard', label: t('HARD'), color: 'var(--rose)', text: t('Rivals research faster, harsher climate, less starting budget.') },
+    { id: 'doomsday', label: t('DOOMSDAY'), color: '#B026FF', text: t('Hard, and every AI bloc gangs up on whoever leads the race.') },
   ];
 }
 
 function loadDifficulty(): Difficulty {
   try {
     const v = localStorage.getItem(DIFF_KEY);
-    return v === 'easy' || v === 'hard' || v === 'normal' ? v : 'normal';
+    return v === 'easy' || v === 'hard' || v === 'normal' || v === 'doomsday' ? v : 'normal';
   } catch {
     return 'normal';
   }

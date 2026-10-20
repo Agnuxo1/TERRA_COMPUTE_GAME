@@ -225,7 +225,7 @@ export default function LobbyScreen() {
                       ))}
                     </div>
                     <div className="flex gap-1.5">
-                      {(['easy', 'normal', 'hard'] as Difficulty[]).map(d => (
+                      {(['easy', 'normal', 'hard', 'doomsday'] as Difficulty[]).map(d => (
                         <button key={d} disabled={!ses.isHost} onClick={() => ses.setOptions({ difficulty: d })}
                           className="flex-1 font-mono-data text-[10px] tracking-widest py-1.5 rounded disabled:cursor-default"
                           style={{ color: lobby.difficulty === d ? '#050608' : 'var(--text-secondary)', background: lobby.difficulty === d ? 'var(--cyan)' : 'transparent', border: '1px solid rgba(0,240,255,0.35)' }}>{t('{level} AI', { level: d.toUpperCase() })}</button>

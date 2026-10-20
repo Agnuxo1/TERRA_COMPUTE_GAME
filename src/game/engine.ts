@@ -699,8 +699,8 @@ export function affinity(a: string, b: string): number {
   return AFFINITY[`${a}-${b}`] ?? AFFINITY[`${b}-${a}`] ?? 0;
 }
 
-const DIFF_LAG: Record<Difficulty, number> = { easy: 1.5, normal: 0, hard: -1.2 };
-const DIFF_CLIMATE: Record<Difficulty, number> = { easy: 0.85, normal: 1, hard: 1.15 };
+const DIFF_LAG: Record<Difficulty, number> = { easy: 1.5, normal: 0, hard: -1.2, doomsday: -0.6 };
+const DIFF_CLIMATE: Record<Difficulty, number> = { easy: 0.85, normal: 1, hard: 1.15, doomsday: 1.15 };
 
 function createRivals(player: string, mode: GameMode, startYear: number, difficulty: Difficulty): Rival[] {
   return continents.filter(c => c.id !== player).map(c => {
@@ -834,7 +834,7 @@ function rivalAction(s: GameState, r: Rival, pioneer: boolean) {
   const name = rivalName(r.id);
   const defense = countBuildings(s, 'defense', true);
   const opsMult = bonus(s, 'enemyOps') ?? 1;
-  if (!pioneer && !pactWith(s, r.id) && r.relation < -20 && (r.strategy === 'aggressive' || r.relation < -50) && s.year > 1970 && chance(Math.min(0.95, 0.6 * aggression(r) * (s.mods?.aiAggression ?? 1)))) {
+  if (!pioneer && !pactWith(s, r.id) && r.relation < -20 && (r.strategy === 'aggressive' || r.relation < -50) && s.year > 1970 && chance(Math.min(0.95, 0.6 * aggression(r) * (s.mods?.aiAggression ?? 1) * (s.difficulty === 'doomsday' && doomsdayTarget(s) ? 1.8 : 1)))) {
     const powers = s.modifiers.some(m => m.id === 'emergency_powers') ? 0.7 : 1;
     const sweep = s.modifiers.some(m => m.id === 'counterintel') ? 0.6 : 1;
     raiseTension(s, 3);
@@ -1044,7 +1044,7 @@ export function startGame(state: GameState, continentId: string, seed = Date.now
   eco = computeEconomy(s);
   s.legacy.energy = Math.max(10, eco.energyDemand * 1.18 - eco.energySupply);
   s.eco = computeEconomy(s);
-  s.budget = s.eco.income * (strategist ? 1.2 : 0.9) * (difficulty === 'easy' ? 1.3 : difficulty === 'hard' ? 0.85 : 1);
+  s.budget = s.eco.income * (strategist ? 1.2 : 0.9) * (difficulty === 'easy' ? 1.3 : difficulty === 'hard' || difficulty === 'doomsday' ? 0.85 : 1);
   s.difficulty = difficulty;
   s.steel = strategist ? 120 : 40;
   s.chips = strategist ? 30 : 4;
@@ -1393,18 +1393,19 @@ function yearly(s: GameState, year: number, pioneer: boolean) {
   const eco = s.eco;
   const collapse = s.approval < 20;
   const fr = eco.foodSupply / Math.max(1, eco.foodDemand);
+  const grace = s.difficulty === 'easy' ? 5 : 3;   // guide 8.4: Easy forgives two more years of crisis
   if (!pioneer && collapse) {
     s.crisis = { kind: 'approval', years: (s.crisis?.kind === 'approval' ? s.crisis.years : 0) + 1 };
-    if (s.crisis.years >= 3) {
+    if (s.crisis.years >= grace) {
       s.outcome = 'revolution';
       s.gameOverReason = t('Revolution in {year}. After years of hunger, unemployment and broken promises, the people stormed the ministries. Approval had fallen to {approval}%.', { year, approval: Math.round(s.approval) });
-    } else notify(s, t('☭ REVOLUTIONARY SITUATION: approval {approval}%. {years} year(s) to restore order!', { approval: Math.round(s.approval), years: 3 - s.crisis.years }), 'danger');
+    } else notify(s, t('☭ REVOLUTIONARY SITUATION: approval {approval}%. {years} year(s) to restore order!', { approval: Math.round(s.approval), years: grace - s.crisis.years }), 'danger');
   } else if (!pioneer && s.budget < -Math.max(300, eco.income * 1.5)) {
     s.crisis = { kind: 'bankrupt', years: (s.crisis?.kind === 'bankrupt' ? s.crisis.years : 0) + 1 };
-    if (s.crisis.years >= 3) {
+    if (s.crisis.years >= grace) {
       s.outcome = 'bankrupt';
       s.gameOverReason = t('State bankruptcy in {year}. Debt spiralled beyond control and foreign creditors took over your economy.', { year });
-    } else notify(s, t('💸 DEBT CRISIS: raise taxes or demolish costly buildings. {years} year(s) left.', { years: 3 - s.crisis.years }), 'danger');
+    } else notify(s, t('💸 DEBT CRISIS: raise taxes or demolish costly buildings. {years} year(s) left.', { years: grace - s.crisis.years }), 'danger');
   } else if (fr < 0.85) {
     s.crisis = { kind: 'famine', years: (s.crisis?.kind === 'famine' ? s.crisis.years : 0) + 1 };
     notify(s, t('🌾 FAMINE: food at {food}%. Build farms now.', { food: Math.round(fr * 100) }), 'danger');
@@ -1442,6 +1443,11 @@ function yearly(s: GameState, year: number, pioneer: boolean) {
     if (!s.projects) s.projects = initProjects();
     if (!s.mp || s.mp.offline || s.mp.role === 'host') tickZones(s, DE);
     tickProjects(s, DE);
+  }
+  // Guide 8.4, Doomsday difficulty: once you are near the lead, every AI bloc turns against you.
+  if (s.difficulty === 'doomsday' && !pioneer && doomsdayTarget(s)) {
+    s.rivals = s.rivals.map(r => (isRemote(s, r.id) ? r : { ...r, relation: Math.max(-70, r.relation - 3), lag: r.lag - 0.04 }));
+    if (year % 5 === 0) notify(s, t('☠ DOOMSDAY: the other blocs coordinate against you, the race leader.'), 'danger');
   }
   // Silicon hegemony: chips at 60% or more of the world estimate for five years running (counted from 1990,
   // when rivals enter the estimate; before that a single chip fab would read as 100% of the world).
@@ -1543,6 +1549,11 @@ const DE: DEHelpers = {
 };
 
 // --- G4 deals and pacts -------------------------------------------------------
+/** Guide 8.4: in Doomsday the coalition forms once the player is within half a capability point of the lead. */
+function doomsdayTarget(s: GameState): boolean {
+  return s.capability >= Math.max(...s.rivals.map(r => r.capability), 0) - 0.5;
+}
+
 /** G3: translated side name for team games. */
 function teamName(id: string): string { return TEAM_WEST.includes(id) ? t('Western Bloc') : t('Eastern Bloc'); }
 
