@@ -116,8 +116,8 @@ export default function OverviewPanel() {
             progress={(state.siliconYears ?? 0) / 5} color="var(--green)"
             hint={state.year <= 1990 ? t('Needs 60% of world chip output for 5 years. Counts from 1990.') : t('Needs 60% of world chip output for 5 years.')} />
           <PathRow label={t('Custodian (shared victory)')}
-            value={t('alignment {al}%/90 · safety treaties {n}/3', { al: Math.round(state.alignment), n: safetyTreaties(state) })}
-            progress={Math.min(state.alignment / 90, safetyTreaties(state) / 3)} color={custodianReady(state) ? 'var(--green)' : 'var(--amber)'}
+            value={t('alignment {al}%/95 · safety treaties {n}/5 · stay within 10× of the leader', { al: Math.round(state.alignment), n: safetyTreaties(state) })}
+            progress={Math.min(state.alignment / 95, safetyTreaties(state) / 5)} color={custodianReady(state) ? 'var(--green)' : 'var(--amber)'}
             hint={t('Pays out only if a rival ignites a safe superintelligence first.')} />
         </div>
       </Section>
