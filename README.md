@@ -12,6 +12,10 @@
 
 ---
 
+<!-- impact-note:start -->
+<sub><strong>Efficiency and practical value.</strong> TERRA COMPUTE makes trade-offs among computing capacity, power supply, resources, alignment and planetary health explorable in a browser-based strategy game. Reusable TypeScript rules and headless balance simulations support experimentation with the game without manually replaying every scenario. The <a href="#game-mechanics">game mechanics</a> offer educational and development value; simulated climate outcomes are not measurements of real-world emissions savings.</sub>
+<!-- impact-note:end -->
+
 ## What is TERRA COMPUTE?
 
 **TERRA COMPUTE: Race to ASI** is a browser-based grand strategy game where you lead a continent through the most transformative era in human history — from the Cold War of **1960** to the brink of the **Singularity in 2035**. Build infrastructure, research breakthrough technologies, manage resources, outmaneuver rival AI superpowers, and race to become the first nation to achieve **Artificial Superintelligence**.
